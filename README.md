@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Santa Cruz — Sistema de Orçamentos
 
-## Getting Started
+Migração do painel de orçamentos da Santa Cruz Ind. Gráfica (hoje um Claude Artifact
+single-file, `santa-cruz-orcamentos.html`) para um sistema próprio em Next.js.
+Automação construída no Claude Code.
 
-First, run the development server:
+Fonte da verdade do modelo de dados/regras do sistema atual:
+`ESPECIFICACAO-sistema-atual.md`, na raiz do repositório de origem.
+
+## Status: Fase 1 (Fundação)
+
+- [x] Next.js (App Router) + TypeScript
+- [x] Schema Prisma (Postgres) para `orcamentos`, `perfis`, `usuarios`, `anexos`
+- [x] Login por PIN hasheado com bcrypt + sessão de servidor (Auth.js)
+- [x] Tela de Administração (Perfis de acesso + Usuários) validada no servidor
+- [ ] Fluxo de 6 etapas (Solicitação → Engenharia → Orçamento → Diretoria → Envio de Oferta →
+      Finalizado) — Fase 2
+
+## Rodando localmente
 
 ```bash
+npm install
+npx prisma dev -d          # Postgres local efêmero (ou aponte DATABASE_URL para o Neon)
+cp .env.example .env       # preencha DATABASE_URL e AUTH_SECRET
+npx prisma migrate dev
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra [http://localhost:3000](http://localhost:3000). No primeiro acesso (banco sem nenhum
+usuário), a tela de login vira um formulário de criação do administrador.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Next.js 16** (App Router, Server Actions)
+- **Prisma 7** com o driver adapter `@prisma/adapter-pg` (funciona igual contra o Postgres
+  local do `prisma dev` e contra o Neon)
+- **Auth.js v5** (Credentials provider, sessão JWT)
+- **bcryptjs** para o hash do PIN
+- Deploy: **Vercel**, banco: **Neon** (Postgres serverless)
