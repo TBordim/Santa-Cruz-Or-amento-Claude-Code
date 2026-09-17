@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Sans_Condensed, IBM_Plex_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -30,8 +30,23 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Painel de Orçamentos — Santa Cruz",
+  title: "Orçamento Santa Cruz",
   description: "Sistema interno de orçamentos da Santa Cruz Ind. Gráfica",
+  // apple-touch-icon e o título de tela cheia do iOS não vêm do manifest.ts (o Safari ignora
+  // manifest para "Adicionar à Tela de Início") — precisam desses meta tags/links próprios.
+  icons: {
+    icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Orçamento SC",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#B5502E",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
