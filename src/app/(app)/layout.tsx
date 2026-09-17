@@ -1,18 +1,26 @@
-import { redirect } from "next/navigation";
 import { sessaoAtual } from "@/lib/permissions";
+import { prisma } from "@/lib/db";
 import { Sidebar } from "./Sidebar";
 
-// Segunda camada de proteção além do middleware (que só confirma que existe um cookie de
-// sessão válido): aqui confirmamos de novo, contra o banco, que o usuário ainda existe e está
-// ativo — se alguém for desativado com a sessão já aberta, cai fora na próxima navegação em vez
-// de esperar o JWT (8h) expirar sozinho.
+// Não redireciona mais pra /login incondicionalmente — /novo (Novo Orçamento) é pública
+// (representante sem login, ver auth.config.ts). Cada página protegida (painel, diretoria,
+// administração, legado, histórico, resumo) faz seu próprio
+// `if (!sessao) redirect("/login")` no topo — mesmo padrão já usado em administracao/page.tsx.
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const sessao = await sessaoAtual();
-  if (!sessao) redirect("/login");
+
+  const pendentesDiretoria = sessao
+    ? await prisma.orcamento.count({ where: { etapa: "DIRETORIA", statusDiretoria: "PENDENTE" } })
+    : 0;
 
   return (
     <div id="app">
-      <Sidebar nome={sessao.nome} perfilNome={sessao.perfilNome} admin={sessao.admin} />
+      <Sidebar
+        nome={sessao?.nome ?? null}
+        perfilNome={sessao?.perfilNome ?? null}
+        admin={sessao?.admin ?? false}
+        pendentesDiretoria={pendentesDiretoria}
+      />
       <main>{children}</main>
     </div>
   );

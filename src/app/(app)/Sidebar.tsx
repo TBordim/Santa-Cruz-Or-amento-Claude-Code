@@ -5,18 +5,30 @@ import { usePathname } from "next/navigation";
 import { sair } from "./actions";
 
 type Props = {
-  nome: string;
-  perfilNome: string;
+  nome: string | null;
+  perfilNome: string | null;
   admin: boolean;
+  pendentesDiretoria?: number;
 };
 
-// Versão reduzida da sidebarHtml() do painel atual (linhas 2980-3063): nesta fase só existem
-// "Início" (tela "Em construção") e "Administração" — o resto da navegação (Painel, Diretoria,
-// Histórico, Arquivo legado, Resumo semanal) chega junto com o fluxo de 6 etapas na Fase 2.
-export function Sidebar({ nome, perfilNome, admin }: Props) {
+// Versão de sidebarHtml() do painel atual (linhas 2980-3063). Sem sessão, só existe "Novo
+// Orçamento" (representante externo) + link pra login — mesmo comportamento do sidebarHtml
+// original quando !sessaoAtual().
+export function Sidebar({ nome, perfilNome, admin, pendentesDiretoria = 0 }: Props) {
   const pathname = usePathname();
+  const logado = !!nome;
 
-  const items = [{ href: "/", label: "Início" }, ...(admin ? [{ href: "/administracao", label: "Administração" }] : [])];
+  const items = logado
+    ? [
+        { href: "/painel", label: "Painel" },
+        { href: "/novo", label: "Novo orçamento" },
+        { href: "/diretoria", label: "Diretoria", count: pendentesDiretoria },
+        { href: "/historico", label: "Histórico" },
+        { href: "/legado", label: "Arquivo legado" },
+        { href: "/resumo", label: "Resumo semanal" },
+        ...(admin ? [{ href: "/administracao", label: "Administração" }] : []),
+      ]
+    : [{ href: "/novo", label: "Novo orçamento" }];
 
   return (
     <div className="sidebar">
@@ -36,20 +48,29 @@ export function Sidebar({ nome, perfilNome, admin }: Props) {
         {items.map((it) => (
           <Link key={it.href} href={it.href} className={`nav-btn${pathname === it.href ? " active" : ""}`}>
             <span className="nav-label">{it.label}</span>
+            {"count" in it && <span className={`count${it.count ? "" : " zero"}`}>{it.count}</span>}
           </Link>
         ))}
       </nav>
 
-      <div className="persona-box conta-box">
-        <span className="label">Conectado como</span>
-        <div className="conta-nome">{nome}</div>
-        <div className="conta-perfil">{perfilNome}{admin ? " · Administrador" : ""}</div>
-        <form action={sair}>
-          <button type="submit" className="btn ghost" style={{ marginTop: 8, width: "100%" }}>
-            Sair
-          </button>
-        </form>
-      </div>
+      {logado ? (
+        <div className="persona-box conta-box">
+          <span className="label">Conectado como</span>
+          <div className="conta-nome">{nome}</div>
+          <div className="conta-perfil">{perfilNome}{admin ? " · Administrador" : ""}</div>
+          <form action={sair}>
+            <button type="submit" className="btn ghost" style={{ marginTop: 8, width: "100%" }}>
+              Sair
+            </button>
+          </form>
+        </div>
+      ) : (
+        <div className="persona-box">
+          <Link href="/login" className="btn ghost" style={{ width: "100%", display: "block", textAlign: "center" }}>
+            Sou colaborador · Entrar
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

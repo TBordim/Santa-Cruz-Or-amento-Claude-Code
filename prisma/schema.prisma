@@ -1,10 +1,10 @@
-// Schema da Fase 1 (Fundação) da migração do painel Santa Cruz Orçamentos.
-// Fonte da verdade do modelo de dados atual: ESPECIFICACAO-sistema-atual.md, seção 1.
+// Schema da migração do painel Santa Cruz Orçamentos.
+// Fonte da verdade do modelo de dados: ESPECIFICACAO-sistema-atual.md + santa-cruz-orcamentos.html.
 //
-// `perfis` e `usuarios` reproduzem fielmente os campos de hoje (seção 4).
-// `orcamentos` e `anexos` existem como esqueleto relacional simplificado — os objetos
-// aninhados por etapa (reqCliente, reqTecnicos, precificacao, leituraAnterior) ficam em
-// Json por enquanto e ganham modelagem relacional própria na Fase 2 (fluxo de 6 etapas).
+// `perfis` e `usuarios` reproduzem fielmente os campos de hoje (seção 4 da especificação).
+// `orcamentos` cobre o fluxo completo das 6 etapas (Fase 2). Os objetos aninhados por etapa
+// (reqCliente, reqTecnicos, precificacao) continuam Json de propósito — são sempre lidos/
+// escritos inteiros junto do orçamento, nunca em join isolado por faixa; ver plano da Fase 2.
 
 generator client {
   provider = "prisma-client"
@@ -51,7 +51,7 @@ model Usuario {
   @@map("usuarios")
 }
 
-// ---------- orçamentos (esqueleto — fluxo completo entra na Fase 2) ----------
+// ---------- orçamentos ----------
 
 enum OrigemOrcamento {
   NOVO
@@ -82,6 +82,13 @@ enum Classificacao {
   REPETICAO_NOVO
 }
 
+enum Desfecho {
+  AGUARDANDO
+  POSITIVO
+  NEGATIVO
+  SEM_RETORNO
+}
+
 model Orcamento {
   id               String           @id @default(cuid())
   origem           OrigemOrcamento  @default(NOVO)
@@ -100,17 +107,79 @@ model Orcamento {
   etapa            EtapaOrcamento?  // null nos registros de origem "legado"
   statusDiretoria  StatusDiretoria?
 
+  // ---------- Em Aberto — campos comerciais (lerCamposComerciais no HTML original) ----------
+  origemPedido       String?
+  classificacaoDetalhe String?
+  analiseCredito     String?
+  fsc                String?
+  usaSelo            Boolean  @default(false)
+  endereco           String?
+  cnpj               String?
+  representante      String?
+  comissaoCev        String?
+  telefone           String?
+  email              String?
+  contatoCompras     String?
+  contatoTecnico     String?
+  condPagamento      String?
+  entregaLocalidade  String?
+  modalidade         String?
+  qtdEntregas        String?
+  entregaDatas       String?
+  obs                String?
+
+  // ---------- Engenharia ----------
+  obsEngenharia      String?
+  vistoEngenhariaPor String?
+  vistoEngenhariaEm  DateTime?
+
+  // ---------- Orçamento / Diretoria ----------
+  // Orçamento anterior usado como referência de comparação (casamento interno exato por
+  // clienteChave+produtoChave) — upgrade sobre o "id solto" do sistema atual: aqui é uma
+  // relação de verdade.
+  orcamentoAnteriorId String?
+  orcamentoAnterior   Orcamento?  @relation("OrcamentoRepeticao", fields: [orcamentoAnteriorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  repeticoes          Orcamento[] @relation("OrcamentoRepeticao")
+  precoAnterior       Decimal?    @db.Decimal(12, 2)
+  prazoDias           Int?
+  comissaoEspecial    Boolean     @default(false)
+  comissaoObs         String?
+  acabamento          String?
+  produtoNovo         Boolean?
+  conflitoClassificacao Boolean   @default(false)
+
+  // ---------- Compras (estado de espera dentro da etapa Orçamento) ----------
+  aguardandoCompras    Boolean   @default(false)
+  comprasPedidoEm      DateTime?
+  comprasRetornoEm     DateTime?
+  comprasItem          String?
+  comprasSolicitadoPor String?
+
+  // ---------- Envio de Oferta / Finalizado ----------
+  finalizadoEm    DateTime?
+  desfecho        Desfecho?
+  desfechoMotivo  String?
+  desfechoPor     String?
+  desfechoEm      DateTime?
+
   // Específicos do Arquivo legado (origem = LEGADO) — seção 1 da especificação.
   precoAtual       Decimal?         @db.Decimal(12, 2)
   custoPrimarioPct Decimal?         @db.Decimal(5, 2)
   margemP2Pct      Decimal?         @db.Decimal(5, 2)
   quantidade       Decimal?         @db.Decimal(12, 2)
   dataLegadoTexto  String?
-  obs              String?
-  fotoDados        String?          @db.Text
+  // Foto/PDF opcional da folha física — Vercel Blob (mesmo storage dos outros anexos), mas
+  // como campo único no documento (não uma lista): só existe 1 foto por registro do legado.
+  fotoUrl          String?
+  fotoPathname     String?
   fotoMime         String?
 
-  // Objetos aninhados por etapa — Json nesta fase, viram tabelas próprias na Fase 2.
+  // Objetos aninhados por etapa — Json de propósito, ver nota no topo do arquivo.
+  // reqCliente: medidas, suportes[{descricao,gramatura}], acabamentos[]/verniz[]/plastico[]/
+  //   embalagem[]/impressao[], fechamentoTampa/Fundo, quantidadesLista[].
+  // reqTecnicos: suportes[{formato,codigo}], qtdFolha/fatorC/fatorL/corte/qtdCh/idealC/idealL/
+  //   flsAcerto, anexos[], infoComplementares.
+  // precificacao: array de faixas — ver src/lib/orcamentos/types.ts para o formato exato.
   reqCliente       Json?
   reqTecnicos      Json?
   precificacao     Json?
@@ -141,9 +210,11 @@ model Anexo {
   nome         String
   mime         String
   tamanho      Int
-  // Data URL do arquivo — mesma limitação de hoje (~180kB); storage de arquivo de verdade é
-  // item da Fase 2 (ver seção 8, limitação "Anexos limitados a ~180 KB por arquivo").
-  dados        String    @db.Text
+  // Storage de arquivo de verdade (Vercel Blob) — resolve a limitação de ~180KB do banco de
+  // documentos original (seção 8 da especificação). `pathname` é a chave interna do Blob,
+  // usada para excluir o arquivo com del() quando o anexo é removido.
+  url          String
+  pathname     String
   enviadoPorId String?
   enviadoPor   Usuario?  @relation("AnexoEnviadoPor", fields: [enviadoPorId], references: [id])
   enviadoEm    DateTime  @default(now())

@@ -25,6 +25,9 @@ export const authConfig = {
         // já logado tentando ver /login de novo: manda para a home
         return logado ? Response.redirect(new URL("/", nextUrl)) : true;
       }
+      // "Novo Orçamento" é a única tela pública — representante comercial externo (sem
+      // usuário cadastrado) só enxerga essa tela, igual ao sistema atual (área NOVO).
+      if (nextUrl.pathname === "/novo") return true;
       return logado;
     },
     jwt({ token, user }) {
