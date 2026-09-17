@@ -7,44 +7,47 @@ import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtDateTime, resumoAcabamento } from "@/lib/orcamentos/constantes";
 import { paraCampoBR } from "@/lib/orcamentos/motor";
+import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { useSalvoToast } from "@/hooks/use-salvo-toast";
 
 function ComprasBox({ doc }: { doc: OrcamentoComAnexos }) {
   if (doc.aguardandoCompras) {
     return (
-      <div className="compras-box ativo">
-        <div className="compras-status">
+      <div className="rounded-lg border border-warn/30 bg-warn-soft p-3">
+        <div className="text-sm text-foreground">
           <strong>Aguardando preço de Compras</strong> desde {fmtDateTime(doc.comprasPedidoEm)}
         </div>
-        {doc.comprasItem && <div className="compras-item">Solicitado: {doc.comprasItem}</div>}
-        <div className="btn-row">
-          <form action={registrarRetornoCompras}>
-            <input type="hidden" name="id" value={doc.id} />
-            <button type="submit" className="btn secondary">Registrar retorno de Compras</button>
-          </form>
-        </div>
+        {doc.comprasItem && <div className="mt-1 text-sm text-muted-foreground">Solicitado: {doc.comprasItem}</div>}
+        <form action={registrarRetornoCompras} className="mt-3">
+          <input type="hidden" name="id" value={doc.id} />
+          <Button type="submit" variant="outline" size="sm">Registrar retorno de Compras</Button>
+        </form>
       </div>
     );
   }
-  return (
-    <ComprasFormBox doc={doc} />
-  );
+  return <ComprasFormBox doc={doc} />;
 }
 
 function ComprasFormBox({ doc }: { doc: OrcamentoComAnexos }) {
   const [, action, pending] = useActionState(solicitarCompras, undefined);
+  useSalvoToast(pending, undefined, "Solicitação enviada a Compras.");
   return (
-    <form action={action} className="compras-box">
+    <form action={action} className="rounded-lg border border-border bg-muted/30 p-3">
       <input type="hidden" name="id" value={doc.id} />
-      {doc.comprasRetornoEm ? (
-        <div className="compras-status">
-          Compras respondeu em {fmtDateTime(doc.comprasRetornoEm)} (solicitado em {fmtDateTime(doc.comprasPedidoEm)}).
-        </div>
-      ) : (
-        <div className="compras-status">Se faltar preço de matéria-prima ou insumo, registre aqui — o orçamento fica em espera até você lançar o retorno.</div>
-      )}
-      <div className="field"><label>O que falta cotar</label><input name="item" placeholder="Ex.: papel cartão 270g, cola bico" /></div>
-      <div className="btn-row">
-        <button type="submit" className="btn ghost" disabled={pending}>Solicitar preço a Compras</button>
+      <div className="text-sm text-muted-foreground">
+        {doc.comprasRetornoEm
+          ? `Compras respondeu em ${fmtDateTime(doc.comprasRetornoEm)} (solicitado em ${fmtDateTime(doc.comprasPedidoEm)}).`
+          : "Se faltar preço de matéria-prima ou insumo, registre aqui — o orçamento fica em espera até você lançar o retorno."}
+      </div>
+      <div className="mt-3 flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-foreground">O que falta cotar</label>
+        <Input name="item" placeholder="Ex.: papel cartão 270g, cola bico" />
+      </div>
+      <div className="mt-3">
+        <Button type="submit" variant="ghost" size="sm" disabled={pending}>Solicitar preço a Compras</Button>
       </div>
     </form>
   );
@@ -54,6 +57,7 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
   const [state, salvarAction, salvando] = useActionState(salvarOrcamento, undefined);
   const [state2, enviarAction, enviando] = useActionState(enviarParaDiretoria, undefined);
   const erro = state?.erro ?? state2?.erro;
+  useSalvoToast(salvando, state?.erro, "Precificação salva.");
 
   const c = doc.reqCliente as ReqCliente | null;
   const quantidades = c?.quantidadesLista ?? [];
@@ -61,15 +65,19 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
 
   return (
     <>
-      <div className="compare-box numeros-box">
-        <div className="compare-row"><span>Cliente</span><span className="v txt">{doc.cliente}</span></div>
-        <div className="compare-row"><span>Produto</span><span className="v txt">{doc.produtoDescricao}</span></div>
-        <div className="compare-row"><span>Nº de Pré Cadastro</span><span className="v">{doc.preCadastro || "—"}</span></div>
+      <ResumoBox
+        rows={[
+          { label: "Cliente", value: doc.cliente },
+          { label: "Produto", value: doc.produtoDescricao },
+          { label: "Nº de Pré Cadastro", value: doc.preCadastro || "—" },
+        ]}
+      />
+
+      <div className="mt-4">
+        <ComprasBox doc={doc} />
       </div>
 
-      <ComprasBox doc={doc} />
-
-      <form id="form-orcamento">
+      <form id="form-orcamento" className="mt-4">
         <input type="hidden" name="id" value={doc.id} form="form-orcamento" />
 
         {quantidades.length === 0 ? (
@@ -78,64 +86,61 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
           quantidades.map((qtd, i) => {
             const t = tiers[i];
             return (
-              <div key={i} className="form-section" style={i === 0 ? { borderTop: "none", marginTop: 0, paddingTop: 0 } : undefined}>
-                <h4>{quantidades.length > 1 ? `Quantidade: ${qtd}` : "Precificação"}</h4>
-                <div className="row2">
-                  <div className="field">
-                    <label>Preço projetado</label>
-                    <input name={`precoProjetado_${i}`} defaultValue={paraCampoBR(t?.precoProjetado)} placeholder="Ex.: 1.234,56" form="form-orcamento" />
-                  </div>
-                  <div className="field">
-                    <label>Custo primário (%)</label>
-                    <input name={`custoPrimarioPct_${i}`} defaultValue={paraCampoBR(t?.custoPrimarioPct)} form="form-orcamento" />
-                  </div>
-                </div>
-                <div className="row2">
-                  <div className="field">
-                    <label>Margem P2 (%)</label>
-                    <input name={`margemP2Pct_${i}`} defaultValue={paraCampoBR(t?.margemP2Pct)} form="form-orcamento" />
-                  </div>
-                  <div className="field" />
-                </div>
-                <div className="row2">
-                  <div className="field"><label>Número de lotes</label><input name={`numeroLotes_${i}`} defaultValue={t?.numeroLotes ?? ""} form="form-orcamento" /></div>
-                  <div className="field"><label>Número de setups</label><input name={`numeroSetups_${i}`} defaultValue={t?.numeroSetups ?? ""} form="form-orcamento" /></div>
-                </div>
-              </div>
+              <FormSection key={i} title={quantidades.length > 1 ? `Quantidade: ${qtd}` : "Precificação"}>
+                <Row2>
+                  <Field label="Preço projetado">
+                    <Input name={`precoProjetado_${i}`} defaultValue={paraCampoBR(t?.precoProjetado)} placeholder="Ex.: 1.234,56" form="form-orcamento" />
+                  </Field>
+                  <Field label="Custo primário (%)">
+                    <Input name={`custoPrimarioPct_${i}`} defaultValue={paraCampoBR(t?.custoPrimarioPct)} form="form-orcamento" />
+                  </Field>
+                </Row2>
+                <Row2>
+                  <Field label="Margem P2 (%)">
+                    <Input name={`margemP2Pct_${i}`} defaultValue={paraCampoBR(t?.margemP2Pct)} form="form-orcamento" />
+                  </Field>
+                  <div />
+                </Row2>
+                <Row2>
+                  <Field label="Número de lotes"><Input name={`numeroLotes_${i}`} defaultValue={t?.numeroLotes ?? ""} form="form-orcamento" /></Field>
+                  <Field label="Número de setups"><Input name={`numeroSetups_${i}`} defaultValue={t?.numeroSetups ?? ""} form="form-orcamento" /></Field>
+                </Row2>
+              </FormSection>
             );
           })
         )}
 
-        <div className="form-section">
-          <h4>Comum a todas as faixas</h4>
-          <div className="row2">
-            <div className="field"><label>Nº de SOPP</label><input name="numeroSequencial" required defaultValue={doc.numeroSequencial ?? ""} form="form-orcamento" /></div>
-            <div className="field"><label>Prazo (dias)</label><input name="prazoDias" type="number" defaultValue={doc.prazoDias ?? ""} form="form-orcamento" /></div>
-          </div>
-          <div className="field">
-            <label>Acabamento</label>
-            <input name="acabamento" defaultValue={doc.acabamento || resumoAcabamento(c)} form="form-orcamento" />
-            <span className="hint">Sugerido a partir da Solicitação — ajuste se precisar.</span>
-          </div>
-          <label className="checkline" style={{ marginBottom: 8 }}>
-            <input type="checkbox" name="comissaoEspecial" defaultChecked={doc.comissaoEspecial} form="form-orcamento" />
+        <FormSection title="Comum a todas as faixas">
+          <Row2>
+            <Field label="Nº de SOPP"><Input name="numeroSequencial" required defaultValue={doc.numeroSequencial ?? ""} form="form-orcamento" /></Field>
+            <Field label="Prazo (dias)"><Input name="prazoDias" type="number" defaultValue={doc.prazoDias ?? ""} form="form-orcamento" /></Field>
+          </Row2>
+          <Field label="Acabamento" hint="Sugerido a partir da Solicitação — ajuste se precisar.">
+            <Input name="acabamento" defaultValue={doc.acabamento || resumoAcabamento(c)} form="form-orcamento" />
+          </Field>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox name="comissaoEspecial" defaultChecked={doc.comissaoEspecial} form="form-orcamento" />
             <span>Condição comercial especial (comissão/desconto)</span>
           </label>
-          <div className="field"><label>Observação da condição especial</label><input name="comissaoObs" defaultValue={doc.comissaoObs ?? ""} form="form-orcamento" /></div>
-        </div>
+          <Field label="Observação da condição especial">
+            <Input name="comissaoObs" defaultValue={doc.comissaoObs ?? ""} form="form-orcamento" />
+          </Field>
+        </FormSection>
       </form>
 
-      <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
-      <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
+      <div className="mt-2 flex flex-col gap-4">
+        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
+        <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
+      </div>
 
       {erro && <div className="anexo-erro">{erro}</div>}
-      <div className="btn-row">
-        <button type="submit" form="form-orcamento" formAction={salvarAction} className="btn secondary" disabled={salvando}>
+      <div className="mt-4 flex gap-2">
+        <Button type="submit" form="form-orcamento" formAction={salvarAction} variant="outline" disabled={salvando}>
           Salvar sem liberar
-        </button>
-        <button type="submit" form="form-orcamento" formAction={enviarAction} className="btn" disabled={enviando || doc.aguardandoCompras}>
+        </Button>
+        <Button type="submit" form="form-orcamento" formAction={enviarAction} disabled={enviando || doc.aguardandoCompras}>
           {enviando ? "Enviando…" : "Enviar para Diretoria"}
-        </button>
+        </Button>
       </div>
     </>
   );

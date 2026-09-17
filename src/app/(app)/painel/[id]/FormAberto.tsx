@@ -6,20 +6,23 @@ import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { salvarAberto, avancarEngenharia } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente } from "@/lib/orcamentos/types";
+import { Button } from "@/components/ui/button";
+import { useSalvoToast } from "@/hooks/use-salvo-toast";
 
 export function FormAberto({ doc }: { doc: OrcamentoComAnexos }) {
   const [state, salvarAction, salvando] = useActionState(salvarAberto, undefined);
   const [state2, avancarAction, avancando] = useActionState(avancarEngenharia, undefined);
   const erro = state?.erro ?? state2?.erro;
+  useSalvoToast(salvando, state?.erro, "Dados salvos.");
 
   return (
     <>
-      <div className="checklist-block">
-        <div className="label" style={{ marginBottom: 4 }}>Diretriz da etapa</div>
-        <div>Preencha os dados comerciais, técnicos básicos e anexe a arte do cliente antes de enviar para a Engenharia.</div>
+      <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+        <div className="mb-1 font-semibold text-foreground">Diretriz da etapa</div>
+        <div className="text-muted-foreground">Preencha os dados comerciais, técnicos básicos e anexe a arte do cliente antes de enviar para a Engenharia.</div>
       </div>
 
-      <form id="form-aberto">
+      <form id="form-aberto" className="mt-4">
         <input type="hidden" name="id" value={doc.id} form="form-aberto" />
         <CamposComerciaisFields
           defaults={{
@@ -52,20 +55,22 @@ export function FormAberto({ doc }: { doc: OrcamentoComAnexos }) {
         />
       </form>
 
-      <AnexoUpload
-        orcamentoId={doc.id}
-        tipo="ARTE"
-        anexos={doc.anexos.filter((a) => a.tipo === "ARTE")}
-      />
+      <div className="mt-2">
+        <AnexoUpload
+          orcamentoId={doc.id}
+          tipo="ARTE"
+          anexos={doc.anexos.filter((a) => a.tipo === "ARTE")}
+        />
+      </div>
 
       {erro && <div className="anexo-erro">{erro}</div>}
-      <div className="btn-row">
-        <button type="submit" form="form-aberto" formAction={salvarAction} className="btn secondary" disabled={salvando}>
+      <div className="mt-4 flex gap-2">
+        <Button type="submit" form="form-aberto" formAction={salvarAction} variant="outline" disabled={salvando}>
           Salvar sem liberar
-        </button>
-        <button type="submit" form="form-aberto" formAction={avancarAction} className="btn" disabled={avancando}>
+        </Button>
+        <Button type="submit" form="form-aberto" formAction={avancarAction} disabled={avancando}>
           {avancando ? "Enviando…" : "Liberar para Engenharia"}
-        </button>
+        </Button>
       </div>
     </>
   );

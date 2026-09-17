@@ -4,6 +4,11 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { salvarPerfil } from "./actions";
 import { AREAS } from "@/lib/areas";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 
 type PerfilEditavel = { id: string; nome: string; admin: boolean; areas: string[] } | null;
 
@@ -12,42 +17,46 @@ export function PerfilForm({ perfil }: { perfil: PerfilEditavel }) {
   const areasMarcadas = new Set(perfil?.areas ?? []);
 
   return (
-    <form action={formAction} className="panel" style={{ marginBottom: 24 }}>
-      <input type="hidden" name="id" value={perfil?.id ?? ""} />
-      <h3 className="sub-head" style={{ marginTop: 0 }}>
-        {perfil ? `Editar perfil — ${perfil.nome}` : "Novo perfil"}
-      </h3>
-      <div className="field">
-        <label htmlFor="nome">Nome do perfil</label>
-        <input id="nome" name="nome" required defaultValue={perfil?.nome ?? ""} placeholder="Ex.: Orçamento (Fabiana)" />
-      </div>
-      <label className="checkline" style={{ marginBottom: 10 }}>
-        <input type="checkbox" name="admin" defaultChecked={perfil?.admin ?? false} />
-        <span><strong>Administrador</strong> — acesso total, inclusive esta tela de Administração</span>
-      </label>
-      <div className="field">
-        <label>Pode editar</label>
-        <div className="hint" style={{ marginBottom: 8 }}>
-          Colaboradores sempre podem ver todas as áreas do painel — isto só controla onde podem salvar/alterar algo.
-        </div>
-        {AREAS.map((a) => (
-          <label key={a.key} className="checkline" style={{ display: "flex" }}>
-            <input type="checkbox" name="areas" value={a.key} defaultChecked={areasMarcadas.has(a.key)} />
-            <span>{a.label} <span className="hint">— {a.hint}</span></span>
+    <Card className="max-w-xl">
+      <CardHeader>
+        <CardTitle className="text-base">{perfil ? `Editar perfil — ${perfil.nome}` : "Novo perfil"}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form action={formAction} className="flex flex-col gap-4">
+          <input type="hidden" name="id" value={perfil?.id ?? ""} />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="nome">Nome do perfil</Label>
+            <Input id="nome" name="nome" required defaultValue={perfil?.nome ?? ""} placeholder="Ex.: Orçamento (Fabiana)" />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox name="admin" defaultChecked={perfil?.admin ?? false} />
+            <span><strong>Administrador</strong> — acesso total, inclusive esta tela de Administração</span>
           </label>
-        ))}
-      </div>
-      {erro && <div className="anexo-erro">{erro}</div>}
-      <div className="btn-row">
-        <button type="submit" className="btn" disabled={pending}>
-          {perfil ? "Salvar alterações" : "Criar perfil"}
-        </button>
-        {perfil && (
-          <Link href="/administracao?aba=perfis" className="btn ghost">
-            Cancelar
-          </Link>
-        )}
-      </div>
-    </form>
+          <div className="flex flex-col gap-2">
+            <Label>Pode editar</Label>
+            <p className="text-xs text-muted-foreground">
+              Colaboradores sempre podem ver todas as áreas do painel — isto só controla onde podem salvar/alterar algo.
+            </p>
+            <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3">
+              {AREAS.map((a) => (
+                <label key={a.key} className="flex items-start gap-2 text-sm">
+                  <Checkbox name="areas" value={a.key} defaultChecked={areasMarcadas.has(a.key)} className="mt-0.5" />
+                  <span>{a.label} <span className="text-xs text-muted-foreground">— {a.hint}</span></span>
+                </label>
+              ))}
+            </div>
+          </div>
+          {erro && <div className="anexo-erro">{erro}</div>}
+          <div className="flex gap-2">
+            <Button type="submit" disabled={pending}>{perfil ? "Salvar alterações" : "Criar perfil"}</Button>
+            {perfil && (
+              <Button asChild variant="outline">
+                <Link href="/administracao?aba=perfis">Cancelar</Link>
+              </Button>
+            )}
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

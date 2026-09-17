@@ -5,53 +5,60 @@ import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtMoney } from "@/lib/orcamentos/constantes";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
+import { FormSection, Field, ResumoBox, DiretrizBlock } from "@/components/form-section";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export function FormEnvioOferta({ doc }: { doc: OrcamentoComAnexos }) {
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
 
   return (
     <>
-      <div className="compare-box numeros-box">
-        <div className="compare-row"><span>Cliente</span><span className="v txt">{doc.cliente}</span></div>
-        <div className="compare-row"><span>Produto</span><span className="v txt">{doc.produtoDescricao}</span></div>
-      </div>
+      <ResumoBox
+        rows={[
+          { label: "Cliente", value: doc.cliente },
+          { label: "Produto", value: doc.produtoDescricao },
+        ]}
+      />
 
-      <div className="form-section" style={{ borderTop: "none", marginTop: 0, paddingTop: 0 }}>
-        <h4>Faixas de preço</h4>
-        {tiers.map((t, i) => (
-          <div key={i} className="compare-row">
-            <span>{t.quantidade}</span>
-            <span className="v">{fmtMoney(t.precoFinal ?? t.precoFinalSugerido)}</span>
+      <div className="mt-4">
+        <FormSection title="Faixas de preço">
+          <div className="flex flex-col gap-1.5">
+            {tiers.map((t, i) => (
+              <div key={i} className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t.quantidade}</span>
+                <span className="font-mono font-semibold">{fmtMoney(t.precoFinal ?? t.precoFinalSugerido)}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        </FormSection>
       </div>
 
-      <div className="checklist-block">
-        <div className="label" style={{ marginBottom: 4 }}>Diretriz da etapa</div>
-        <div>Gere e envie a oferta ao cliente antes de marcar como finalizado.</div>
+      <div className="mt-4">
+        <DiretrizBlock>Gere e envie a oferta ao cliente antes de marcar como finalizado.</DiretrizBlock>
       </div>
 
-      <form action={salvarNumeroOrcamento} className="form-section">
+      <form action={salvarNumeroOrcamento} className="mt-4">
         <input type="hidden" name="id" value={doc.id} />
-        <h4>Número no sistema</h4>
-        <div className="field">
-          <label>Nº de Orçamento</label>
-          <input name="numeroOrcamento" defaultValue={doc.numeroOrcamento ?? ""} />
-        </div>
-        <div className="btn-row">
-          <button type="submit" className="btn ghost">Salvar número</button>
+        <FormSection title="Número no sistema">
+          <Field label="Nº de Orçamento">
+            <Input name="numeroOrcamento" defaultValue={doc.numeroOrcamento ?? ""} />
+          </Field>
+        </FormSection>
+        <div className="mt-4">
+          <Button type="submit" variant="ghost">Salvar número</Button>
         </div>
       </form>
 
-      <form action={marcarFinalizado}>
+      <form action={marcarFinalizado} className="mt-4">
         <input type="hidden" name="id" value={doc.id} />
-        <div className="btn-row">
-          <button type="submit" className="btn">Marcar como finalizado</button>
-        </div>
+        <Button type="submit">Marcar como finalizado</Button>
       </form>
 
-      <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
-      <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
+      <div className="mt-4 flex flex-col gap-4">
+        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
+        <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
+      </div>
     </>
   );
 }

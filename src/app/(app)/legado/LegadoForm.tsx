@@ -3,6 +3,11 @@
 import { useActionState } from "react";
 import { criarLegado } from "./actions";
 import { prepararAnexo } from "@/lib/anexos/compressao";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 export function LegadoForm() {
   const [state, formAction, pending] = useActionState(criarLegado, undefined);
@@ -25,32 +30,65 @@ export function LegadoForm() {
   }
 
   return (
-    <form action={formAction} className="panel" style={{ marginBottom: 24 }}>
-      <h3 className="sub-head" style={{ marginTop: 0 }}>Novo registro do Arquivo legado</h3>
-      <div className="field"><label>Cliente</label><input name="cliente" required /></div>
-      <div className="row2">
-        <div className="field"><label>Código do produto</label><input name="produtoCodigo" /></div>
-        <div className="field"><label>Descrição do produto</label><input name="produtoDescricao" required /></div>
-      </div>
-      <div className="row2">
-        <div className="field"><label>Preço atual (por milheiro)</label><input name="precoAtual" placeholder="Ex.: 1.234,56" /></div>
-        <div className="field"><label>Data</label><input name="dataTexto" placeholder="Ex.: meados de 2025" /></div>
-      </div>
-      <div className="row2">
-        <div className="field"><label>Custo primário (%)</label><input name="custoPrimarioPct" /></div>
-        <div className="field"><label>Margem P2 (%)</label><input name="margemP2Pct" /></div>
-      </div>
-      <div className="field"><label>Quantidade</label><input name="quantidade" /></div>
-      <div className="field"><label>Observação</label><textarea name="obs" rows={2} /></div>
-      <div className="field">
-        <label>Foto da folha (opcional)</label>
-        <input type="file" name="foto" accept="image/*,application/pdf" onChange={onFotoChange} />
-        <span className="hint">A leitura automática por IA só funciona com imagens — um PDF pode ser visualizado, mas não é lido.</span>
-      </div>
-      {state?.erro && <div className="anexo-erro">{state.erro}</div>}
-      <div className="btn-row">
-        <button type="submit" className="btn" disabled={pending}>{pending ? "Salvando…" : "Cadastrar"}</button>
-      </div>
-    </form>
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="text-base">Novo registro do Arquivo legado</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form action={formAction} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="cliente">Cliente</Label>
+            <Input id="cliente" name="cliente" required />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="produtoCodigo">Código do produto</Label>
+              <Input id="produtoCodigo" name="produtoCodigo" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="produtoDescricao">Descrição do produto</Label>
+              <Input id="produtoDescricao" name="produtoDescricao" required />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="precoAtual">Preço atual (por milheiro)</Label>
+              <Input id="precoAtual" name="precoAtual" placeholder="Ex.: 1.234,56" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="dataTexto">Data</Label>
+              <Input id="dataTexto" name="dataTexto" placeholder="Ex.: meados de 2025" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="custoPrimarioPct">Custo primário (%)</Label>
+              <Input id="custoPrimarioPct" name="custoPrimarioPct" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="margemP2Pct">Margem P2 (%)</Label>
+              <Input id="margemP2Pct" name="margemP2Pct" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="quantidade">Quantidade</Label>
+            <Input id="quantidade" name="quantidade" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="obs">Observação</Label>
+            <Textarea id="obs" name="obs" rows={2} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="foto">Foto da folha (opcional)</Label>
+            <Input id="foto" type="file" name="foto" accept="image/*,application/pdf" onChange={onFotoChange} />
+            <span className="text-xs text-muted-foreground">A leitura automática por IA só funciona com imagens — um PDF pode ser visualizado, mas não é lido.</span>
+          </div>
+          {state?.erro && <div className="anexo-erro">{state.erro}</div>}
+          <div>
+            <Button type="submit" disabled={pending}>{pending ? "Salvando…" : "Cadastrar"}</Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

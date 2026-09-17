@@ -7,17 +7,20 @@ import { fmtPct as fmtPctHelper, paraCampoBR } from "@/lib/orcamentos/motor";
 import { LIMITE_CUSTO, LIMITE_MARGEM } from "@/lib/orcamentos/motor";
 import { fmtMoney } from "@/lib/orcamentos/constantes";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
+import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 function fmtMoneyOrDash(n: number | null | undefined) {
   return n === null || n === undefined ? "—" : fmtMoney(n);
 }
 
 function CritRow({ ok, label }: { ok: boolean | null; label: string }) {
-  const cls = ok === null ? "na" : ok ? "good" : "bad";
+  const cor = ok === null ? "bg-muted-foreground/40" : ok ? "bg-good" : "bg-bad";
   return (
-    <div className="crit-row">
-      <span className={`crit-dot ${cls}`} />
-      <span>{label}</span>
+    <div className="flex items-center gap-2 text-sm">
+      <span className={`h-2 w-2 shrink-0 rounded-full ${cor}`} />
+      <span className="text-muted-foreground">{label}</span>
     </div>
   );
 }
@@ -27,59 +30,57 @@ function TierCard({ doc, tier, idx, total }: { doc: OrcamentoComAnexos; tier: Pr
   const pendente = tier.statusDiretoria === "pendente";
 
   return (
-    <div className="form-section" style={idx === 0 ? { borderTop: "none", marginTop: 0, paddingTop: 0 } : undefined}>
-      <h4>{titulo}</h4>
-
+    <FormSection title={titulo}>
       {!tier.produtoNovo && (
-        <div className="compare-box premissas">
-          {tier.premissasDivergentes.length === 0 ? (
-            <div className="compare-row"><span>Premissas</span><span className="v txt">Iguais ao orçamento anterior</span></div>
-          ) : (
-            <div className="compare-row dif"><span>Premissas divergentes</span><span className="v txt">{tier.premissasDivergentes.join(", ")}</span></div>
-          )}
-          <div className="compare-row"><span>Preço anterior</span><span className="v">{fmtMoneyOrDash(tier.precoAnterior)}</span></div>
-          <div className="compare-row"><span>Preço projetado</span><span className="v">{fmtMoney(tier.precoProjetado)}</span></div>
-          <div className="compare-row"><span>Variação</span><span className="v">{fmtPctHelper(tier.variacaoPct)}</span></div>
-        </div>
+        <ResumoBox
+          rows={[
+            {
+              label: tier.premissasDivergentes.length === 0 ? "Premissas" : "Premissas divergentes",
+              value: tier.premissasDivergentes.length === 0 ? "Iguais ao orçamento anterior" : tier.premissasDivergentes.join(", "),
+            },
+            { label: "Preço anterior", value: fmtMoneyOrDash(tier.precoAnterior) },
+            { label: "Preço projetado", value: fmtMoney(tier.precoProjetado) },
+            { label: "Variação", value: fmtPctHelper(tier.variacaoPct) },
+          ]}
+        />
       )}
 
-      <div className="criteria">
+      <div className="flex flex-col gap-1.5 rounded-lg border border-border p-3">
         <CritRow ok={tier.custoPrimarioPct !== null && tier.custoPrimarioPct <= LIMITE_CUSTO} label={`Custo primário até ${LIMITE_CUSTO}% (atual: ${fmtPctHelper(tier.custoPrimarioPct)})`} />
         <CritRow ok={tier.margemP2Pct !== null && tier.margemP2Pct >= LIMITE_MARGEM} label={`Margem P2 ≥ ${LIMITE_MARGEM}% (atual: ${fmtPctHelper(tier.margemP2Pct)})`} />
-        {tier.motivoPendencia && <div className="hint" style={{ marginTop: 6 }}>{tier.motivoPendencia}</div>}
+        {tier.motivoPendencia && <div className="mt-1 text-xs text-muted-foreground">{tier.motivoPendencia}</div>}
       </div>
 
       {pendente ? (
-        <form action={decidirDiretoriaFaixa}>
+        <form action={decidirDiretoriaFaixa} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={doc.id} />
           <input type="hidden" name="idx" value={idx} />
-          <div className="row2">
-            <div className="field">
-              <label>Preço final</label>
-              <input name="precoFinal" defaultValue={paraCampoBR(tier.rascunhoPrecoFinal ?? tier.precoFinal ?? tier.precoFinalSugerido)} />
-              <span className="hint">Sugerido: {fmtMoney(tier.precoFinalSugerido)}</span>
-            </div>
-            <div className="field">
-              <label>Comentário</label>
-              <input name="comentario" defaultValue={tier.rascunhoComentario ?? ""} />
-            </div>
-          </div>
-          <div className="btn-row">
-            <button type="submit" name="aprovado" value="true" className="btn">Aprovar</button>
-            <button type="submit" name="aprovado" value="false" className="btn danger">Solicitar revisão</button>
-            <button type="submit" formAction={salvarRascunhoDiretoria} formNoValidate className="btn ghost">
+          <Row2>
+            <Field label="Preço final" hint={`Sugerido: ${fmtMoney(tier.precoFinalSugerido)}`}>
+              <Input name="precoFinal" defaultValue={paraCampoBR(tier.rascunhoPrecoFinal ?? tier.precoFinal ?? tier.precoFinalSugerido)} />
+            </Field>
+            <Field label="Comentário">
+              <Input name="comentario" defaultValue={tier.rascunhoComentario ?? ""} />
+            </Field>
+          </Row2>
+          <div className="flex gap-2">
+            <Button type="submit" name="aprovado" value="true">Aprovar</Button>
+            <Button type="submit" name="aprovado" value="false" variant="destructive">Solicitar revisão</Button>
+            <Button type="submit" formAction={salvarRascunhoDiretoria} formNoValidate variant="ghost">
               Salvar rascunho
-            </button>
+            </Button>
           </div>
         </form>
       ) : (
-        <div className="compare-box">
-          <div className="compare-row"><span>Status</span><span className="v txt">{tier.statusDiretoria === "auto_aprovado" ? "Auto-aprovado" : tier.statusDiretoria}</span></div>
-          <div className="compare-row"><span>Preço final</span><span className="v">{fmtMoneyOrDash(tier.precoFinal)}</span></div>
-          {tier.decididoPor && <div className="compare-row"><span>Decidido por</span><span className="v txt">{tier.decididoPor}</span></div>}
-        </div>
+        <ResumoBox
+          rows={[
+            { label: "Status", value: tier.statusDiretoria === "auto_aprovado" ? "Auto-aprovado" : tier.statusDiretoria },
+            { label: "Preço final", value: fmtMoneyOrDash(tier.precoFinal) },
+            ...(tier.decididoPor ? [{ label: "Decidido por", value: tier.decididoPor }] : []),
+          ]}
+        />
       )}
-    </div>
+    </FormSection>
   );
 }
 
@@ -89,22 +90,26 @@ export function PainelDiretoria({ doc }: { doc: OrcamentoComAnexos }) {
   return (
     <>
       {doc.conflitoClassificacao && (
-        <div className="banner banner-erro">
+        <div className="mb-4 rounded-lg border border-bad/30 bg-bad-soft p-3 text-sm text-bad">
           Classificado como &quot;repetição sem alteração&quot;, mas as premissas mudaram — confira com atenção.
         </div>
       )}
-      <div className="compare-box numeros-box">
-        <div className="compare-row"><span>Cliente</span><span className="v txt">{doc.cliente}</span></div>
-        <div className="compare-row"><span>Produto</span><span className="v txt">{doc.produtoDescricao}</span></div>
-        <div className="compare-row"><span>Nº de SOPP</span><span className="v">{doc.numeroSequencial || "—"}</span></div>
-      </div>
+      <ResumoBox
+        rows={[
+          { label: "Cliente", value: doc.cliente },
+          { label: "Produto", value: doc.produtoDescricao },
+          { label: "Nº de SOPP", value: doc.numeroSequencial || "—" },
+        ]}
+      />
 
       {tiers.map((t, i) => (
         <TierCard key={i} doc={doc} tier={t} idx={i} total={tiers.length} />
       ))}
 
-      <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
-      <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
+      <div className="mt-2 flex flex-col gap-4">
+        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
+        <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
+      </div>
     </>
   );
 }

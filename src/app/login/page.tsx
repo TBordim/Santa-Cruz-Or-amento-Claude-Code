@@ -11,7 +11,7 @@ export default async function LoginPage() {
   const totalUsuarios = await prisma.usuario.count();
 
   return (
-    <div className="login-screen">
+    <div className="flex min-h-screen items-center justify-center bg-background p-6">
       {totalUsuarios === 0 ? (
         <PrimeiroAdminForm />
       ) : (

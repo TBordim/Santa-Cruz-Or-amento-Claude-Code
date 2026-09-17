@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { sessaoAtual } from "@/lib/permissions";
@@ -6,11 +5,25 @@ import { prisma } from "@/lib/db";
 import { valorTotalOrcamento } from "@/lib/orcamentos/legado";
 import { DESFECHOS, PERIODOS, fmtMoney, fmtDate, desfechoInfo, dataLimite } from "@/lib/orcamentos/constantes";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
-import { excluirHistorico } from "./actions";
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search } from "lucide-react";
+import { ExcluirHistoricoButton } from "./ExcluirHistoricoButton";
 
 export const dynamic = "force-dynamic";
 
-type SP = { aba?: string; periodo?: string; q?: string; excluir?: string };
+type SP = { aba?: string; periodo?: string; q?: string };
+
+const PILL_STYLE: Record<string, string> = {
+  good: "bg-good-soft text-good",
+  bad: "bg-bad-soft text-bad",
+  neutral: "bg-secondary text-muted-foreground",
+};
 
 export default async function HistoricoPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sessao = await sessaoAtual();
@@ -44,92 +57,105 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <div className="view-header">
-        <div>
-          <h2>Histórico</h2>
-          <p>Todos os orçamentos enviados/finalizados, com filtro de período e por desfecho.</p>
-        </div>
-      </div>
+      <PageHeader title="Histórico" description="Todos os orçamentos enviados/finalizados, com filtro de período e por desfecho." />
 
-      <div className="stat-strip">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map((s, i) => (
-          <div key={s.key} className="stat" style={{ ["--stat-color" as string]: i === 1 ? "var(--good)" : i === 2 ? "var(--bad)" : "var(--ink-faint)" }}>
-            <div className="n mono">{s.count}</div>
-            <div className="l">{s.label} · {fmtMoney(s.total)}</div>
-          </div>
+          <Card key={s.key} className="gap-2 py-4">
+            <CardHeader className="px-4">
+              <CardTitle className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{s.label}</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
+              <div
+                className="font-mono text-2xl font-semibold tabular-nums"
+                style={{ color: i === 1 ? "var(--color-good)" : i === 2 ? "var(--color-bad)" : undefined }}
+              >
+                {s.count}
+              </div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{fmtMoney(s.total)}</div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      <div className="btn-row" style={{ marginBottom: 12 }}>
-        <Link href="/historico?aba=todos" className={`btn${aba === "todos" ? "" : " ghost"}`}>Todos</Link>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Button asChild variant={aba === "todos" ? "default" : "outline"} size="sm">
+          <Link href="/historico?aba=todos">Todos</Link>
+        </Button>
         {DESFECHOS.map((d) => (
-          <Link key={d.key} href={`/historico?aba=${d.key}`} className={`btn${aba === d.key ? "" : " ghost"}`}>{d.label}</Link>
+          <Button key={d.key} asChild variant={aba === d.key ? "default" : "outline"} size="sm">
+            <Link href={`/historico?aba=${d.key}`}>{d.label}</Link>
+          </Button>
         ))}
       </div>
 
-      <form className="search-row">
+      <form className="mb-6 flex flex-wrap gap-2">
         <input type="hidden" name="aba" value={aba} />
-        <input name="q" defaultValue={q} placeholder="Buscar por cliente…" />
-        <select name="periodo" defaultValue={periodoKey}>
-          {PERIODOS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-        </select>
-        <button type="submit" className="btn secondary">Filtrar</button>
+        <Input name="q" defaultValue={q} placeholder="Buscar por cliente…" className="max-w-[280px]" />
+        <Select name="periodo" defaultValue={periodoKey}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PERIODOS.map((p) => (
+              <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button type="submit" variant="outline" className="gap-1.5">
+          <Search className="h-3.5 w-3.5" /> Filtrar
+        </Button>
       </form>
 
       {filtrados.length === 0 ? (
         <div className="empty-state">Nenhum orçamento encontrado.</div>
       ) : (
-        <div className="table-wrap">
-          <table className="nowrap-table">
-            <thead>
-              <tr>
-                <th>Cliente</th><th>Produto</th><th>Origem</th><th>Valor total</th><th>Data</th><th>Desfecho</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-xl border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Produto</TableHead>
+                <TableHead>Origem</TableHead>
+                <TableHead>Valor total</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Desfecho</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtrados.map((d) => {
                 const valor = valorTotalOrcamento(d.precificacao as PrecificacaoTier[] | null);
                 const info = desfechoInfo(d.desfecho);
-                const confirmando = sp.excluir === d.id;
                 return (
-                  <Fragment key={d.id}>
-                    <tr>
-                      <td>{d.cliente}</td>
-                      <td>{d.produtoDescricao}</td>
-                      <td><span className="pill neutral">{d.origem === "LEGADO" ? "Legado" : "Fluxo"}</span></td>
-                      <td>{d.origem === "LEGADO" ? fmtMoney(d.precoAtual ? Number(d.precoAtual) : null) : fmtMoney(valor)}</td>
-                      <td>{d.origem === "LEGADO" ? (d.dataLegadoTexto || fmtDate(d.criadoEm)) : fmtDate(d.criadoEm)}</td>
-                      <td>{d.origem === "LEGADO" ? "—" : <span className={`pill ${info.pill}`}>{info.label}</span>}</td>
-                      <td>
-                        <div className="btn-row">
-                          {d.origem === "NOVO" && <Link href={`/painel/${d.id}`} className="btn ghost">Ver</Link>}
-                          {d.origem !== "LEGADO" && (
-                            <Link href={`/historico?aba=${aba}&excluir=${d.id}`} className="btn ghost">Excluir</Link>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                    {confirmando && (
-                      <tr>
-                        <td colSpan={7}>
-                          <div className="confirm-box">
-                            <p>Excluir o registro de &quot;{d.cliente}&quot; é definitivo.</p>
-                            <div className="btn-row">
-                              <form action={excluirHistorico}>
-                                <input type="hidden" name="id" value={d.id} />
-                                <button type="submit" className="btn danger">Sim, excluir</button>
-                              </form>
-                              <Link href={`/historico?aba=${aba}`} className="btn ghost">Cancelar</Link>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
+                  <TableRow key={d.id}>
+                    <TableCell className="font-medium">{d.cliente}</TableCell>
+                    <TableCell className="text-muted-foreground">{d.produtoDescricao}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="border-0">{d.origem === "LEGADO" ? "Legado" : "Fluxo"}</Badge>
+                    </TableCell>
+                    <TableCell className="font-mono">{d.origem === "LEGADO" ? fmtMoney(d.precoAtual ? Number(d.precoAtual) : null) : fmtMoney(valor)}</TableCell>
+                    <TableCell className="text-muted-foreground">{d.origem === "LEGADO" ? (d.dataLegadoTexto || fmtDate(d.criadoEm)) : fmtDate(d.criadoEm)}</TableCell>
+                    <TableCell>
+                      {d.origem === "LEGADO" ? "—" : (
+                        <Badge className={`border-0 ${PILL_STYLE[info.pill]}`}>{info.label}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        {d.origem === "NOVO" && (
+                          <Button asChild variant="ghost" size="sm">
+                            <Link href={`/painel/${d.id}`}>Ver</Link>
+                          </Button>
+                        )}
+                        {d.origem !== "LEGADO" && <ExcluirHistoricoButton id={d.id} cliente={d.cliente} />}
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </>

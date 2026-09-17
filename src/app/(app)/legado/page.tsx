@@ -2,6 +2,11 @@ import { redirect } from "next/navigation";
 import { sessaoAtual } from "@/lib/permissions";
 import { legadosDoCliente } from "@/lib/orcamentos/legado";
 import { prisma } from "@/lib/db";
+import { PageHeader } from "@/components/page-header";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Search } from "lucide-react";
 import { LegadoForm } from "./LegadoForm";
 import { LegadoRow } from "./LegadoRow";
 
@@ -16,29 +21,35 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <div className="view-header">
-        <div>
-          <h2>Arquivo legado</h2>
-          <p>Registros antigos usados para comparar repetições — busca por cliente, não exige match perfeito de produto.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Arquivo legado"
+        description="Registros antigos usados para comparar repetições — busca por cliente, não exige match perfeito de produto."
+      />
 
       <LegadoForm />
 
-      <form className="search-row">
-        <input name="q" defaultValue={q ?? ""} placeholder="Buscar por cliente…" />
-        <button type="submit" className="btn secondary">Buscar</button>
+      <form className="mb-3.5 flex flex-wrap gap-2">
+        <Input name="q" defaultValue={q ?? ""} placeholder="Buscar por cliente…" className="max-w-[320px]" />
+        <Button type="submit" variant="outline" className="gap-1.5">
+          <Search className="h-3.5 w-3.5" /> Buscar
+        </Button>
       </form>
 
       {legados.length === 0 ? (
         <div className="empty-state">Nenhum registro encontrado.</div>
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Cliente</th><th>Produto</th><th>Preço</th><th>Data</th><th></th></tr>
-            </thead>
-            <tbody>
+        <div className="rounded-xl border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Produto</TableHead>
+                <TableHead>Preço</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {legados.map((l) => (
                 <LegadoRow
                   key={l.id}
@@ -59,8 +70,8 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
                   }}
                 />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </>

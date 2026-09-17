@@ -1,9 +1,11 @@
-import Link from "next/link";
-import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { CornerUpLeft } from "lucide-react";
+import { prisma } from "@/lib/db";
 import { etapaInfo } from "@/lib/orcamentos/constantes";
 import { voltarEtapa } from "../actions";
+import { Button } from "@/components/ui/button";
 import { ExcluirCardButton } from "./ExcluirCardButton";
+import { DrawerSheet } from "./DrawerSheet";
 import { FormAberto } from "./FormAberto";
 import { FormEngenharia } from "./FormEngenharia";
 import { FormOrcamento } from "./FormOrcamento";
@@ -12,11 +14,12 @@ import { FormEnvioOferta } from "./FormEnvioOferta";
 import { FormFinalizado } from "./FormFinalizado";
 
 export async function Drawer({ id }: { id: string }) {
-  const doc = await prisma.orcamento.findUnique({
+  const raw = await prisma.orcamento.findUnique({
     where: { id },
     include: { anexos: true },
   });
-  if (!doc) notFound();
+  if (!raw) notFound();
+  const doc = { ...raw, precoAnterior: raw.precoAnterior ? Number(raw.precoAnterior) : null };
 
   const et = etapaInfo(doc.etapa ?? "");
 
@@ -44,39 +47,42 @@ export async function Drawer({ id }: { id: string }) {
       corpo = <p>Etapa desconhecida.</p>;
   }
 
-  return (
+  const titulo = (
     <>
-      <Link href="/painel" className="overlay" aria-label="Fechar" />
-      <div className="drawer">
-        <div className="drawer-head">
-          <div>
-            <div className="stage-tag">
-              <span className="stage-dot" style={{ ["--stage-color" as string]: et?.color }} />
-              <span className="label">{et?.label ?? doc.etapa}</span>
-            </div>
-            <h3 style={{ fontSize: 19, marginTop: 4 }}>
-              {doc.numeroSequencial && <span className="mono" style={{ color: "var(--ink-faint)", fontWeight: 600 }}>Nº {doc.numeroSequencial} — </span>}
-              {doc.cliente}
-            </h3>
-            <div className="hint" style={{ color: "var(--ink-soft)", fontSize: 12.5 }}>
-              {doc.produtoDescricao}
-              {doc.produtoCodigo ? ` · ${doc.produtoCodigo}` : ""}
-              {doc.codInterno ? ` · SC:${doc.codInterno}` : ""}
-            </div>
-          </div>
-          <Link href="/painel" className="drawer-close">&times;</Link>
-        </div>
-
-        <div className="btn-row" style={{ marginBottom: 10 }}>
-          <form action={voltarEtapa}>
-            <input type="hidden" name="id" value={doc.id} />
-            <button type="submit" className="btn ghost">Voltar etapa</button>
-          </form>
-          <ExcluirCardButton id={doc.id} />
-        </div>
-
-        {corpo}
+      <div className="mb-1 flex items-center gap-1.5">
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: et?.color ?? "var(--muted-foreground)" }} />
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-wide" style={{ color: et?.color }}>
+          {et?.label ?? doc.etapa}
+        </span>
       </div>
+      {doc.numeroSequencial && (
+        <span className="mr-1.5 font-mono text-muted-foreground">Nº {doc.numeroSequencial} —</span>
+      )}
+      {doc.cliente}
     </>
+  );
+
+  const descricao = (
+    <>
+      {doc.produtoDescricao}
+      {doc.produtoCodigo ? ` · ${doc.produtoCodigo}` : ""}
+      {doc.codInterno ? ` · SC:${doc.codInterno}` : ""}
+    </>
+  );
+
+  return (
+    <DrawerSheet titulo={titulo} descricao={descricao}>
+      <div className="flex flex-wrap gap-2">
+        <form action={voltarEtapa}>
+          <input type="hidden" name="id" value={doc.id} />
+          <Button type="submit" variant="outline" size="sm" className="gap-1.5">
+            <CornerUpLeft className="h-3.5 w-3.5" /> Voltar etapa
+          </Button>
+        </form>
+        <ExcluirCardButton id={doc.id} />
+      </div>
+
+      {corpo}
+    </DrawerSheet>
   );
 }

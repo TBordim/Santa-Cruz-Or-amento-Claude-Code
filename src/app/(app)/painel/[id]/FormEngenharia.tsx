@@ -7,11 +7,18 @@ import { salvarRequisitos, avancarOrcamento } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
 import { OPCOES_ANEXOS_ENGENHARIA } from "@/lib/orcamentos/constantes";
+import { FormSection, Field, Row2, ResumoBox, DiretrizBlock } from "@/components/form-section";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { useSalvoToast } from "@/hooks/use-salvo-toast";
 
 export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
   const [state, salvarAction, salvando] = useActionState(salvarRequisitos, undefined);
   const [state2, avancarAction, avancando] = useActionState(avancarOrcamento, undefined);
   const erro = state?.erro ?? state2?.erro;
+  useSalvoToast(salvando, state?.erro, "Requisitos salvos.");
 
   const c = doc.reqCliente as ReqCliente | null;
   const r = doc.reqTecnicos as ReqTecnicos | null;
@@ -19,39 +26,34 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
 
   return (
     <>
-      <div className="compare-box numeros-box">
-        <div className="compare-row"><span>Cliente</span><span className="v txt">{doc.cliente}</span></div>
-        <div className="compare-row"><span>Produto</span><span className="v txt">{doc.produtoDescricao}</span></div>
-        <div className="compare-row"><span>Classificação</span><span className="v txt">{doc.classificacao}</span></div>
+      <ResumoBox
+        rows={[
+          { label: "Cliente", value: doc.cliente },
+          { label: "Produto", value: doc.produtoDescricao },
+          { label: "Classificação", value: doc.classificacao },
+        ]}
+      />
+
+      <div className="mt-4">
+        <DiretrizBlock>Preencha os requisitos técnicos (formato suporte, anexos previstos) antes de enviar para o Orçamento.</DiretrizBlock>
       </div>
 
-      <div className="checklist-block">
-        <div className="label" style={{ marginBottom: 4 }}>Diretriz da etapa</div>
-        <div>Preencha os requisitos técnicos (formato suporte, anexos previstos) antes de enviar para o Orçamento.</div>
-      </div>
-
-      <form id="form-engenharia">
+      <form id="form-engenharia" className="mt-4">
         <input type="hidden" name="id" value={doc.id} form="form-engenharia" />
 
-        <div className="form-section" style={{ borderTop: "none", marginTop: 0, paddingTop: 0 }}>
-          <h4>Pré cadastro</h4>
-          <div className="row2">
-            <div className="field">
-              <label>Nº de Pré Cadastro</label>
-              <input name="preCadastro" defaultValue={doc.preCadastro ?? ""} form="form-engenharia" />
-              <span className="hint">Obrigatório para liberar para a etapa seguinte.</span>
-            </div>
-            <div className="field">
-              <label>Código interno (Santa Cruz)</label>
-              <input name="codInterno" defaultValue={doc.codInterno ?? ""} form="form-engenharia" />
-              <span className="hint">{ehRepeticao ? "Veio da Solicitação — ajuste se necessário." : "Obrigatório nesta etapa em produto novo."}</span>
-            </div>
-          </div>
-        </div>
+        <FormSection title="Pré cadastro">
+          <Row2>
+            <Field label="Nº de Pré Cadastro" hint="Obrigatório para liberar para a etapa seguinte.">
+              <Input name="preCadastro" defaultValue={doc.preCadastro ?? ""} form="form-engenharia" />
+            </Field>
+            <Field label="Código interno (Santa Cruz)" hint={ehRepeticao ? "Veio da Solicitação — ajuste se necessário." : "Obrigatório nesta etapa em produto novo."}>
+              <Input name="codInterno" defaultValue={doc.codInterno ?? ""} form="form-engenharia" />
+            </Field>
+          </Row2>
+        </FormSection>
 
-        <div className="form-section">
-          <h4>Suporte — formato e código</h4>
-          <div className="hint" style={{ marginBottom: 10 }}>Descrição e gramatura já vieram da Solicitação — preencha aqui o formato e o código.</div>
+        <FormSection title="Suporte — formato e código">
+          <p className="-mt-2 text-xs text-muted-foreground">Descrição e gramatura já vieram da Solicitação — preencha aqui o formato e o código.</p>
           <SuportesLista
             campoA="suporteTecFormato"
             campoB="suporteTecCodigo"
@@ -61,58 +63,61 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
               (r?.suportes?.length ? r.suportes.map((s) => ({ a: s.formato, b: s.codigo })) : c?.suportes?.map(() => ({ a: "", b: "" }))) ?? undefined
             }
           />
-        </div>
+        </FormSection>
 
-        <div className="form-section">
-          <h4>Formato suporte</h4>
-          <div className="row2">
-            <div className="field"><label>Qtd. por Folha Inteira</label><input name="qtdFolha" defaultValue={r?.qtdFolha ?? ""} form="form-engenharia" /></div>
-            <div className="field"><label>Fls. Acerto</label><input name="flsAcerto" defaultValue={r?.flsAcerto ?? ""} form="form-engenharia" /></div>
-          </div>
-          <div className="row2">
-            <div className="field"><label>Fator — Comprimento (cm)</label><input name="fatorC" defaultValue={r?.fatorC ?? ""} form="form-engenharia" /></div>
-            <div className="field"><label>Fator — Largura (cm)</label><input name="fatorL" defaultValue={r?.fatorL ?? ""} form="form-engenharia" /></div>
-          </div>
-          <div className="row2">
-            <div className="field"><label>Corte</label><input name="corte" defaultValue={r?.corte ?? ""} form="form-engenharia" /></div>
-            <div className="field"><label>Qtd./ch.</label><input name="qtdCh" defaultValue={r?.qtdCh ?? ""} form="form-engenharia" /></div>
-          </div>
-          <div className="row2">
-            <div className="field"><label>Formato Ideal — Comprimento (cm)</label><input name="idealC" defaultValue={r?.idealC ?? ""} form="form-engenharia" /></div>
-            <div className="field"><label>Formato Ideal — Largura (cm)</label><input name="idealL" defaultValue={r?.idealL ?? ""} form="form-engenharia" /></div>
-          </div>
-        </div>
+        <FormSection title="Formato suporte">
+          <Row2>
+            <Field label="Qtd. por Folha Inteira"><Input name="qtdFolha" defaultValue={r?.qtdFolha ?? ""} form="form-engenharia" /></Field>
+            <Field label="Fls. Acerto"><Input name="flsAcerto" defaultValue={r?.flsAcerto ?? ""} form="form-engenharia" /></Field>
+          </Row2>
+          <Row2>
+            <Field label="Fator — Comprimento (cm)"><Input name="fatorC" defaultValue={r?.fatorC ?? ""} form="form-engenharia" /></Field>
+            <Field label="Fator — Largura (cm)"><Input name="fatorL" defaultValue={r?.fatorL ?? ""} form="form-engenharia" /></Field>
+          </Row2>
+          <Row2>
+            <Field label="Corte"><Input name="corte" defaultValue={r?.corte ?? ""} form="form-engenharia" /></Field>
+            <Field label="Qtd./ch."><Input name="qtdCh" defaultValue={r?.qtdCh ?? ""} form="form-engenharia" /></Field>
+          </Row2>
+          <Row2>
+            <Field label="Formato Ideal — Comprimento (cm)"><Input name="idealC" defaultValue={r?.idealC ?? ""} form="form-engenharia" /></Field>
+            <Field label="Formato Ideal — Largura (cm)"><Input name="idealL" defaultValue={r?.idealL ?? ""} form="form-engenharia" /></Field>
+          </Row2>
+        </FormSection>
 
-        <div className="form-section">
-          <h4>Anexos previstos</h4>
-          <div className="opt-grid">
+        <FormSection title="Anexos previstos">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
             {OPCOES_ANEXOS_ENGENHARIA.map((op) => (
-              <label key={op} className="checkline">
-                <input type="checkbox" name="anexosPrevistos" value={op} defaultChecked={r?.anexos?.includes(op)} form="form-engenharia" />
+              <label key={op} className="flex items-center gap-2 text-sm">
+                <Checkbox name="anexosPrevistos" value={op} defaultChecked={r?.anexos?.includes(op)} form="form-engenharia" />
                 <span>{op}</span>
               </label>
             ))}
           </div>
-        </div>
+        </FormSection>
 
-        <div className="form-section">
-          <h4>Observações</h4>
-          <div className="field"><label>Informações complementares</label><textarea name="infoComplementares" rows={2} defaultValue={r?.infoComplementares ?? ""} form="form-engenharia" /></div>
-          <div className="field"><label>Observações de engenharia</label><textarea name="obsEngenharia" rows={2} defaultValue={doc.obsEngenharia ?? ""} form="form-engenharia" /></div>
-        </div>
+        <FormSection title="Observações">
+          <Field label="Informações complementares">
+            <Textarea name="infoComplementares" rows={2} defaultValue={r?.infoComplementares ?? ""} form="form-engenharia" />
+          </Field>
+          <Field label="Observações de engenharia">
+            <Textarea name="obsEngenharia" rows={2} defaultValue={doc.obsEngenharia ?? ""} form="form-engenharia" />
+          </Field>
+        </FormSection>
       </form>
 
-      <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
-      <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} />
+      <div className="mt-2 flex flex-col gap-4">
+        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
+        <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} />
+      </div>
 
       {erro && <div className="anexo-erro">{erro}</div>}
-      <div className="btn-row">
-        <button type="submit" form="form-engenharia" formAction={salvarAction} className="btn secondary" disabled={salvando}>
+      <div className="mt-4 flex gap-2">
+        <Button type="submit" form="form-engenharia" formAction={salvarAction} variant="outline" disabled={salvando}>
           Salvar sem liberar
-        </button>
-        <button type="submit" form="form-engenharia" formAction={avancarAction} className="btn" disabled={avancando}>
+        </Button>
+        <Button type="submit" form="form-engenharia" formAction={avancarAction} disabled={avancando}>
           {avancando ? "Enviando…" : "Liberar para Orçamento"}
-        </button>
+        </Button>
       </div>
     </>
   );

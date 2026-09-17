@@ -40,14 +40,13 @@ export async function salvarPerfil(_prev: FormState, formData: FormData): Promis
 }
 
 // Equivalente a excluirPerfil() (linhas 1906-1914): recusa se algum usuário ainda usa o perfil.
-export async function excluirPerfil(formData: FormData) {
+export async function excluirPerfil(formData: FormData): Promise<{ erro?: string } | undefined> {
   await exigirAdmin();
   const id = String(formData.get("id") ?? "");
 
   const emUso = await prisma.usuario.count({ where: { perfilId: id } });
   if (emUso > 0) {
-    const msg = "Este perfil está em uso por pelo menos um usuário — troque o perfil dele(s) antes de excluir.";
-    redirect(`/administracao?aba=perfis&excluirPerfil=${id}&erroPerfil=${encodeURIComponent(msg)}`);
+    return { erro: "Este perfil está em uso por pelo menos um usuário — troque o perfil dele(s) antes de excluir." };
   }
 
   await prisma.perfil.delete({ where: { id } });

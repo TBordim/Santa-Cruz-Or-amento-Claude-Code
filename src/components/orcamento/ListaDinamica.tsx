@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { X, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 // Lista repetível de valores simples (ex.: quantidadesLista) — cada input compartilha o mesmo
 // `name`, então FormData.getAll(name) no server action já devolve a lista na ordem certa, sem
@@ -22,30 +25,26 @@ export function ListaDinamica({
   const [valores, setValores] = useState<string[]>(valoresIniciais?.length ? valoresIniciais : [""]);
 
   return (
-    <div>
+    <div className="flex flex-col gap-2">
       {valores.map((v, i) => (
-        <div key={i} className="row2" style={{ gridTemplateColumns: "1fr auto", marginBottom: 8 }}>
-          <input
+        <div key={i} className="flex items-center gap-2">
+          <Input
             name={name}
             value={v}
             placeholder={placeholder}
             onChange={(e) => setValores(valores.map((x, j) => (j === i ? e.target.value : x)))}
           />
           {valores.length > 1 && (
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => setValores(valores.filter((_, j) => j !== i))}
-            >
-              Remover
-            </button>
+            <Button type="button" variant="ghost" size="icon" onClick={() => setValores(valores.filter((_, j) => j !== i))}>
+              <X className="h-4 w-4" />
+            </Button>
           )}
         </div>
       ))}
-      <div className="btn-row">
-        <button type="button" className="btn secondary" onClick={() => setValores([...valores, ""])}>
-          {botaoLabel}
-        </button>
+      <div>
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setValores([...valores, ""])}>
+          <Plus className="h-3.5 w-3.5" /> {botaoLabel}
+        </Button>
       </div>
     </div>
   );

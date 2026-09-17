@@ -1,9 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { salvarDadosLegado, excluirLegado } from "./actions";
 import { fmtMoney, fmtDate } from "@/lib/orcamentos/constantes";
 import { paraCampoBR } from "@/lib/orcamentos/motor";
+import { TableRow, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type Legado = {
   id: string;
@@ -26,54 +42,86 @@ export function LegadoRow({ legado }: { legado: Legado }) {
 
   return (
     <>
-      <tr>
-        <td>{legado.cliente}</td>
-        <td>{legado.produtoDescricao}{legado.produtoCodigo ? ` (${legado.produtoCodigo})` : ""}</td>
-        <td>{fmtMoney(legado.precoAtual)}</td>
-        <td>{legado.dataLegadoTexto || fmtDate(legado.criadoEm)}</td>
-        <td>
-          <div className="btn-row">
-            <button type="button" className="btn ghost" onClick={() => setAberto(!aberto)}>{aberto ? "Fechar" : "Abrir"}</button>
-            <form
-              action={excluirLegado}
-              onSubmit={(e) => { if (!confirm(`Excluir o registro de "${legado.cliente}"?`)) e.preventDefault(); }}
-            >
-              <input type="hidden" name="id" value={legado.id} />
-              <button type="submit" className="btn ghost">Excluir</button>
-            </form>
+      <TableRow>
+        <TableCell className="font-medium">{legado.cliente}</TableCell>
+        <TableCell className="text-muted-foreground">{legado.produtoDescricao}{legado.produtoCodigo ? ` (${legado.produtoCodigo})` : ""}</TableCell>
+        <TableCell className="font-mono">{fmtMoney(legado.precoAtual)}</TableCell>
+        <TableCell className="text-muted-foreground">{legado.dataLegadoTexto || fmtDate(legado.criadoEm)}</TableCell>
+        <TableCell>
+          <div className="flex justify-end gap-1">
+            <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={() => setAberto(!aberto)}>
+              {aberto ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {aberto ? "Fechar" : "Abrir"}
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" /> Excluir
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir o registro de &quot;{legado.cliente}&quot;?</AlertDialogTitle>
+                  <AlertDialogDescription>Essa ação é definitiva e não pode ser desfeita.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <form action={excluirLegado}>
+                    <input type="hidden" name="id" value={legado.id} />
+                    <AlertDialogAction asChild>
+                      <Button type="submit" variant="destructive">Sim, excluir</Button>
+                    </AlertDialogAction>
+                  </form>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
       {aberto && (
-        <tr>
-          <td colSpan={5}>
-            <div className="confirm-box" style={{ background: "var(--surface-alt)", borderColor: "var(--line)" }}>
-              {legado.obs && <p style={{ color: "var(--ink)" }}>{legado.obs}</p>}
-              <form action={salvarDadosLegado}>
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={5} className="whitespace-normal bg-muted/30">
+            <div className="flex flex-col gap-3 py-2">
+              {legado.obs && <p className="text-sm text-foreground">{legado.obs}</p>}
+              <form action={salvarDadosLegado} className="flex flex-col gap-3">
                 <input type="hidden" name="id" value={legado.id} />
-                <div className="row2">
-                  <div className="field"><label>Preço atual</label><input name="precoAtual" defaultValue={paraCampoBR(legado.precoAtual)} /></div>
-                  <div className="field"><label>Quantidade</label><input name="quantidade" defaultValue={paraCampoBR(legado.quantidade)} /></div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor={`precoAtual-${legado.id}`}>Preço atual</Label>
+                    <Input id={`precoAtual-${legado.id}`} name="precoAtual" defaultValue={paraCampoBR(legado.precoAtual)} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor={`quantidade-${legado.id}`}>Quantidade</Label>
+                    <Input id={`quantidade-${legado.id}`} name="quantidade" defaultValue={paraCampoBR(legado.quantidade)} />
+                  </div>
                 </div>
-                <div className="row2">
-                  <div className="field"><label>Custo primário (%)</label><input name="custoPrimarioPct" defaultValue={paraCampoBR(legado.custoPrimarioPct)} /></div>
-                  <div className="field"><label>Margem P2 (%)</label><input name="margemP2Pct" defaultValue={paraCampoBR(legado.margemP2Pct)} /></div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor={`custoPrimarioPct-${legado.id}`}>Custo primário (%)</Label>
+                    <Input id={`custoPrimarioPct-${legado.id}`} name="custoPrimarioPct" defaultValue={paraCampoBR(legado.custoPrimarioPct)} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor={`margemP2Pct-${legado.id}`}>Margem P2 (%)</Label>
+                    <Input id={`margemP2Pct-${legado.id}`} name="margemP2Pct" defaultValue={paraCampoBR(legado.margemP2Pct)} />
+                  </div>
                 </div>
-                <div className="btn-row">
-                  <button type="submit" className="btn secondary">Salvar dados de comparação</button>
+                <div>
+                  <Button type="submit" variant="outline">Salvar dados de comparação</Button>
                 </div>
               </form>
               {legado.fotoUrl && (
                 legado.fotoMime === "application/pdf" ? (
-                  <a href={legado.fotoUrl} target="_blank" rel="noreferrer" className="btn ghost" style={{ marginTop: 10 }}>Abrir PDF em nova aba</a>
+                  <Button asChild variant="outline" className="w-fit">
+                    <a href={legado.fotoUrl} target="_blank" rel="noreferrer">Abrir PDF em nova aba</a>
+                  </Button>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element -- URL do Blob
-                  <img src={legado.fotoUrl} alt="Foto da folha" className="anexo-preview" style={{ marginTop: 10, maxWidth: 320 }} />
+                  <img src={legado.fotoUrl} alt="Foto da folha" className="max-w-[320px] rounded-lg border border-border" />
                 )
               )}
             </div>
-          </td>
-        </tr>
+          </TableCell>
+        </TableRow>
       )}
     </>
   );

@@ -2,6 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  KanbanSquare,
+  FilePlus2,
+  Gavel,
+  History,
+  Archive,
+  BarChart3,
+  Settings2,
+  LogOut,
+  Search,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { sair } from "./actions";
 
 type Props = {
@@ -11,64 +26,124 @@ type Props = {
   pendentesDiretoria?: number;
 };
 
-// Versão de sidebarHtml() do painel atual (linhas 2980-3063). Sem sessão, só existe "Novo
-// Orçamento" (representante externo) + link pra login — mesmo comportamento do sidebarHtml
-// original quando !sessaoAtual().
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  color: string; // hex — vira --nav-color, tingindo fundo/hover/ícone desse item
+  count?: number;
+};
+
+// Versão com identidade visual de ERP moderno da sidebarHtml() original (linhas 2980-3063):
+// cada item tem ícone + cor própria, com um leve "vidro tingido" no hover/ativo — reconstrói o
+// efeito --nav-color do HTML original, agora com Tailwind + CSS custom properties por item.
 export function Sidebar({ nome, perfilNome, admin, pendentesDiretoria = 0 }: Props) {
   const pathname = usePathname();
   const logado = !!nome;
 
-  const items = logado
+  const items: NavItem[] = logado
     ? [
-        { href: "/painel", label: "Painel" },
-        { href: "/novo", label: "Novo orçamento" },
-        { href: "/diretoria", label: "Diretoria", count: pendentesDiretoria },
-        { href: "/historico", label: "Histórico" },
-        { href: "/legado", label: "Arquivo legado" },
-        { href: "/resumo", label: "Resumo semanal" },
-        ...(admin ? [{ href: "/administracao", label: "Administração" }] : []),
+        { href: "/", label: "Início", icon: LayoutDashboard, color: "#B5502E" },
+        { href: "/painel", label: "Painel", icon: KanbanSquare, color: "#26405C" },
+        { href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" },
+        { href: "/diretoria", label: "Diretoria", icon: Gavel, color: "#946522", count: pendentesDiretoria },
+        { href: "/historico", label: "Histórico", icon: History, color: "#5B6270" },
+        { href: "/legado", label: "Arquivo legado", icon: Archive, color: "#8C3B21" },
+        { href: "/resumo", label: "Resumo semanal", icon: BarChart3, color: "#2C6E8C" },
+        ...(admin ? [{ href: "/administracao", label: "Administração", icon: Settings2, color: "#233248" }] : []),
       ]
-    : [{ href: "/novo", label: "Novo orçamento" }];
+    : [{ href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" }];
 
   return (
-    <div className="sidebar">
-      <div className="brand">
-        <div className="mark">
-          <span className="swatch">
+    <div className="flex h-screen w-[248px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-border bg-sidebar px-3.5 py-5">
+      <div className="flex flex-col gap-1 border-b border-dashed border-border pb-3.5 px-1.5">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] border border-border bg-gradient-to-br from-secondary to-card p-1 shadow-[0_0_0_3px_var(--accent)]">
             {/* eslint-disable-next-line @next/next/no-img-element -- logo pequeno e fixo; o
                 otimizador do next/image rejeita este PNG específico ("not a valid image") */}
             <img src="/logo-santa-cruz.png" alt="Santa Cruz" width={28} height={28} />
           </span>
-          <h1>Orçamentos</h1>
+          <h1 className="flex-1 font-serif text-lg font-semibold tracking-tight text-foreground">Orçamentos</h1>
+          <ThemeToggle />
         </div>
-        <div className="sub">SANTA CRUZ IND. GRÁFICA</div>
+        <div className="font-mono text-[10px] tracking-widest text-muted-foreground">SANTA CRUZ IND. GRÁFICA</div>
       </div>
 
-      <nav>
-        {items.map((it) => (
-          <Link key={it.href} href={it.href} className={`nav-btn${pathname === it.href ? " active" : ""}`}>
-            <span className="nav-label">{it.label}</span>
-            {"count" in it && <span className={`count${it.count ? "" : " zero"}`}>{it.count}</span>}
-          </Link>
-        ))}
+      {logado && (
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("abrir-busca-rapida"))}
+          className="flex items-center gap-2 rounded-[10px] border border-border bg-muted/40 px-2.5 py-2 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Search className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1">Buscar…</span>
+          <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
+        </button>
+      )}
+
+      <nav className="flex flex-col gap-1.5 pr-0.5">
+        {items.map((it, i) => {
+          const active = pathname === it.href;
+          const Icon = it.icon;
+          return (
+            <Link
+              key={it.href}
+              href={it.href}
+              style={{ "--nav-color": it.color, animationDelay: `${i * 45}ms` } as React.CSSProperties}
+              className={[
+                "group relative isolate flex animate-in fade-in slide-in-from-left-1 items-center gap-2.5 rounded-[10px] border px-2.5 py-2 text-[13.5px] font-medium no-underline duration-300 fill-mode-backwards",
+                "border-[color-mix(in_srgb,var(--nav-color)_20%,var(--border))] bg-[color-mix(in_srgb,var(--nav-color)_4%,var(--sidebar))] text-muted-foreground",
+                "transition-[background-color,border-color,color,transform] hover:translate-x-0.5 hover:text-foreground hover:border-[color-mix(in_srgb,var(--nav-color)_40%,var(--border))]",
+                active
+                  ? "border-[color-mix(in_srgb,var(--nav-color)_55%,var(--border))] bg-[color-mix(in_srgb,var(--nav-color)_12%,var(--sidebar))] font-semibold text-foreground shadow-sm"
+                  : "",
+              ].join(" ")}
+            >
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                style={{
+                  background:
+                    "linear-gradient(155deg, color-mix(in srgb, var(--nav-color) 26%, var(--sidebar)), color-mix(in srgb, var(--nav-color) 9%, var(--sidebar)))",
+                }}
+              >
+                <Icon className="h-4 w-4" style={{ color: it.color }} />
+              </span>
+              <span className="flex-1">{it.label}</span>
+              {it.count !== undefined && (
+                <Badge
+                  variant="secondary"
+                  className={`h-5 min-w-5 justify-center rounded-full px-1.5 font-mono text-[11px] ${it.count ? "" : "invisible"}`}
+                  style={it.count ? { background: "var(--warn-soft)", color: "var(--warn)" } : undefined}
+                >
+                  {it.count}
+                </Badge>
+              )}
+              {/* fio aceso — mesma linguagem visual do original (linha 193-198 do CSS antigo) */}
+              <span
+                className="absolute -right-[3px] top-[15%] bottom-[15%] w-[2.5px] rounded-full opacity-60 transition-opacity group-hover:opacity-90"
+                style={{ background: it.color, boxShadow: `0 0 7px 1px color-mix(in srgb, ${it.color} 70%, transparent)` }}
+              />
+            </Link>
+          );
+        })}
       </nav>
 
       {logado ? (
-        <div className="persona-box conta-box">
-          <span className="label">Conectado como</span>
-          <div className="conta-nome">{nome}</div>
-          <div className="conta-perfil">{perfilNome}{admin ? " · Administrador" : ""}</div>
+        <div className="mt-auto flex flex-col gap-2 border-t border-dashed border-border pt-3.5">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Conectado como</span>
+          <div className="font-serif text-base font-semibold text-foreground">{nome}</div>
+          <div className="text-xs text-muted-foreground">{perfilNome}{admin ? " · Administrador" : ""}</div>
           <form action={sair}>
-            <button type="submit" className="btn ghost" style={{ marginTop: 8, width: "100%" }}>
-              Sair
-            </button>
+            <Button type="submit" variant="outline" size="sm" className="mt-1 w-full gap-2">
+              <LogOut className="h-3.5 w-3.5" /> Sair
+            </Button>
           </form>
         </div>
       ) : (
-        <div className="persona-box">
-          <Link href="/login" className="btn ghost" style={{ width: "100%", display: "block", textAlign: "center" }}>
-            Sou colaborador · Entrar
-          </Link>
+        <div className="mt-auto pt-3.5">
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/login">Sou colaborador · Entrar</Link>
+          </Button>
         </div>
       )}
     </div>

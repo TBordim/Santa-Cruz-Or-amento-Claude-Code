@@ -13,13 +13,18 @@ import {
   OPCOES_MODALIDADE,
 } from "@/lib/orcamentos/constantes";
 import type { ReqCliente } from "@/lib/orcamentos/types";
+import { FormSection, Field, Row2 } from "@/components/form-section";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function CheckGroup({ nome, opcoes, marcados }: { nome: string; opcoes: readonly string[]; marcados?: string[] }) {
   return (
-    <div className="opt-grid">
+    <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
       {opcoes.map((op) => (
-        <label key={op} className="checkline">
-          <input type="checkbox" name={nome} value={op} defaultChecked={marcados?.includes(op)} />
+        <label key={op} className="flex items-center gap-2 text-sm">
+          <Checkbox name={nome} value={op} defaultChecked={marcados?.includes(op)} />
           <span>{op}</span>
         </label>
       ))}
@@ -66,120 +71,120 @@ export function CamposComerciaisFields({
 
   return (
     <>
-      <div className="form-section" style={{ borderTop: "none", marginTop: 0, paddingTop: 0 }}>
-        <h4>Classificação</h4>
-        <div className="row2">
-          <div className="field">
-            <label>Origem do pedido</label>
-            <select name="origemPedido" defaultValue={defaults?.origemPedido ?? ORIGENS_PEDIDO[0]}>
-              {ORIGENS_PEDIDO.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label>Classificação</label>
-            <select name="classificacao" defaultValue={defaults?.classificacao ?? "NOVO"}>
-              {CLASSIFICACOES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="field">
-          <label>Detalhe da classificação</label>
-          <input name="classificacaoDetalhe" defaultValue={defaults?.classificacaoDetalhe ?? ""} />
-        </div>
-        <div className="row2">
-          <div className="field">
-            <label>Análise de crédito</label>
-            <select name="analiseCredito" defaultValue={defaults?.analiseCredito ?? ANALISE_CREDITO[0]}>
-              {ANALISE_CREDITO.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label>FSC</label>
-            <select name="fsc" defaultValue={defaults?.fsc ?? OPCOES_FSC[0]}>
-              {OPCOES_FSC.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-        </div>
-        <label className="checkline">
-          <input type="checkbox" name="usaSelo" defaultChecked={defaults?.usaSelo ?? false} />
+      <FormSection title="Classificação">
+        <Row2>
+          <Field label="Origem do pedido">
+            <Select name="origemPedido" defaultValue={defaults?.origemPedido ?? ORIGENS_PEDIDO[0]}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ORIGENS_PEDIDO.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Classificação">
+            <Select name="classificacao" defaultValue={defaults?.classificacao ?? "NOVO"}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CLASSIFICACOES.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+        </Row2>
+        <Field label="Detalhe da classificação">
+          <Input name="classificacaoDetalhe" defaultValue={defaults?.classificacaoDetalhe ?? ""} />
+        </Field>
+        <Row2>
+          <Field label="Análise de crédito">
+            <Select name="analiseCredito" defaultValue={defaults?.analiseCredito ?? ANALISE_CREDITO[0]}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ANALISE_CREDITO.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="FSC">
+            <Select name="fsc" defaultValue={defaults?.fsc ?? OPCOES_FSC[0]}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {OPCOES_FSC.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+        </Row2>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox name="usaSelo" defaultChecked={defaults?.usaSelo ?? false} />
           <span>Usa selo</span>
         </label>
-      </div>
+      </FormSection>
 
-      <div className="form-section">
-        <h4>Cliente</h4>
-        <div className="field">
-          <label>Cliente</label>
-          <input name="cliente" required defaultValue={defaults?.cliente ?? ""} />
-        </div>
-        <div className="row2">
-          <div className="field"><label>CNPJ</label><input name="cnpj" defaultValue={defaults?.cnpj ?? ""} /></div>
-          <div className="field"><label>Endereço</label><input name="endereco" defaultValue={defaults?.endereco ?? ""} /></div>
-        </div>
-        <div className="row2">
-          <div className="field"><label>Representante</label><input name="representante" defaultValue={defaults?.representante ?? ""} /></div>
-          <div className="field"><label>Comissão CEV</label><input name="comissaoCev" defaultValue={defaults?.comissaoCev ?? ""} /></div>
-        </div>
-        <div className="row2">
-          <div className="field"><label>Telefone</label><input name="telefone" defaultValue={defaults?.telefone ?? ""} /></div>
-          <div className="field"><label>E-mail</label><input name="email" type="email" defaultValue={defaults?.email ?? ""} /></div>
-        </div>
-        <div className="row2">
-          <div className="field"><label>Contato compras</label><input name="contatoCompras" defaultValue={defaults?.contatoCompras ?? ""} /></div>
-          <div className="field"><label>Contato técnico</label><input name="contatoTecnico" defaultValue={defaults?.contatoTecnico ?? ""} /></div>
-        </div>
-      </div>
+      <FormSection title="Cliente">
+        <Field label="Cliente">
+          <Input name="cliente" required defaultValue={defaults?.cliente ?? ""} />
+        </Field>
+        <Row2>
+          <Field label="CNPJ"><Input name="cnpj" defaultValue={defaults?.cnpj ?? ""} /></Field>
+          <Field label="Endereço"><Input name="endereco" defaultValue={defaults?.endereco ?? ""} /></Field>
+        </Row2>
+        <Row2>
+          <Field label="Representante"><Input name="representante" defaultValue={defaults?.representante ?? ""} /></Field>
+          <Field label="Comissão CEV"><Input name="comissaoCev" defaultValue={defaults?.comissaoCev ?? ""} /></Field>
+        </Row2>
+        <Row2>
+          <Field label="Telefone"><Input name="telefone" defaultValue={defaults?.telefone ?? ""} /></Field>
+          <Field label="E-mail"><Input name="email" type="email" defaultValue={defaults?.email ?? ""} /></Field>
+        </Row2>
+        <Row2>
+          <Field label="Contato compras"><Input name="contatoCompras" defaultValue={defaults?.contatoCompras ?? ""} /></Field>
+          <Field label="Contato técnico"><Input name="contatoTecnico" defaultValue={defaults?.contatoTecnico ?? ""} /></Field>
+        </Row2>
+      </FormSection>
 
-      <div className="form-section">
-        <h4>Condições comerciais e entrega</h4>
-        <div className="field"><label>Condição de pagamento</label><input name="condPagamento" defaultValue={defaults?.condPagamento ?? ""} /></div>
-        <div className="row2">
-          <div className="field">
-            <label>Modalidade</label>
-            <select name="modalidade" defaultValue={defaults?.modalidade ?? OPCOES_MODALIDADE[0]}>
-              {OPCOES_MODALIDADE.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-          <div className="field"><label>Localidade de entrega</label><input name="entregaLocalidade" defaultValue={defaults?.entregaLocalidade ?? ""} /></div>
-        </div>
-        <div className="row2">
-          <div className="field"><label>Qtd. de entregas</label><input name="qtdEntregas" defaultValue={defaults?.qtdEntregas ?? ""} /></div>
-          <div className="field"><label>Datas de entrega</label><input name="entregaDatas" defaultValue={defaults?.entregaDatas ?? ""} /></div>
-        </div>
-      </div>
+      <FormSection title="Condições comerciais e entrega">
+        <Field label="Condição de pagamento"><Input name="condPagamento" defaultValue={defaults?.condPagamento ?? ""} /></Field>
+        <Row2>
+          <Field label="Modalidade">
+            <Select name="modalidade" defaultValue={defaults?.modalidade ?? OPCOES_MODALIDADE[0]}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {OPCOES_MODALIDADE.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Localidade de entrega"><Input name="entregaLocalidade" defaultValue={defaults?.entregaLocalidade ?? ""} /></Field>
+        </Row2>
+        <Row2>
+          <Field label="Qtd. de entregas"><Input name="qtdEntregas" defaultValue={defaults?.qtdEntregas ?? ""} /></Field>
+          <Field label="Datas de entrega"><Input name="entregaDatas" defaultValue={defaults?.entregaDatas ?? ""} /></Field>
+        </Row2>
+      </FormSection>
 
-      <div className="form-section">
-        <h4>Produto</h4>
-        <div className="field">
-          <label>Descrição do produto</label>
-          <input name="produtoDescricao" required defaultValue={defaults?.produtoDescricao ?? ""} />
-        </div>
-        <div className="field">
-          <label>Código do produto</label>
-          <input name="produtoCodigo" defaultValue={defaults?.produtoCodigo ?? ""} />
-          <span className="hint">Chave usada para casar repetições e o Arquivo legado.</span>
-        </div>
-        <div className="field">
-          <label>Quantidades a orçar</label>
+      <FormSection title="Produto">
+        <Field label="Descrição do produto">
+          <Input name="produtoDescricao" required defaultValue={defaults?.produtoDescricao ?? ""} />
+        </Field>
+        <Field label="Código do produto" hint="Chave usada para casar repetições e o Arquivo legado.">
+          <Input name="produtoCodigo" defaultValue={defaults?.produtoCodigo ?? ""} />
+        </Field>
+        <Field label="Quantidades a orçar">
           <ListaDinamica name="quantidades" placeholder="Ex.: 5000" botaoLabel="+ Adicionar quantidade" valoresIniciais={r?.quantidadesLista} />
-        </div>
-        <div className="field">
-          <label>Código interno (Santa Cruz)</label>
-          <input name="codInterno" required={ehRepeticao} defaultValue={defaults?.codInterno ?? ""} />
-          <span className="hint">
-            {ehRepeticao ? "Obrigatório — o produto já existe no sistema." : "Em produto novo é gerado na Engenharia."}
-          </span>
-        </div>
-        <div className="field"><label>Observações</label><textarea name="obs" rows={2} defaultValue={defaults?.obs ?? ""} /></div>
-      </div>
+        </Field>
+        <Field
+          label="Código interno (Santa Cruz)"
+          hint={ehRepeticao ? "Obrigatório — o produto já existe no sistema." : "Em produto novo é gerado na Engenharia."}
+        >
+          <Input name="codInterno" required={ehRepeticao} defaultValue={defaults?.codInterno ?? ""} />
+        </Field>
+        <Field label="Observações">
+          <Textarea name="obs" rows={2} defaultValue={defaults?.obs ?? ""} />
+        </Field>
+      </FormSection>
 
-      <div className="form-section">
-        <h4>Medidas e suporte</h4>
-        <div className="row2">
-          <div className="field"><label>Formato — Comprimento (cm)</label><input name="medidaF" defaultValue={r?.medidaF ?? ""} /></div>
-          <div className="field"><label>Formato — Largura (cm)</label><input name="medidaL" defaultValue={r?.medidaL ?? ""} /></div>
-        </div>
-        <div className="field"><label>Altura (cm)</label><input name="medidaA" defaultValue={r?.medidaA ?? ""} /></div>
+      <FormSection title="Medidas e suporte">
+        <Row2>
+          <Field label="Formato — Comprimento (cm)"><Input name="medidaF" defaultValue={r?.medidaF ?? ""} /></Field>
+          <Field label="Formato — Largura (cm)"><Input name="medidaL" defaultValue={r?.medidaL ?? ""} /></Field>
+        </Row2>
+        <Field label="Altura (cm)"><Input name="medidaA" defaultValue={r?.medidaA ?? ""} /></Field>
         <SuportesLista
           campoA="suporteDescricao"
           campoB="suporteGramatura"
@@ -187,42 +192,38 @@ export function CamposComerciaisFields({
           labelB="Gramatura (g/m²)"
           valoresIniciais={r?.suportes?.map((s) => ({ a: s.descricao, b: s.gramatura }))}
         />
-      </div>
+      </FormSection>
 
-      <div className="form-section">
-        <h4>Acabamento</h4>
+      <FormSection title="Acabamento">
         <CheckGroup nome="acabamentos" opcoes={OPCOES_ACABAMENTO} marcados={r?.acabamentos} />
-        <div className="field" style={{ marginTop: 10 }}><label>Outro acabamento</label><input name="acabamentoOutro" defaultValue={r?.acabamentoOutro ?? ""} /></div>
-      </div>
+        <Field label="Outro acabamento"><Input name="acabamentoOutro" defaultValue={r?.acabamentoOutro ?? ""} /></Field>
+      </FormSection>
 
-      <div className="form-section">
-        <h4>Revestimento — verniz</h4>
+      <FormSection title="Revestimento — verniz">
         <CheckGroup nome="verniz" opcoes={OPCOES_VERNIZ} marcados={r?.verniz} />
-      </div>
+      </FormSection>
 
-      <div className="form-section">
-        <h4>Revestimento — plástico</h4>
+      <FormSection title="Revestimento — plástico">
         <CheckGroup nome="plastico" opcoes={OPCOES_PLASTICO} marcados={r?.plastico} />
-      </div>
+      </FormSection>
 
-      <div className="form-section">
-        <h4>Embalagem</h4>
+      <FormSection title="Embalagem">
         <CheckGroup nome="embalagem" opcoes={OPCOES_EMBALAGEM} marcados={r?.embalagem} />
-        <div className="field" style={{ marginTop: 10 }}>
-          <label>Detalhe da embalagem</label>
-          <input name="embalagemDetalhe" defaultValue={r?.embalagemDetalhe ?? ""} />
-          <span className="hint">Código e medidas da caixa são definidos pela Engenharia na próxima etapa.</span>
-        </div>
-      </div>
+        <Field
+          label="Detalhe da embalagem"
+          hint="Código e medidas da caixa são definidos pela Engenharia na próxima etapa."
+        >
+          <Input name="embalagemDetalhe" defaultValue={r?.embalagemDetalhe ?? ""} />
+        </Field>
+      </FormSection>
 
-      <div className="form-section">
-        <h4>Impressão e fechamento</h4>
+      <FormSection title="Impressão e fechamento">
         <CheckGroup nome="impressao" opcoes={OPCOES_IMPRESSAO} marcados={r?.impressao} />
-        <div className="row2" style={{ marginTop: 10 }}>
-          <div className="field"><label>Fechamento tampa</label><input name="fechamentoTampa" defaultValue={r?.fechamentoTampa ?? ""} /></div>
-          <div className="field"><label>Fechamento fundo</label><input name="fechamentoFundo" defaultValue={r?.fechamentoFundo ?? ""} /></div>
-        </div>
-      </div>
+        <Row2>
+          <Field label="Fechamento tampa"><Input name="fechamentoTampa" defaultValue={r?.fechamentoTampa ?? ""} /></Field>
+          <Field label="Fechamento fundo"><Input name="fechamentoFundo" defaultValue={r?.fechamentoFundo ?? ""} /></Field>
+        </Row2>
+      </FormSection>
     </>
   );
 }
