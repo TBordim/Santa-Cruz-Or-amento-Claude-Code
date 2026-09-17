@@ -58,6 +58,24 @@ export function desfechoInfo(key: string | null | undefined) {
   return DESFECHOS.find((d) => d.key === key) ?? DESFECHOS[0];
 }
 
+// Equivalente a resumoAcabamento() — resume as seleções de acabamento/verniz/plástico feitas
+// em Em Aberto (reqCliente) num texto único, usado como sugestão inicial do campo "Acabamento"
+// no Orçamento (que o próprio Orçamento pode editar, mas não deveria nascer em branco).
+export function resumoAcabamento(reqCliente: {
+  acabamentos?: string[];
+  acabamentoOutro?: string;
+  verniz?: string[];
+  plastico?: string[];
+} | null | undefined): string {
+  if (!reqCliente) return "";
+  const partes: string[] = [];
+  if (reqCliente.acabamentos?.length) partes.push(reqCliente.acabamentos.join(", "));
+  if (reqCliente.acabamentoOutro) partes.push(reqCliente.acabamentoOutro);
+  if (reqCliente.verniz?.length) partes.push("Verniz: " + reqCliente.verniz.join(", "));
+  if (reqCliente.plastico?.length) partes.push("Plástico: " + reqCliente.plastico.join(", "));
+  return partes.join(" · ");
+}
+
 export function fmtMoney(n: number | null | undefined): string {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   return "R$ " + Number(n).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

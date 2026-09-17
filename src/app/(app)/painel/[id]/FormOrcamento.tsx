@@ -2,9 +2,10 @@
 
 import { useActionState } from "react";
 import { salvarOrcamento, enviarParaDiretoria, solicitarCompras, registrarRetornoCompras } from "../actions";
+import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, PrecificacaoTier } from "@/lib/orcamentos/types";
-import { fmtDateTime } from "@/lib/orcamentos/constantes";
+import { fmtDateTime, resumoAcabamento } from "@/lib/orcamentos/constantes";
 import { paraCampoBR } from "@/lib/orcamentos/motor";
 
 function ComprasBox({ doc }: { doc: OrcamentoComAnexos }) {
@@ -111,7 +112,11 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
             <div className="field"><label>Nº de SOPP</label><input name="numeroSequencial" required defaultValue={doc.numeroSequencial ?? ""} form="form-orcamento" /></div>
             <div className="field"><label>Prazo (dias)</label><input name="prazoDias" type="number" defaultValue={doc.prazoDias ?? ""} form="form-orcamento" /></div>
           </div>
-          <div className="field"><label>Acabamento</label><input name="acabamento" defaultValue={doc.acabamento ?? ""} form="form-orcamento" /></div>
+          <div className="field">
+            <label>Acabamento</label>
+            <input name="acabamento" defaultValue={doc.acabamento || resumoAcabamento(c)} form="form-orcamento" />
+            <span className="hint">Sugerido a partir da Solicitação — ajuste se precisar.</span>
+          </div>
           <label className="checkline" style={{ marginBottom: 8 }}>
             <input type="checkbox" name="comissaoEspecial" defaultChecked={doc.comissaoEspecial} form="form-orcamento" />
             <span>Condição comercial especial (comissão/desconto)</span>
@@ -119,6 +124,9 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
           <div className="field"><label>Observação da condição especial</label><input name="comissaoObs" defaultValue={doc.comissaoObs ?? ""} form="form-orcamento" /></div>
         </div>
       </form>
+
+      <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
+      <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
 
       {erro && <div className="anexo-erro">{erro}</div>}
       <div className="btn-row">

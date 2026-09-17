@@ -102,6 +102,7 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
         </div>
       </form>
 
+      <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
       <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} />
 
       {erro && <div className="anexo-erro">{erro}</div>}

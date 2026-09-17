@@ -68,7 +68,12 @@ export function montarPrecificacao(input: MontarPrecificacaoInput): Precificacao
 
     let precoFinalSugerido: number;
     if (produtoNovo) {
-      precoFinalSugerido = Math.round(f.precoProjetado * 1.005);
+      // Multiplica por 1005 (inteiro) e só divide por 1000 no final, em vez de `* 1.005`
+      // direto — `100 * 1.005` vira 100.49999999999999 em ponto flutuante (0,005 não tem
+      // representação binária exata) e arredonda pra baixo por engano. Encontrado em teste
+      // real: 100 devia sugerir 101, sugeria 100. `Number.EPSILON` não é grande o bastante pra
+      // corrigir esse erro específico (~1,4e-14, bem maior que o EPSILON de ~2,2e-16).
+      precoFinalSugerido = Math.round((f.precoProjetado * 1005) / 1000);
     } else if (premissasIguais && variacaoPct !== null && variacaoPct <= 2) {
       precoFinalSugerido = anterior!.precoFinal!;
     } else {

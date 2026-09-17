@@ -4,6 +4,7 @@ import { marcarFinalizado, salvarNumeroOrcamento } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtMoney } from "@/lib/orcamentos/constantes";
+import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 
 export function FormEnvioOferta({ doc }: { doc: OrcamentoComAnexos }) {
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
@@ -48,6 +49,9 @@ export function FormEnvioOferta({ doc }: { doc: OrcamentoComAnexos }) {
           <button type="submit" className="btn">Marcar como finalizado</button>
         </div>
       </form>
+
+      <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
+      <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
     </>
   );
 }

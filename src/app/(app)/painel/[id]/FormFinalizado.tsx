@@ -4,6 +4,7 @@ import { registrarDesfecho } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtMoney, fmtDateTime, DESFECHOS } from "@/lib/orcamentos/constantes";
+import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 
 export function FormFinalizado({ doc }: { doc: OrcamentoComAnexos }) {
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
@@ -48,6 +49,9 @@ export function FormFinalizado({ doc }: { doc: OrcamentoComAnexos }) {
           <button type="submit" className="btn">Registrar desfecho</button>
         </div>
       </form>
+
+      <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
+      <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
     </>
   );
 }

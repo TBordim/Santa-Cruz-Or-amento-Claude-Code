@@ -89,11 +89,14 @@ export async function buscarLegadoRef(clienteChave: string, produtoChave: string
 
 // Valor total do orçamento (preço final × milheiros a produzir, somado por faixa) — usado no
 // Histórico/Resumo, não o preço por milheiro isolado (pedido do Thiago em 10/09/2026).
+// O preço lançado no Orçamento é "por milheiro" (a cada 1.000 unidades) — a quantidade em si é
+// gravada em unidades (ex.: "5000"), então o valor total é preço × (unidades / 1000), não
+// preço × unidades direto (bug encontrado em teste real: dava 1000x o valor correto).
 export function valorTotalOrcamento(precificacao: PrecificacaoTier[] | null | undefined): number {
   if (!precificacao || !precificacao.length) return 0;
   return precificacao.reduce((soma, t) => {
     const preco = t.precoFinal ?? t.precoFinalSugerido ?? 0;
-    const qtd = parseFloat(String(t.quantidade).replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
-    return soma + preco * qtd;
+    const unidades = parseFloat(String(t.quantidade).replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
+    return soma + preco * (unidades / 1000);
   }, 0);
 }

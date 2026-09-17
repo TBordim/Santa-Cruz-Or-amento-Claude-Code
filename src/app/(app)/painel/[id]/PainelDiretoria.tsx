@@ -6,6 +6,7 @@ import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtPct as fmtPctHelper, paraCampoBR } from "@/lib/orcamentos/motor";
 import { LIMITE_CUSTO, LIMITE_MARGEM } from "@/lib/orcamentos/motor";
 import { fmtMoney } from "@/lib/orcamentos/constantes";
+import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 
 function fmtMoneyOrDash(n: number | null | undefined) {
   return n === null || n === undefined ? "—" : fmtMoney(n);
@@ -101,6 +102,9 @@ export function PainelDiretoria({ doc }: { doc: OrcamentoComAnexos }) {
       {tiers.map((t, i) => (
         <TierCard key={i} doc={doc} tier={t} idx={i} total={tiers.length} />
       ))}
+
+      <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
+      <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
     </>
   );
 }
