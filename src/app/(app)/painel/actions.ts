@@ -206,7 +206,7 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   const comissaoEspecial = formData.get("comissaoEspecial") === "on";
   const produtoNovoClassificacao = doc.classificacao === "NOVO" || doc.classificacao === "REPETICAO_NOVO";
 
-  const anterior = await buscarOrcamentoAnterior(doc.clienteChave ?? "", doc.produtoChave ?? "", doc.id);
+  const anterior = await buscarOrcamentoAnterior(doc.clienteChave ?? "", doc.produtoChave ?? "", doc.id, doc.codInterno);
   const legado = await buscarLegadoRef(doc.clienteChave ?? "", doc.produtoChave ?? "");
 
   const precificacao = montarPrecificacao({ faixas, comissaoEspecial, acabamentoAtual: acabamento, produtoNovoClassificacao, anterior, legado });

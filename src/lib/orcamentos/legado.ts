@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import type { PrecificacaoTier } from "./types";
 import type { LegadoRef, OrcamentoAnteriorRef } from "./tiers";
 
@@ -6,26 +7,45 @@ export function chave(s: string | null | undefined): string {
   return (s || "").toString().trim().toUpperCase();
 }
 
-// Equivalente a ultimoPreco() — casamento interno exato por clienteChave+produtoChave, entre
-// orçamentos "novo" já decididos (aprovado/auto_aprovado) OU registros do Arquivo legado
-// (que raramente batem letra por letra, mas quando batem contam como o mesmo caso).
+// Equivalente a ultimoPreco() — casamento interno por clienteChave+produtoChave (orçamentos
+// "novo" já decididos, aprovado/auto_aprovado, OU registros do Arquivo legado) OU, quando
+// disponível, clienteChave+codInterno.
+//
+// O HTML original excluía codInterno de propósito ("ainda não é gerado automaticamente, usá-lo
+// seria pior do que o código do cliente"). Isso mudou: codInterno hoje é obrigatório antes de
+// sair da Engenharia (validarLiberarOrcamento), e na prática é o identificador que a equipe usa
+// para "é o mesmo produto de novo" — mais confiável que produtoCodigo, que raramente é
+// preenchido pelo representante. Sem esse casamento extra, um card ficava sem nenhuma
+// comparação na Diretoria mesmo tendo um Histórico do mesmo código, só porque a descrição do
+// produto foi digitada com uma leve diferença de um pedido pro outro. Achado em teste real
+// (Thiago, 18/09/2026 — SC:0524003).
 export async function buscarOrcamentoAnterior(
   clienteChave: string,
   produtoChave: string,
   excludeId?: string,
+  codInterno?: string | null,
 ): Promise<OrcamentoAnteriorRef | null> {
-  if (!clienteChave || !produtoChave) return null;
+  const codInternoTrim = (codInterno || "").trim();
+  if (!clienteChave || (!produtoChave && !codInternoTrim)) return null;
+
+  const condicoes: Prisma.OrcamentoWhereInput[] = [];
+  if (produtoChave) {
+    condicoes.push(
+      { clienteChave, produtoChave, origem: "NOVO", statusDiretoria: { in: ["AUTO_APROVADO", "APROVADO"] } },
+      { clienteChave, produtoChave, origem: "LEGADO" },
+    );
+  }
+  if (codInternoTrim) {
+    condicoes.push({
+      clienteChave,
+      codInterno: { equals: codInternoTrim, mode: "insensitive" },
+      origem: "NOVO",
+      statusDiretoria: { in: ["AUTO_APROVADO", "APROVADO"] },
+    });
+  }
 
   const anterior = await prisma.orcamento.findFirst({
-    where: {
-      id: excludeId ? { not: excludeId } : undefined,
-      clienteChave,
-      produtoChave,
-      OR: [
-        { origem: "NOVO", statusDiretoria: { in: ["AUTO_APROVADO", "APROVADO"] } },
-        { origem: "LEGADO" },
-      ],
-    },
+    where: { id: excludeId ? { not: excludeId } : undefined, OR: condicoes },
     orderBy: { criadoEm: "desc" },
   });
   if (!anterior) return null;
