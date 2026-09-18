@@ -55,7 +55,10 @@ export async function avancarEngenharia(_prev: FormState, formData: FormData): P
     return { erro: "Código interno (Santa Cruz) deve ter o formato 0.000.000 (7 dígitos)." };
   }
   await prisma.orcamento.update({ where: { id }, data: { ...campos, etapa: "ENGENHARIA" } });
-  redirect(`/painel/${id}`);
+  // Fecha a gaveta ao avançar de etapa (volta pro /painel em vez de /painel/[id]) — só reabre
+  // se a pessoa clicar de novo no card, na coluna nova. Pedido do Thiago em 19/09/2026: a gaveta
+  // ficava aberta na etapa nova, e ele queria voltar pro quadro geral depois de liberar.
+  redirect("/painel");
 }
 
 // ---------- Etapa 2 — Engenharia ----------
@@ -111,7 +114,7 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
       vistoEngenhariaEm: new Date(),
     },
   });
-  redirect(`/painel/${id}`);
+  redirect("/painel");
 }
 
 // ---------- Etapa 3 — Orçamento ----------
@@ -238,7 +241,7 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
       statusDiretoria: todosAuto ? "AUTO_APROVADO" : "PENDENTE",
     },
   });
-  redirect(`/painel/${id}`);
+  redirect("/painel");
 }
 
 // ---------- Etapa 4 — Diretoria ----------
@@ -285,8 +288,15 @@ export async function decidirDiretoriaFaixa(formData: FormData) {
     data.statusDiretoria = resultado.proximo.statusDiretoria === "auto_aprovado" ? "AUTO_APROVADO" : "APROVADO";
   }
   await prisma.orcamento.update({ where: { id }, data });
-  revalidatePath(`/painel/${id}`);
   revalidatePath("/diretoria");
+  // Só fecha a gaveta quando a decisão realmente avança de etapa (todas as faixas resolvidas) —
+  // continuando na Diretoria (outras faixas ainda pendentes) ou voltando pro Orçamento
+  // (revisão), a gaveta permanece aberta na mesma etapa, já que a pessoa provavelmente ainda
+  // está trabalhando nesse card.
+  if (resultado.proximo.tipo === "avanca_envio_oferta") {
+    redirect("/painel");
+  }
+  revalidatePath(`/painel/${id}`);
 }
 
 // ---------- Etapa 5 — Envio de Oferta ----------
@@ -311,7 +321,7 @@ export async function marcarFinalizado(formData: FormData) {
       ...(numeroOrcamento ? { numeroOrcamento } : {}),
     },
   });
-  redirect(`/painel/${id}`);
+  redirect("/painel");
 }
 
 // ---------- Etapa 6 — Finalizado ----------

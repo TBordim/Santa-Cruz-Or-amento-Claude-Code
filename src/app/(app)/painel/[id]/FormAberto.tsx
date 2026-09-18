@@ -40,7 +40,6 @@ export function FormAberto({ doc }: { doc: OrcamentoComAnexos }) {
             telefone: doc.telefone,
             email: doc.email,
             contatoCompras: doc.contatoCompras,
-            contatoTecnico: doc.contatoTecnico,
             condPagamento: doc.condPagamento,
             modalidade: doc.modalidade,
             entregaLocalidade: doc.entregaLocalidade,

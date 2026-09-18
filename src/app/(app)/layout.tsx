@@ -1,5 +1,4 @@
 import { sessaoAtual } from "@/lib/permissions";
-import { prisma } from "@/lib/db";
 import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "@/components/command-palette";
 
@@ -10,17 +9,12 @@ import { CommandPalette } from "@/components/command-palette";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const sessao = await sessaoAtual();
 
-  const pendentesDiretoria = sessao
-    ? await prisma.orcamento.count({ where: { etapa: "DIRETORIA", statusDiretoria: "PENDENTE" } })
-    : 0;
-
   return (
     <div className="relative flex min-h-screen">
       <Sidebar
         nome={sessao?.nome ?? null}
         perfilNome={sessao?.perfilNome ?? null}
         admin={sessao?.admin ?? false}
-        pendentesDiretoria={pendentesDiretoria}
       />
       <main className="min-w-0 flex-1 px-9 pb-16 pt-7 md:px-9">{children}</main>
       {sessao && <CommandPalette admin={sessao.admin ?? false} />}

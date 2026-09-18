@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
   KanbanSquare,
   FilePlus2,
   Gavel,
@@ -14,7 +13,6 @@ import {
   LogOut,
   Search,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { sair } from "./actions";
@@ -23,7 +21,6 @@ type Props = {
   nome: string | null;
   perfilNome: string | null;
   admin: boolean;
-  pendentesDiretoria?: number;
 };
 
 type NavItem = {
@@ -31,22 +28,20 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   color: string; // hex — vira --nav-color, tingindo fundo/hover/ícone desse item
-  count?: number;
 };
 
 // Versão com identidade visual de ERP moderno da sidebarHtml() original (linhas 2980-3063):
 // cada item tem ícone + cor própria, com um leve "vidro tingido" no hover/ativo — reconstrói o
 // efeito --nav-color do HTML original, agora com Tailwind + CSS custom properties por item.
-export function Sidebar({ nome, perfilNome, admin, pendentesDiretoria = 0 }: Props) {
+export function Sidebar({ nome, perfilNome, admin }: Props) {
   const pathname = usePathname();
   const logado = !!nome;
 
   const items: NavItem[] = logado
     ? [
-        { href: "/", label: "Início", icon: LayoutDashboard, color: "#B5502E" },
         { href: "/painel", label: "Painel", icon: KanbanSquare, color: "#26405C" },
         { href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" },
-        { href: "/diretoria", label: "Diretoria", icon: Gavel, color: "#946522", count: pendentesDiretoria },
+        { href: "/diretoria", label: "Diretoria", icon: Gavel, color: "#946522" },
         { href: "/historico", label: "Histórico", icon: History, color: "#5B6270" },
         { href: "/legado", label: "Arquivo legado", icon: Archive, color: "#8C3B21" },
         { href: "/resumo", label: "Resumo semanal", icon: BarChart3, color: "#2C6E8C" },
@@ -109,15 +104,6 @@ export function Sidebar({ nome, perfilNome, admin, pendentesDiretoria = 0 }: Pro
                 <Icon className="h-4 w-4" style={{ color: it.color }} />
               </span>
               <span className="flex-1">{it.label}</span>
-              {it.count !== undefined && (
-                <Badge
-                  variant="secondary"
-                  className={`h-5 min-w-5 justify-center rounded-full px-1.5 font-mono text-[11px] ${it.count ? "" : "invisible"}`}
-                  style={it.count ? { background: "var(--warn-soft)", color: "var(--warn)" } : undefined}
-                >
-                  {it.count}
-                </Badge>
-              )}
               {/* fio aceso — mesma linguagem visual do original (linha 193-198 do CSS antigo) */}
               <span
                 className="absolute -right-[3px] top-[15%] bottom-[15%] w-[2.5px] rounded-full opacity-60 transition-opacity group-hover:opacity-90"

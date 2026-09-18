@@ -54,7 +54,6 @@ export function CamposComerciaisFields({
     telefone?: string | null;
     email?: string | null;
     contatoCompras?: string | null;
-    contatoTecnico?: string | null;
     condPagamento?: string | null;
     modalidade?: string | null;
     entregaLocalidade?: string | null;
@@ -134,10 +133,7 @@ export function CamposComerciaisFields({
           <Field label="Telefone"><Input name="telefone" defaultValue={defaults?.telefone ?? ""} /></Field>
           <Field label="E-mail"><Input name="email" type="email" defaultValue={defaults?.email ?? ""} /></Field>
         </Row2>
-        <Row2>
-          <Field label="Contato compras"><Input name="contatoCompras" defaultValue={defaults?.contatoCompras ?? ""} /></Field>
-          <Field label="Contato técnico"><Input name="contatoTecnico" defaultValue={defaults?.contatoTecnico ?? ""} /></Field>
-        </Row2>
+        <Field label="Contato compras"><Input name="contatoCompras" defaultValue={defaults?.contatoCompras ?? ""} /></Field>
       </FormSection>
 
       <FormSection title="Condições comerciais e entrega">

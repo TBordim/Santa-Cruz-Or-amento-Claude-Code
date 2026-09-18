@@ -100,7 +100,6 @@ export function lerCamposComerciais(fd: FormData) {
     telefone: str(fd, "telefone"),
     email: str(fd, "email"),
     contatoCompras: str(fd, "contatoCompras"),
-    contatoTecnico: str(fd, "contatoTecnico"),
     condPagamento: str(fd, "condPagamento"),
     entregaLocalidade: str(fd, "entregaLocalidade"),
     modalidade: str(fd, "modalidade"),

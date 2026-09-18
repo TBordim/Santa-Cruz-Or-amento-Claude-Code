@@ -22,8 +22,8 @@ export const authConfig = {
       const logado = !!auth?.user;
       const naLogin = nextUrl.pathname === "/login";
       if (naLogin) {
-        // já logado tentando ver /login de novo: manda para a home
-        return logado ? Response.redirect(new URL("/", nextUrl)) : true;
+        // já logado tentando ver /login de novo: manda pro Painel (não tem mais tela de Início)
+        return logado ? Response.redirect(new URL("/painel", nextUrl)) : true;
       }
       // "Novo Orçamento" é a única tela pública — representante comercial externo (sem
       // usuário cadastrado) só enxerga essa tela, igual ao sistema atual (área NOVO).

@@ -17,7 +17,7 @@ export async function autenticar(_prevState: FormState, formData: FormData): Pro
   if (typeof pin !== "string" || !pin.trim()) return "Digite o PIN.";
 
   try {
-    await signIn("credentials", { usuarioId, pin, redirectTo: "/" });
+    await signIn("credentials", { usuarioId, pin, redirectTo: "/painel" });
   } catch (error) {
     if (error instanceof AuthError) {
       // Mesma mensagem para usuário inexistente, inativo ou PIN errado — de propósito, não

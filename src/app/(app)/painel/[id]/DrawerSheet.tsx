@@ -20,7 +20,7 @@ export function DrawerSheet({
 
   return (
     <Sheet open onOpenChange={(open) => { if (!open) router.push("/painel"); }}>
-      <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-[560px]">
+      <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-[760px]!">
         <SheetHeader className="gap-1.5 border-b border-border px-6 py-5">
           <SheetTitle className="text-[19px]">{titulo}</SheetTitle>
           <SheetDescription asChild>
