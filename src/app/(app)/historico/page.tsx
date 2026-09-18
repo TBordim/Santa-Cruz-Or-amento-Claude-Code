@@ -3,8 +3,10 @@ import Link from "next/link";
 import { sessaoAtual } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { valorTotalOrcamento } from "@/lib/orcamentos/legado";
-import { DESFECHOS, PERIODOS, fmtMoney, fmtDate, desfechoInfo, dataLimite } from "@/lib/orcamentos/constantes";
+import { DESFECHOS, PERIODOS, fmtMoney, fmtDate, fmtDateTime, desfechoInfo, dataLimite } from "@/lib/orcamentos/constantes";
+import { fmtPct } from "@/lib/orcamentos/motor";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
+import { LinhaComDica, type DicaLinha } from "./LinhaComDica";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -125,10 +127,23 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
             </TableHeader>
             <TableBody>
               {filtrados.map((d) => {
+                const tiers = (d.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
+                const t0 = tiers[0];
                 const valor = valorTotalOrcamento(d.precificacao as PrecificacaoTier[] | null);
                 const info = desfechoInfo(d.desfecho);
+
+                const linhas: DicaLinha[] = [];
+                if (d.origem === "NOVO") {
+                  if (t0?.custoPrimarioPct != null) linhas.push({ k: "Custo primário", v: fmtPct(t0.custoPrimarioPct) });
+                  if (t0?.margemP2Pct != null) linhas.push({ k: "Margem P2", v: fmtPct(t0.margemP2Pct) });
+                  if (t0?.decididoPor) linhas.push({ k: "Decidido por", v: t0.decididoPor + (t0.decididoEm ? ` · ${fmtDateTime(new Date(t0.decididoEm))}` : "") });
+                  if (t0?.comentarioDiretoria) linhas.push({ k: "Comentário", v: t0.comentarioDiretoria });
+                } else if (d.quantidade) {
+                  linhas.push({ k: "Quantidade (folha antiga)", v: String(d.quantidade) });
+                }
+
                 return (
-                  <TableRow key={d.id}>
+                  <LinhaComDica key={d.id} linhas={linhas}>
                     <TableCell className="font-medium">{d.cliente}</TableCell>
                     <TableCell className="text-muted-foreground">{d.produtoDescricao}</TableCell>
                     <TableCell>
@@ -151,7 +166,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                         {d.origem !== "LEGADO" && <ExcluirHistoricoButton id={d.id} cliente={d.cliente} />}
                       </div>
                     </TableCell>
-                  </TableRow>
+                  </LinhaComDica>
                 );
               })}
             </TableBody>

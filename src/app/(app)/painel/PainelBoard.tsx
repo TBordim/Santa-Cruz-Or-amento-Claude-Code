@@ -34,14 +34,14 @@ export async function PainelBoard() {
   const cols = ETAPAS.map((et) => ({ et, itens: docs.filter((d) => d.etapa === et.key) }));
 
   return (
-    // overflow-x-auto + nowrap: as 6 colunas nunca quebram linha (era o bug relatado — o board
-    // empilhava verticalmente); rola na horizontal se a tela for estreita.
-    <div className="flex w-full items-stretch gap-3 overflow-x-auto pb-3">
+    // .board/.col (globals.css) — as 6 colunas sempre cabem na tela, dividindo o espaço igual em
+    // repouso; passar o mouse expande a coluna (e encolhe as outras) em vez de precisar rolar.
+    <div className="board gap-3 pb-3">
       {cols.map(({ et, itens }, colIdx) => (
         <div
           key={et.key}
           style={{ "--stage-color": et.color } as React.CSSProperties}
-          className="flex w-[280px] shrink-0 flex-col gap-2.5 rounded-2xl border p-2.5"
+          className="col flex flex-col gap-2.5 rounded-2xl border p-2.5"
           data-stage-bg
         >
           <style>{`[data-stage-bg]{border-color:color-mix(in srgb, var(--stage-color) 24%, var(--border));background:color-mix(in srgb, var(--stage-color) 5%, var(--secondary));}`}</style>

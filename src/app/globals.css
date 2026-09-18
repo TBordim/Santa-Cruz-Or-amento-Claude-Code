@@ -202,6 +202,37 @@
 .display { font-family: var(--font-serif); }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
+/* Kanban "sanfona" — as colunas sempre cabem na tela (nunca rolagem horizontal); passar o
+   mouse (ou focar um card, pra teclado) expande aquela coluna e encolhe as outras. O texto
+   truncado (classe .truncate do Tailwind, já usada nos cards) reaparece inteiro sozinho assim
+   que a coluna expande, sem nenhum JS — é só a largura do container mudando. Pedido do Thiago
+   em 18/09/2026, replicando o comportamento do santa-cruz-orcamentos.html original. */
+.board { display: flex; align-items: stretch; width: 100%; }
+.board .col {
+  flex: 1 1 0%;
+  min-width: 0;
+  max-width: min(600px, 46vw);
+  overflow: hidden;
+  transition: flex-grow 0.4s cubic-bezier(0.22, 0.9, 0.32, 1);
+}
+.board .col:hover,
+.board .col:focus-within {
+  flex-grow: 2.6;
+}
+.board:has(.col:hover) .col:not(:hover),
+.board:has(.col:focus-within) .col:not(:focus-within) {
+  flex-grow: 0.62;
+}
+@media (max-width: 900px) {
+  .board { flex-direction: column; }
+  .board .col,
+  .board:has(.col:hover) .col:not(:hover),
+  .board:has(.col:focus-within) .col:not(:focus-within) {
+    flex-grow: 0;
+    max-width: none;
+  }
+}
+
 /* =====================================================================================
    CSS "legado" — classes artesanais da Fase 1/2, ainda em uso pelas telas que faltam
    migrar pra componentes shadcn/Tailwind. Cada bloco é removido conforme a tela é
