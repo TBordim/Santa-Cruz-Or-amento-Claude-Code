@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { excluirCard } from "../actions";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,22 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export function ExcluirCardButton({ id }: { id: string }) {
+  const [pending, startTransition] = useTransition();
+
+  // Chama a server action direto no clique em vez de <form action={...}> — o AlertDialogAction
+  // do Radix fecha o diálogo (desmontando o form) na mesma interação de clique, e o navegador
+  // cancela o envio nativo do form quando ele já não está mais conectado ao DOM ("Form
+  // submission canceled because the form is not connected"). Achado em teste real (o card
+  // nunca era excluído, mesmo confirmando). Chamar a action diretamente não depende do form
+  // sobreviver ao fechamento do diálogo.
+  function onConfirmar() {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("id", id);
+      await excluirCard(fd);
+    });
+  }
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -30,12 +47,9 @@ export function ExcluirCardButton({ id }: { id: string }) {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <form action={excluirCard}>
-            <input type="hidden" name="id" value={id} />
-            <AlertDialogAction asChild>
-              <Button type="submit" variant="destructive">Sim, excluir</Button>
-            </AlertDialogAction>
-          </form>
+          <AlertDialogAction variant="destructive" disabled={pending} onClick={onConfirmar}>
+            {pending ? "Excluindo…" : "Sim, excluir"}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

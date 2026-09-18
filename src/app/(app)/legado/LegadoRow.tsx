@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { salvarDadosLegado, excluirLegado } from "./actions";
 import { fmtMoney, fmtDate } from "@/lib/orcamentos/constantes";
@@ -39,6 +39,18 @@ type Legado = {
 
 export function LegadoRow({ legado }: { legado: Legado }) {
   const [aberto, setAberto] = useState(false);
+  const [excluindo, startExclusao] = useTransition();
+
+  // Chama a server action direto no clique em vez de <form action={...}> — o AlertDialogAction
+  // fecha o diálogo (desmontando o form) na mesma interação de clique, e o navegador cancela o
+  // envio nativo do form quando ele já não está mais no DOM. Ver ExcluirCardButton.tsx.
+  function onConfirmarExclusao() {
+    startExclusao(async () => {
+      const fd = new FormData();
+      fd.set("id", legado.id);
+      await excluirLegado(fd);
+    });
+  }
 
   return (
     <>
@@ -66,12 +78,9 @@ export function LegadoRow({ legado }: { legado: Legado }) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <form action={excluirLegado}>
-                    <input type="hidden" name="id" value={legado.id} />
-                    <AlertDialogAction asChild>
-                      <Button type="submit" variant="destructive">Sim, excluir</Button>
-                    </AlertDialogAction>
-                  </form>
+                  <AlertDialogAction variant="destructive" disabled={excluindo} onClick={onConfirmarExclusao}>
+                    {excluindo ? "Excluindo…" : "Sim, excluir"}
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

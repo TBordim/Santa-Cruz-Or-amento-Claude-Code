@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { excluirHistorico } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,19 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export function ExcluirHistoricoButton({ id, cliente }: { id: string; cliente: string | null }) {
+  const [pending, startTransition] = useTransition();
+
+  // Chama a server action direto no clique em vez de <form action={...}> — o AlertDialogAction
+  // fecha o diálogo (desmontando o form) na mesma interação de clique, e o navegador cancela o
+  // envio nativo do form quando ele já não está mais no DOM. Ver ExcluirCardButton.tsx.
+  function onConfirmar() {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("id", id);
+      await excluirHistorico(fd);
+    });
+  }
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -30,12 +44,9 @@ export function ExcluirHistoricoButton({ id, cliente }: { id: string; cliente: s
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <form action={excluirHistorico}>
-            <input type="hidden" name="id" value={id} />
-            <AlertDialogAction asChild>
-              <Button type="submit" variant="destructive">Sim, excluir</Button>
-            </AlertDialogAction>
-          </form>
+          <AlertDialogAction variant="destructive" disabled={pending} onClick={onConfirmar}>
+            {pending ? "Excluindo…" : "Sim, excluir"}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
