@@ -1,51 +1,42 @@
 import { prisma } from "@/lib/db";
-import { Prisma } from "@/generated/prisma/client";
+import { normalizarCodigoInterno, formatarCodigoInterno } from "./codigo-interno";
 import type { PrecificacaoTier } from "./types";
-import type { LegadoRef, OrcamentoAnteriorRef } from "./tiers";
+import type { OrcamentoAnteriorRef } from "./tiers";
 
 export function chave(s: string | null | undefined): string {
   return (s || "").toString().trim().toUpperCase();
 }
 
-// Equivalente a ultimoPreco() — casamento interno por clienteChave+produtoChave (orçamentos
-// "novo" já decididos, aprovado/auto_aprovado, OU registros do Arquivo legado) OU, quando
-// disponível, clienteChave+codInterno.
+// Equivalente a ultimoPreco() — casamento por clienteChave+código interno, contra QUALQUER
+// registro de histórico (orçamento "novo" já decidido, aprovado/auto_aprovado, OU registro do
+// Arquivo legado — os dois contam como "histórico" igualmente, pedido do Thiago em 19/09/2026).
+// Não casa mais por produto/descrição: essa era a fonte do bug relatado (descrição digitada com
+// uma leve diferença de um pedido pro outro já quebrava o casamento). Código interno é
+// obrigatório antes de sair da Engenharia pra pedidos novos e agora também no Arquivo legado —
+// é o identificador que a equipe realmente usa pra dizer "é o mesmo produto de novo".
 //
-// O HTML original excluía codInterno de propósito ("ainda não é gerado automaticamente, usá-lo
-// seria pior do que o código do cliente"). Isso mudou: codInterno hoje é obrigatório antes de
-// sair da Engenharia (validarLiberarOrcamento), e na prática é o identificador que a equipe usa
-// para "é o mesmo produto de novo" — mais confiável que produtoCodigo, que raramente é
-// preenchido pelo representante. Sem esse casamento extra, um card ficava sem nenhuma
-// comparação na Diretoria mesmo tendo um Histórico do mesmo código, só porque a descrição do
-// produto foi digitada com uma leve diferença de um pedido pro outro. Achado em teste real
-// (Thiago, 18/09/2026 — SC:0524003).
+// Aceita tanto a forma normalizada (só dígitos) quanto a formatada com pontos, pra continuar
+// casando com códigos antigos que foram salvos sem o formato novo (ex.: "0524003").
 export async function buscarOrcamentoAnterior(
   clienteChave: string,
-  produtoChave: string,
+  codInterno: string | null | undefined,
   excludeId?: string,
-  codInterno?: string | null,
 ): Promise<OrcamentoAnteriorRef | null> {
-  const codInternoTrim = (codInterno || "").trim();
-  if (!clienteChave || (!produtoChave && !codInternoTrim)) return null;
-
-  const condicoes: Prisma.OrcamentoWhereInput[] = [];
-  if (produtoChave) {
-    condicoes.push(
-      { clienteChave, produtoChave, origem: "NOVO", statusDiretoria: { in: ["AUTO_APROVADO", "APROVADO"] } },
-      { clienteChave, produtoChave, origem: "LEGADO" },
-    );
-  }
-  if (codInternoTrim) {
-    condicoes.push({
-      clienteChave,
-      codInterno: { equals: codInternoTrim, mode: "insensitive" },
-      origem: "NOVO",
-      statusDiretoria: { in: ["AUTO_APROVADO", "APROVADO"] },
-    });
-  }
+  const codDigitos = normalizarCodigoInterno(codInterno);
+  if (!clienteChave || !codDigitos) return null;
+  const codFormatado = formatarCodigoInterno(codDigitos);
+  const variantes = codFormatado === codDigitos ? [codDigitos] : [codDigitos, codFormatado];
 
   const anterior = await prisma.orcamento.findFirst({
-    where: { id: excludeId ? { not: excludeId } : undefined, OR: condicoes },
+    where: {
+      id: excludeId ? { not: excludeId } : undefined,
+      clienteChave,
+      codInterno: { in: variantes },
+      OR: [
+        { origem: "NOVO", statusDiretoria: { in: ["AUTO_APROVADO", "APROVADO"] } },
+        { origem: "LEGADO" },
+      ],
+    },
     orderBy: { criadoEm: "desc" },
   });
   if (!anterior) return null;
@@ -88,23 +79,6 @@ export async function legadosDoCliente(clienteNome: string) {
     orderBy: { criadoEm: "desc" },
   });
   return todos.filter((l) => l.clienteChave?.includes(needle));
-}
-
-// Converte um registro do Arquivo legado casado por cliente/produto em LegadoRef (2º nível do
-// fallback de "dado anterior" usado por avaliarDiscrepanciaLegado — ver tiers.ts).
-export async function buscarLegadoRef(clienteChave: string, produtoChave: string): Promise<LegadoRef | null> {
-  if (!clienteChave || !produtoChave) return null;
-  const legado = await prisma.orcamento.findFirst({
-    where: { origem: "LEGADO", clienteChave, produtoChave },
-    orderBy: { criadoEm: "desc" },
-  });
-  if (!legado) return null;
-  return {
-    precoAtual: legado.precoAtual ? Number(legado.precoAtual) : null,
-    custoPrimarioPct: legado.custoPrimarioPct ? Number(legado.custoPrimarioPct) : null,
-    margemP2Pct: legado.margemP2Pct ? Number(legado.margemP2Pct) : null,
-    quantidade: legado.quantidade ? String(legado.quantidade) : null,
-  };
 }
 
 // Valor total do orçamento (preço final × milheiros a produzir, somado por faixa) — usado no

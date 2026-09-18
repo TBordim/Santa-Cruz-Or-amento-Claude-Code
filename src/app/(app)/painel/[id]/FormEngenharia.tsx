@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useSalvoToast } from "@/hooks/use-salvo-toast";
+import { CodigoInternoInput } from "@/components/orcamento/CodigoInternoInput";
 
 export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
   const [state, salvarAction, salvando] = useActionState(salvarRequisitos, undefined);
@@ -46,8 +47,8 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
             <Field label="Nº de Pré Cadastro" hint="Obrigatório para liberar para a etapa seguinte.">
               <Input name="preCadastro" defaultValue={doc.preCadastro ?? ""} form="form-engenharia" />
             </Field>
-            <Field label="Código interno (Santa Cruz)" hint={ehRepeticao ? "Veio da Solicitação — ajuste se necessário." : "Obrigatório nesta etapa em produto novo."}>
-              <Input name="codInterno" defaultValue={doc.codInterno ?? ""} form="form-engenharia" />
+            <Field label="Código interno (Santa Cruz)" hint={ehRepeticao ? "Veio da Solicitação — ajuste se necessário." : "Obrigatório nesta etapa em produto novo. Formato 0.000.000."}>
+              <CodigoInternoInput name="codInterno" defaultValue={doc.codInterno ?? ""} form="form-engenharia" />
             </Field>
           </Row2>
         </FormSection>

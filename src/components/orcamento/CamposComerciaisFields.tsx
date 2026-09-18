@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CodigoInternoInput } from "./CodigoInternoInput";
 
 function CheckGroup({ nome, opcoes, marcados }: { nome: string; opcoes: readonly string[]; marcados?: string[] }) {
   return (
@@ -60,7 +61,7 @@ export function CamposComerciaisFields({
     qtdEntregas?: string | null;
     entregaDatas?: string | null;
     produtoDescricao?: string | null;
-    produtoCodigo?: string | null;
+    codigoCliente?: string | null;
     codInterno?: string | null;
     obs?: string | null;
     reqCliente?: ReqCliente | null;
@@ -162,17 +163,17 @@ export function CamposComerciaisFields({
         <Field label="Descrição do produto">
           <Input name="produtoDescricao" required defaultValue={defaults?.produtoDescricao ?? ""} />
         </Field>
-        <Field label="Código do produto" hint="Chave usada para casar repetições e o Arquivo legado.">
-          <Input name="produtoCodigo" defaultValue={defaults?.produtoCodigo ?? ""} />
+        <Field label="Código do cliente" hint="O código que o próprio cliente usa pro produto — só pra registro, formato livre.">
+          <Input name="codigoCliente" defaultValue={defaults?.codigoCliente ?? ""} />
         </Field>
         <Field label="Quantidades a orçar">
           <ListaDinamica name="quantidades" placeholder="Ex.: 5000" botaoLabel="+ Adicionar quantidade" valoresIniciais={r?.quantidadesLista} />
         </Field>
         <Field
           label="Código interno (Santa Cruz)"
-          hint={ehRepeticao ? "Obrigatório — o produto já existe no sistema." : "Em produto novo é gerado na Engenharia."}
+          hint={ehRepeticao ? "Obrigatório — o produto já existe no sistema. Formato 0.000.000." : "Em produto novo é gerado na Engenharia. Formato 0.000.000."}
         >
-          <Input name="codInterno" required={ehRepeticao} defaultValue={defaults?.codInterno ?? ""} />
+          <CodigoInternoInput name="codInterno" required={ehRepeticao} defaultValue={defaults?.codInterno ?? ""} />
         </Field>
         <Field label="Observações">
           <Textarea name="obs" rows={2} defaultValue={defaults?.obs ?? ""} />

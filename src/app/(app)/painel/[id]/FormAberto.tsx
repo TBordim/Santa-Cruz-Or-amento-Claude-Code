@@ -47,7 +47,7 @@ export function FormAberto({ doc }: { doc: OrcamentoComAnexos }) {
             qtdEntregas: doc.qtdEntregas,
             entregaDatas: doc.entregaDatas,
             produtoDescricao: doc.produtoDescricao,
-            produtoCodigo: doc.produtoCodigo,
+            codigoCliente: doc.codigoCliente,
             codInterno: doc.codInterno,
             obs: doc.obs,
             reqCliente: doc.reqCliente as ReqCliente | null,

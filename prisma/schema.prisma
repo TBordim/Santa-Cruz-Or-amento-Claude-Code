@@ -95,7 +95,16 @@ model Orcamento {
 
   cliente          String?
   clienteChave     String?
+  // Código que o próprio cliente envia — só pra registro/consulta, nunca usado em casamento de
+  // repetições (não tem formato exigido, cada cliente codifica do seu jeito). Pedido do Thiago
+  // em 19/09/2026, junto da unificação abaixo.
+  codigoCliente    String?
   produtoDescricao String?
+  // "Código do produto" (antigo campo do representante) e "Código interno" eram dois campos
+  // redundantes com o mesmo propósito — unificados num só (codInterno), sempre no formato
+  // 0.000.000 (normalizado como 7 dígitos puros no banco; ver src/lib/orcamentos/codigo-interno.ts).
+  // produtoCodigo continua no schema só por compatibilidade com registros antigos, não é mais
+  // lido nem escrito por nenhum formulário.
   produtoCodigo    String?
   produtoChave     String?
   codInterno       String?

@@ -1,4 +1,5 @@
 import { chave } from "./legado";
+import { normalizarCodigoInterno } from "./codigo-interno";
 import type { ReqCliente, ReqTecnicos, Suporte, SuporteTecnico } from "./types";
 
 function str(fd: FormData, nome: string): string {
@@ -72,14 +73,13 @@ export function lerReqTecnicos(fd: FormData, anterior: ReqTecnicos | null): ReqT
 export function lerCamposComerciais(fd: FormData) {
   const cliente = str(fd, "cliente");
   const produtoDescricao = str(fd, "produtoDescricao");
-  const produtoCodigo = str(fd, "produtoCodigo");
 
   return {
     cliente,
     clienteChave: chave(cliente),
-    produtoCodigo,
+    codigoCliente: str(fd, "codigoCliente"),
     produtoDescricao,
-    produtoChave: chave(produtoCodigo || produtoDescricao),
+    produtoChave: chave(produtoDescricao),
     obs: str(fd, "obs"),
     reqCliente: lerReqCliente(fd),
     origemPedido: str(fd, "origemPedido"),
@@ -106,6 +106,6 @@ export function lerCamposComerciais(fd: FormData) {
     modalidade: str(fd, "modalidade"),
     qtdEntregas: str(fd, "qtdEntregas"),
     entregaDatas: str(fd, "entregaDatas"),
-    codInterno: str(fd, "codInterno"),
+    codInterno: normalizarCodigoInterno(String(fd.get("codInterno") ?? "")),
   };
 }

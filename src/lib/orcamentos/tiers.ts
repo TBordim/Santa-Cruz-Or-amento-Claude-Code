@@ -15,8 +15,9 @@ export type FaixaInput = {
   numeroSetups: string;
 };
 
-// Faixa 0 do orçamento casado internamente (mesma clienteChave+produtoChave, já aprovado) —
-// usado como base de comparação de premissas e preço anterior.
+// Registro de histórico casado (mesma clienteChave+código interno — orçamento "novo" aprovado
+// OU registro do Arquivo legado, os dois contam igual) — usado como base de comparação de
+// premissas e preço anterior. Ver buscarOrcamentoAnterior em legado.ts.
 export type OrcamentoAnteriorRef = {
   id: string;
   precoFinal: number | null;
@@ -28,28 +29,18 @@ export type OrcamentoAnteriorRef = {
   margemP2Pct: number | null;
 };
 
-// Os 4 campos digitados no Arquivo legado — 2º nível do fallback de "dado anterior" (o 3º,
-// leitura por IA, fica pra uma fase posterior — ver plano da Fase 2).
-export type LegadoRef = {
-  precoAtual: number | null;
-  custoPrimarioPct: number | null;
-  margemP2Pct: number | null;
-  quantidade: string | null;
-};
-
 export type MontarPrecificacaoInput = {
   faixas: FaixaInput[];
   comissaoEspecial: boolean;
   acabamentoAtual: string;
   produtoNovoClassificacao: boolean; // classificacao === "novo" || "repeticao_novo"
   anterior: OrcamentoAnteriorRef | null;
-  legado: LegadoRef | null;
 };
 
 // Equivalente ao corpo de cálculo de enviarParaDiretoria() — monta uma faixa por quantidade
 // pedida, rodando os dois critérios independentes (motor.ts) para cada uma.
 export function montarPrecificacao(input: MontarPrecificacaoInput): PrecificacaoTier[] {
-  const { faixas, comissaoEspecial, acabamentoAtual, anterior, legado } = input;
+  const { faixas, comissaoEspecial, acabamentoAtual, anterior } = input;
   const produtoNovo = !anterior || input.produtoNovoClassificacao;
 
   return faixas.map((f): PrecificacaoTier => {
@@ -112,15 +103,14 @@ export function montarPrecificacao(input: MontarPrecificacaoInput): Precificacao
       statusDiretoria: "pendente",
     };
 
-    // Critério 2 — discrepância vs. Arquivo legado/histórico (seção 3 da especificação):
-    // compara contra QUALQUER dado anterior legível — casamento interno exato quando existir,
-    // senão os campos digitados no Arquivo legado (a leitura por IA, 3º nível, fica pra uma
-    // fase posterior).
+    // Critério 2 — discrepância vs. histórico (seção 3 da especificação): compara contra o
+    // registro casado por código interno (orçamento aprovado ou Arquivo legado, ver
+    // buscarOrcamentoAnterior em legado.ts).
     const discrepancia = avaliarDiscrepanciaLegado([
-      { label: "Custo Primário (%)", anterior: anterior?.custoPrimarioPct ?? legado?.custoPrimarioPct ?? null, atual: f.custoPrimarioPct },
-      { label: "Quantidade", anterior: parseQuantidade(anterior?.quantidade ?? legado?.quantidade ?? null), atual: parseQuantidade(f.quantidade) },
-      { label: "Margem P2 (%)", anterior: anterior?.margemP2Pct ?? legado?.margemP2Pct ?? null, atual: f.margemP2Pct },
-      { label: "Último preço", anterior: anterior?.precoFinal ?? legado?.precoAtual ?? null, atual: f.precoProjetado },
+      { label: "Custo Primário (%)", anterior: anterior?.custoPrimarioPct ?? null, atual: f.custoPrimarioPct },
+      { label: "Quantidade", anterior: parseQuantidade(anterior?.quantidade ?? null), atual: parseQuantidade(f.quantidade) },
+      { label: "Margem P2 (%)", anterior: anterior?.margemP2Pct ?? null, atual: f.margemP2Pct },
+      { label: "Último preço", anterior: anterior?.precoFinal ?? null, atual: f.precoProjetado },
     ]);
 
     if (av.aprovavel && discrepancia.bloqueia) {

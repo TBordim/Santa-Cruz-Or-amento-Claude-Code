@@ -6,7 +6,8 @@ import { prisma } from "@/lib/db";
 import { sessaoAtual, podeEditar } from "@/lib/permissions";
 import { lerCamposComerciais, lerReqTecnicos, parseValorBR } from "@/lib/orcamentos/leitura";
 import { montarPrecificacao, decidirFaixa, type FaixaInput } from "@/lib/orcamentos/tiers";
-import { buscarOrcamentoAnterior, buscarLegadoRef } from "@/lib/orcamentos/legado";
+import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
+import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
 import type { ReqCliente, ReqTecnicos, PrecificacaoTier } from "@/lib/orcamentos/types";
 import type { AreaKey } from "@/lib/areas";
 import { CREDITO_LIBERA } from "@/lib/orcamentos/constantes";
@@ -50,6 +51,9 @@ export async function avancarEngenharia(_prev: FormState, formData: FormData): P
   if (ehRepeticao && !campos.codInterno) {
     return { erro: "Como esta solicitação é uma repetição, o Código interno (Santa Cruz) é obrigatório." };
   }
+  if (campos.codInterno && !codigoInternoValido(campos.codInterno)) {
+    return { erro: "Código interno (Santa Cruz) deve ter o formato 0.000.000 (7 dígitos)." };
+  }
   await prisma.orcamento.update({ where: { id }, data: { ...campos, etapa: "ENGENHARIA" } });
   redirect(`/painel/${id}`);
 }
@@ -61,12 +65,13 @@ export async function salvarRequisitos(_prev: FormState, formData: FormData): Pr
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   await exigirEdicao(id);
   const reqTecnicos = lerReqTecnicos(formData, doc.reqTecnicos as ReqTecnicos | null);
+  const codInternoForm = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
   await prisma.orcamento.update({
     where: { id },
     data: {
       reqTecnicos,
       preCadastro: String(formData.get("preCadastro") ?? "").trim(),
-      codInterno: String(formData.get("codInterno") ?? "").trim() || doc.codInterno || "",
+      codInterno: codInternoForm || doc.codInterno || "",
       obsEngenharia: String(formData.get("obsEngenharia") ?? "").trim(),
     },
   });
@@ -83,9 +88,13 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
   if (!preCadastro) return { erro: "Informe o Nº de Pré Cadastro antes de liberar para o Orçamento." };
 
   const ehRepeticao = !!doc.classificacao?.startsWith("REPETICAO");
-  const codInternoForm = String(formData.get("codInterno") ?? "").trim();
-  if (!ehRepeticao && !codInternoForm && !doc.codInterno) {
+  const codInternoForm = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
+  const codInternoFinal = codInternoForm || doc.codInterno || "";
+  if (!ehRepeticao && !codInternoFinal) {
     return { erro: "Informe o Código interno (Santa Cruz) antes de liberar para o Orçamento." };
+  }
+  if (codInternoFinal && !codigoInternoValido(codInternoFinal)) {
+    return { erro: "Código interno (Santa Cruz) deve ter o formato 0.000.000 (7 dígitos)." };
   }
 
   const reqTecnicos = lerReqTecnicos(formData, doc.reqTecnicos as ReqTecnicos | null);
@@ -96,7 +105,7 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
       etapa: "ORCAMENTO",
       reqTecnicos,
       preCadastro,
-      codInterno: codInternoForm || doc.codInterno || "",
+      codInterno: codInternoFinal,
       obsEngenharia: String(formData.get("obsEngenharia") ?? "").trim(),
       vistoEngenhariaPor: sessao?.nome ?? "",
       vistoEngenhariaEm: new Date(),
@@ -206,10 +215,9 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   const comissaoEspecial = formData.get("comissaoEspecial") === "on";
   const produtoNovoClassificacao = doc.classificacao === "NOVO" || doc.classificacao === "REPETICAO_NOVO";
 
-  const anterior = await buscarOrcamentoAnterior(doc.clienteChave ?? "", doc.produtoChave ?? "", doc.id, doc.codInterno);
-  const legado = await buscarLegadoRef(doc.clienteChave ?? "", doc.produtoChave ?? "");
+  const anterior = await buscarOrcamentoAnterior(doc.clienteChave ?? "", doc.codInterno, doc.id);
 
-  const precificacao = montarPrecificacao({ faixas, comissaoEspecial, acabamentoAtual: acabamento, produtoNovoClassificacao, anterior, legado });
+  const precificacao = montarPrecificacao({ faixas, comissaoEspecial, acabamentoAtual: acabamento, produtoNovoClassificacao, anterior });
   const todosAuto = precificacao.every((t) => t.statusDiretoria === "auto_aprovado");
   const t0 = precificacao[0];
 

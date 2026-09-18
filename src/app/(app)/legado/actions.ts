@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { podeEditar } from "@/lib/permissions";
 import { chave } from "@/lib/orcamentos/legado";
+import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
 import { salvarAnexoNoBlob, excluirAnexoDoBlob } from "@/lib/anexos/storage";
 import { parseValorBR } from "@/lib/orcamentos/leitura";
 
@@ -20,7 +21,11 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
   const produtoDescricao = String(formData.get("produtoDescricao") ?? "").trim();
   if (!cliente || !produtoDescricao) return { erro: "Preencha ao menos o cliente e a descrição do produto." };
 
-  const produtoCodigo = String(formData.get("produtoCodigo") ?? "").trim();
+  const codInterno = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
+  if (!codigoInternoValido(codInterno)) {
+    return { erro: "Código interno (Santa Cruz) é obrigatório, no formato 0.000.000 (7 dígitos)." };
+  }
+
   const precoAtual = parseValorBR(String(formData.get("precoAtual") ?? ""));
   const custoPrimarioPct = parseValorBR(String(formData.get("custoPrimarioPct") ?? ""));
   const margemP2Pct = parseValorBR(String(formData.get("margemP2Pct") ?? ""));
@@ -31,9 +36,9 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
       origem: "LEGADO",
       cliente,
       clienteChave: chave(cliente),
-      produtoCodigo,
+      codInterno,
       produtoDescricao,
-      produtoChave: chave(produtoCodigo || produtoDescricao),
+      produtoChave: chave(produtoDescricao),
       precoAtual: Number.isNaN(precoAtual) ? null : precoAtual,
       custoPrimarioPct: Number.isNaN(custoPrimarioPct) ? null : custoPrimarioPct,
       margemP2Pct: Number.isNaN(margemP2Pct) ? null : margemP2Pct,
@@ -53,8 +58,11 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
   redirect("/legado");
 }
 
-// Equivalente ao "salvar-dados-legado" — só os 4 campos usados na comparação de discrepância
-// são editáveis num registro já cadastrado (o resto é imutável).
+// Equivalente ao "salvar-dados-legado" — os campos usados na comparação de discrepância são
+// editáveis num registro já cadastrado (o resto é imutável). codInterno entrou aqui em
+// 19/09/2026 pra deixar registros antigos (cadastrados antes desse campo existir) serem
+// preenchidos aos poucos — sem código interno, um Arquivo legado não entra em nenhuma
+// comparação da Diretoria.
 export async function salvarDadosLegado(formData: FormData) {
   await exigirLegado();
   const id = String(formData.get("id") ?? "");
@@ -62,6 +70,10 @@ export async function salvarDadosLegado(formData: FormData) {
   const custoPrimarioPct = parseValorBR(String(formData.get("custoPrimarioPct") ?? ""));
   const margemP2Pct = parseValorBR(String(formData.get("margemP2Pct") ?? ""));
   const quantidade = parseValorBR(String(formData.get("quantidade") ?? ""));
+  const codInternoForm = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
+  if (codInternoForm && !codigoInternoValido(codInternoForm)) {
+    throw new Error("Código interno (Santa Cruz) deve ter o formato 0.000.000 (7 dígitos).");
+  }
 
   await prisma.orcamento.update({
     where: { id },
@@ -70,6 +82,7 @@ export async function salvarDadosLegado(formData: FormData) {
       custoPrimarioPct: Number.isNaN(custoPrimarioPct) ? null : custoPrimarioPct,
       margemP2Pct: Number.isNaN(margemP2Pct) ? null : margemP2Pct,
       quantidade: Number.isNaN(quantidade) ? null : quantidade,
+      ...(codInternoForm ? { codInterno: codInternoForm } : {}),
     },
   });
   revalidatePath("/legado");

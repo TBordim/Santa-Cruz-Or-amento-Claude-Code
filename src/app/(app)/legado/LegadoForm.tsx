@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { CodigoInternoInput } from "@/components/orcamento/CodigoInternoInput";
 
 export function LegadoForm() {
   const [state, formAction, pending] = useActionState(criarLegado, undefined);
@@ -42,8 +43,9 @@ export function LegadoForm() {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="produtoCodigo">Código do produto</Label>
-              <Input id="produtoCodigo" name="produtoCodigo" />
+              <Label htmlFor="codInterno">Código interno (Santa Cruz)</Label>
+              <CodigoInternoInput id="codInterno" name="codInterno" required />
+              <span className="text-xs text-muted-foreground">Obrigatório — é por esse código que a Diretoria compara com pedidos atuais.</span>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="produtoDescricao">Descrição do produto</Label>

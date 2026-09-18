@@ -3,7 +3,7 @@
 import { decidirDiretoriaFaixa, salvarRascunhoDiretoria } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
-import type { OrcamentoAnteriorRef, LegadoRef } from "@/lib/orcamentos/tiers";
+import type { OrcamentoAnteriorRef } from "@/lib/orcamentos/tiers";
 import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQuantidade } from "@/lib/orcamentos/motor";
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
 import { fmtMoney } from "@/lib/orcamentos/constantes";
@@ -30,9 +30,9 @@ function primeiro<T>(...vals: (T | null | undefined)[]): T | null {
 // comparar (o HTML original também mostra o quadro com "sem dado anterior" em cada campo, em
 // vez de esconder o quadro inteiro; pedido do Thiago em 18/09/2026 depois de comparar com o
 // sistema antigo). O "anterior" de cada campo, independentemente: busca AO VIVO por
-// clienteChave+produtoChave OU código interno (anteriorAoVivo), senão o Arquivo legado
-// (legadoAoVivo), senão o valor congelado de quando este card chegou na Diretoria — nessa
-// ordem, o primeiro que existir.
+// clienteChave+código interno (anteriorAoVivo, já cobre Histórico e Arquivo legado juntos —
+// ver buscarOrcamentoAnterior em legado.ts), senão o valor congelado de quando este card
+// chegou na Diretoria.
 function ComparacaoAnteriorAtual({
   tier,
   anterior,
@@ -111,27 +111,25 @@ function TierCard({
   idx,
   total,
   anteriorAoVivo,
-  legadoAoVivo,
 }: {
   doc: OrcamentoComAnexos;
   tier: PrecificacaoTier;
   idx: number;
   total: number;
   anteriorAoVivo: OrcamentoAnteriorRef | null;
-  legadoAoVivo: LegadoRef | null;
 }) {
   const titulo = total > 1 ? `Quantidade: ${tier.quantidade}` : "Precificação";
   const pendente = tier.statusDiretoria === "pendente";
 
   // Cada campo resolve seu próprio "anterior", independente dos outros — na ordem: busca ao
-  // vivo por cliente+produto/código interno, senão Arquivo legado, senão o valor congelado de
-  // quando este card chegou na Diretoria. O quadro sempre aparece (mesmo com tudo "sem dado
-  // anterior"), igual ao sistema antigo.
+  // vivo por cliente+código interno, senão o valor congelado de quando este card chegou na
+  // Diretoria. O quadro sempre aparece (mesmo com tudo "sem dado anterior"), igual ao sistema
+  // antigo.
   const anterior = {
-    precoFinal: primeiro(anteriorAoVivo?.precoFinal, legadoAoVivo?.precoAtual, tier.precoAnterior),
-    custoPrimarioPct: primeiro(anteriorAoVivo?.custoPrimarioPct, legadoAoVivo?.custoPrimarioPct, tier.custoPrimarioPctAnterior),
-    margemP2Pct: primeiro(anteriorAoVivo?.margemP2Pct, legadoAoVivo?.margemP2Pct, tier.margemP2PctAnterior),
-    quantidade: primeiro(anteriorAoVivo?.quantidade, legadoAoVivo?.quantidade, tier.quantidadeAnterior),
+    precoFinal: primeiro(anteriorAoVivo?.precoFinal, tier.precoAnterior),
+    custoPrimarioPct: primeiro(anteriorAoVivo?.custoPrimarioPct, tier.custoPrimarioPctAnterior),
+    margemP2Pct: primeiro(anteriorAoVivo?.margemP2Pct, tier.margemP2PctAnterior),
+    quantidade: primeiro(anteriorAoVivo?.quantidade, tier.quantidadeAnterior),
   };
 
   return (
@@ -180,11 +178,9 @@ function TierCard({
 export function PainelDiretoria({
   doc,
   anteriorAoVivo,
-  legadoAoVivo,
 }: {
   doc: OrcamentoComAnexos;
   anteriorAoVivo: OrcamentoAnteriorRef | null;
-  legadoAoVivo: LegadoRef | null;
 }) {
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
 
@@ -204,7 +200,7 @@ export function PainelDiretoria({
       />
 
       {tiers.map((t, i) => (
-        <TierCard key={i} doc={doc} tier={t} idx={i} total={tiers.length} anteriorAoVivo={anteriorAoVivo} legadoAoVivo={legadoAoVivo} />
+        <TierCard key={i} doc={doc} tier={t} idx={i} total={tiers.length} anteriorAoVivo={anteriorAoVivo} />
       ))}
 
       <div className="mt-2 flex flex-col gap-4">

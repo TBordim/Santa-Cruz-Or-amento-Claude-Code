@@ -23,7 +23,7 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
     <>
       <PageHeader
         title="Arquivo legado"
-        description="Registros antigos usados para comparar repetições — busca por cliente, não exige match perfeito de produto."
+        description="Registros antigos, digitalizados a partir da papelada física — entram no Histórico e são comparados pela Diretoria pelo Código interno (Santa Cruz)."
       />
 
       <LegadoForm />
@@ -44,6 +44,7 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Produto</TableHead>
+                <TableHead>Código interno</TableHead>
                 <TableHead>Preço</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -57,7 +58,7 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
                     id: l.id,
                     cliente: l.cliente,
                     produtoDescricao: l.produtoDescricao,
-                    produtoCodigo: l.produtoCodigo,
+                    codInterno: l.codInterno,
                     precoAtual: l.precoAtual ? Number(l.precoAtual) : null,
                     custoPrimarioPct: l.custoPrimarioPct ? Number(l.custoPrimarioPct) : null,
                     margemP2Pct: l.margemP2Pct ? Number(l.margemP2Pct) : null,
