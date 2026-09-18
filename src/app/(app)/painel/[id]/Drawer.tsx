@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { CornerUpLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { etapaInfo } from "@/lib/orcamentos/constantes";
-import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
+import { buscarOrcamentoAnterior, buscarLegadoRef } from "@/lib/orcamentos/legado";
 import { voltarEtapa } from "../actions";
 import { Button } from "@/components/ui/button";
 import { ExcluirCardButton } from "./ExcluirCardButton";
@@ -43,7 +43,8 @@ export async function Drawer({ id }: { id: string }) {
       // teste real: card enviado à Diretoria antes do outro orçamento existir ficava sem
       // comparação pra sempre, mesmo depois do outro ser finalizado.
       const anteriorAoVivo = await buscarOrcamentoAnterior(doc.clienteChave ?? "", doc.produtoChave ?? "", doc.id, doc.codInterno);
-      corpo = <PainelDiretoria doc={doc} anteriorAoVivo={anteriorAoVivo} />;
+      const legadoAoVivo = await buscarLegadoRef(doc.clienteChave ?? "", doc.produtoChave ?? "");
+      corpo = <PainelDiretoria doc={doc} anteriorAoVivo={anteriorAoVivo} legadoAoVivo={legadoAoVivo} />;
       break;
     }
     case "ENVIO_OFERTA":
