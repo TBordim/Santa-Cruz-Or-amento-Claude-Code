@@ -10,9 +10,59 @@ import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 function fmtMoneyOrDash(n: number | null | undefined) {
   return n === null || n === undefined ? "—" : fmtMoney(n);
+}
+
+function fmtQtdOrDash(q: string | null | undefined) {
+  return q && q.trim() ? q : "—";
+}
+
+// Resumo comparativo pra Diretoria decidir rápido: todo campo de valor que o Arquivo legado
+// guarda (preço, custo primário, margem, quantidade) lado a lado com o que está sendo pedido
+// agora. "Anterior" já vem resolvido (buscarOrcamentoAnterior, em legado.ts) como o registro
+// mais recente entre Histórico (orçamento aprovado) e Arquivo legado — nunca os dois.
+function ComparacaoAnteriorAtual({ tier }: { tier: PrecificacaoTier }) {
+  const linhas = [
+    { label: "Preço", anterior: fmtMoneyOrDash(tier.precoAnterior), atual: fmtMoney(tier.precoProjetado) },
+    { label: "Custo primário (%)", anterior: fmtPctHelper(tier.custoPrimarioPctAnterior), atual: fmtPctHelper(tier.custoPrimarioPct) },
+    { label: "Margem P2 (%)", anterior: fmtPctHelper(tier.margemP2PctAnterior), atual: fmtPctHelper(tier.margemP2Pct) },
+    { label: "Quantidade", anterior: fmtQtdOrDash(tier.quantidadeAnterior), atual: fmtQtdOrDash(tier.quantidade) },
+  ];
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="whitespace-normal">Comparação</TableHead>
+            <TableHead className="whitespace-normal text-right">Anterior</TableHead>
+            <TableHead className="whitespace-normal text-right">Atual</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {linhas.map((l) => (
+            <TableRow key={l.label}>
+              <TableCell className="whitespace-normal text-muted-foreground">{l.label}</TableCell>
+              <TableCell className="text-right font-mono">{l.anterior}</TableCell>
+              <TableCell className="text-right font-mono font-semibold text-foreground">{l.atual}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {tier.variacaoPct !== null && (
+        <div className="border-t border-border bg-muted/30 px-2 py-1.5 text-xs text-muted-foreground">
+          Variação de preço: <span className="font-semibold text-foreground">{fmtPctHelper(tier.variacaoPct)}</span>
+        </div>
+      )}
+      {tier.premissasDivergentes.length > 0 && (
+        <div className="border-t border-border bg-warn-soft px-2 py-1.5 text-xs text-warn">
+          Também mudou: {tier.premissasDivergentes.join(", ")}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CritRow({ ok, label }: { ok: boolean | null; label: string }) {
@@ -31,19 +81,7 @@ function TierCard({ doc, tier, idx, total }: { doc: OrcamentoComAnexos; tier: Pr
 
   return (
     <FormSection title={titulo}>
-      {!tier.produtoNovo && (
-        <ResumoBox
-          rows={[
-            {
-              label: tier.premissasDivergentes.length === 0 ? "Premissas" : "Premissas divergentes",
-              value: tier.premissasDivergentes.length === 0 ? "Iguais ao orçamento anterior" : tier.premissasDivergentes.join(", "),
-            },
-            { label: "Preço anterior", value: fmtMoneyOrDash(tier.precoAnterior) },
-            { label: "Preço projetado", value: fmtMoney(tier.precoProjetado) },
-            { label: "Variação", value: fmtPctHelper(tier.variacaoPct) },
-          ]}
-        />
-      )}
+      {!tier.produtoNovo && <ComparacaoAnteriorAtual tier={tier} />}
 
       <div className="flex flex-col gap-1.5 rounded-lg border border-border p-3">
         <CritRow ok={tier.custoPrimarioPct !== null && tier.custoPrimarioPct <= LIMITE_CUSTO} label={`Custo primário até ${LIMITE_CUSTO}% (atual: ${fmtPctHelper(tier.custoPrimarioPct)})`} />
