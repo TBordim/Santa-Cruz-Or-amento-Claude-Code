@@ -100,7 +100,9 @@ export function LegadoRow({ legado }: { legado: Legado }) {
       {aberto && (
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={6} className="whitespace-normal bg-muted/30">
-            <div className="flex flex-col gap-3 py-2">
+            {/* sticky + largura da tela: a tabela é mais larga que o celular (rola na horizontal); sem isso
+                o formulário abria fora da área visível e precisava rolar de lado pra digitar. */}
+            <div className="sticky left-0 flex w-[calc(100vw-4.5rem)] max-w-full flex-col gap-3 py-2 md:w-auto">
               {legado.obs && <p className="text-sm text-foreground">{legado.obs}</p>}
               <form action={salvarDadosLegado} className="flex flex-col gap-3">
                 <input type="hidden" name="id" value={legado.id} />

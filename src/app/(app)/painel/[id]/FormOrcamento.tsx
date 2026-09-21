@@ -7,7 +7,7 @@ import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtDateTime, resumoAcabamento } from "@/lib/orcamentos/constantes";
 import { paraCampoBR } from "@/lib/orcamentos/motor";
-import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
+import { FormSection, Field, Row2, ResumoBox, AcoesBar } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,7 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
             const t = tiers[i];
             return (
               <FormSection key={i} title={quantidades.length > 1 ? `Quantidade: ${qtd}` : "Precificação"}>
-                <Row2>
+                <Row2 compacto>
                   <Field label="Preço projetado">
                     <Input name={`precoProjetado_${i}`} defaultValue={paraCampoBR(t?.precoProjetado)} placeholder="Ex.: 1.234,56" form="form-orcamento" />
                   </Field>
@@ -95,13 +95,13 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
                     <Input name={`custoPrimarioPct_${i}`} defaultValue={paraCampoBR(t?.custoPrimarioPct)} form="form-orcamento" />
                   </Field>
                 </Row2>
-                <Row2>
+                <Row2 compacto>
                   <Field label="Margem P2 (%)">
                     <Input name={`margemP2Pct_${i}`} defaultValue={paraCampoBR(t?.margemP2Pct)} form="form-orcamento" />
                   </Field>
                   <div />
                 </Row2>
-                <Row2>
+                <Row2 compacto>
                   <Field label="Número de lotes"><Input name={`numeroLotes_${i}`} defaultValue={t?.numeroLotes ?? ""} form="form-orcamento" /></Field>
                   <Field label="Número de setups"><Input name={`numeroSetups_${i}`} defaultValue={t?.numeroSetups ?? ""} form="form-orcamento" /></Field>
                 </Row2>
@@ -111,14 +111,14 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
         )}
 
         <FormSection title="Comum a todas as faixas">
-          <Row2>
+          <Row2 compacto>
             <Field label="Nº de SOPP"><Input name="numeroSequencial" required defaultValue={doc.numeroSequencial ?? ""} form="form-orcamento" /></Field>
             <Field label="Prazo (dias)"><Input name="prazoDias" inputMode="numeric" defaultValue={doc.prazoDias ?? ""} form="form-orcamento" /></Field>
           </Row2>
           <Field label="Acabamento" hint="Sugerido a partir da Solicitação — ajuste se precisar.">
             <Input name="acabamento" defaultValue={doc.acabamento || resumoAcabamento(c)} form="form-orcamento" />
           </Field>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex min-h-9 items-center gap-2 text-sm md:min-h-0">
             <Checkbox name="comissaoEspecial" defaultChecked={doc.comissaoEspecial} form="form-orcamento" />
             <span>Condição comercial especial (comissão/desconto)</span>
           </label>
@@ -134,14 +134,14 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
       </div>
 
       {erro && <div className="anexo-erro">{erro}</div>}
-      <div className="mt-4 flex gap-2">
+      <AcoesBar>
         <Button type="submit" form="form-orcamento" formAction={salvarAction} variant="outline" disabled={salvando}>
           Salvar sem liberar
         </Button>
         <Button type="submit" form="form-orcamento" formAction={enviarAction} disabled={enviando || doc.aguardandoCompras}>
           {enviando ? "Enviando…" : "Enviar para Diretoria"}
         </Button>
-      </div>
+      </AcoesBar>
     </>
   );
 }

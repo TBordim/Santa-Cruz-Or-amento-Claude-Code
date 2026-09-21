@@ -47,6 +47,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#B5502E",
+  width: "device-width",
+  initialScale: 1,
+  // Android/Chrome: o teclado encolhe a área da página em vez de cobrir o campo em digitação.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

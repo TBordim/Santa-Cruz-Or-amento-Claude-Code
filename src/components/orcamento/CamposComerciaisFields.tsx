@@ -24,7 +24,7 @@ function CheckGroup({ nome, opcoes, marcados }: { nome: string; opcoes: readonly
   return (
     <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
       {opcoes.map((op) => (
-        <label key={op} className="flex items-center gap-2 text-sm">
+        <label key={op} className="flex min-h-9 items-center gap-2 text-sm md:min-h-0">
           <Checkbox name={nome} value={op} defaultChecked={marcados?.includes(op)} />
           <span>{op}</span>
         </label>
@@ -111,7 +111,7 @@ export function CamposComerciaisFields({
             </Select>
           </Field>
         </Row2>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex min-h-9 items-center gap-2 text-sm md:min-h-0">
           <Checkbox name="usaSelo" defaultChecked={defaults?.usaSelo ?? false} />
           <span>Usa selo</span>
         </label>
@@ -177,7 +177,7 @@ export function CamposComerciaisFields({
       </FormSection>
 
       <FormSection title="Medidas e suporte">
-        <Row2>
+        <Row2 compacto>
           <Field label="Formato — Comprimento (cm)"><Input name="medidaF" defaultValue={r?.medidaF ?? ""} /></Field>
           <Field label="Formato — Largura (cm)"><Input name="medidaL" defaultValue={r?.medidaL ?? ""} /></Field>
         </Row2>

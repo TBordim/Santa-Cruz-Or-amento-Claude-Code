@@ -19,8 +19,32 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-export function Row2({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>;
+// `compacto`: pares de campos curtos (medidas, quantidades, %) continuam lado a lado no celular
+// em vez de empilhar — corta bastante a rolagem dos formulários longos. Deixe desligado quando
+// o campo tem texto longo (endereço, e-mail, descrição), que não cabe em meia largura.
+export function Row2({ children, compacto = false }: { children: React.ReactNode; compacto?: boolean }) {
+  return (
+    <div className={compacto ? "grid grid-cols-2 items-end gap-3 sm:gap-4" : "grid grid-cols-1 gap-4 sm:grid-cols-2"}>
+      {children}
+    </div>
+  );
+}
+
+// Barra de ações do formulário (Salvar / Liberar). No celular fica presa no rodapé da gaveta
+// enquanto se rola o formulário — o botão nunca some lá embaixo — e os botões dividem a
+// largura. Do sm pra cima é só uma linha de botões, como sempre foi.
+export function AcoesBar({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className={[
+        "acoes-fixas mt-2 flex gap-2",
+        "max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:-mx-4 max-sm:grid max-sm:grid-cols-2 max-sm:border-t max-sm:border-border max-sm:bg-popover/95 max-sm:px-4 max-sm:py-3 max-sm:backdrop-blur",
+        "max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-10 max-sm:[&>button]:whitespace-normal max-sm:[&>button]:px-2 max-sm:[&>button]:py-1.5 max-sm:[&>button]:leading-tight",
+      ].join(" ")}
+    >
+      {children}
+    </div>
+  );
 }
 
 // Caixa de resumo somente leitura no topo da gaveta (Cliente/Produto/etc.) — substitui o
@@ -29,9 +53,9 @@ export function ResumoBox({ rows }: { rows: { label: string; value: React.ReactN
   return (
     <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 p-3">
       {rows.map((r, i) => (
-        <div key={i} className="flex items-center justify-between gap-3 text-sm">
-          <span className="text-muted-foreground">{r.label}</span>
-          <span className="truncate font-medium text-foreground">{r.value}</span>
+        <div key={i} className="flex items-baseline justify-between gap-3 text-sm md:items-center">
+          <span className="shrink-0 text-muted-foreground">{r.label}</span>
+          <span className="min-w-0 break-words text-right font-medium text-foreground md:truncate">{r.value}</span>
         </div>
       ))}
     </div>

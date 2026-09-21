@@ -154,10 +154,10 @@ function TierCard({
               <Input name="comentario" defaultValue={tier.rascunhoComentario ?? ""} />
             </Field>
           </Row2>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Button type="submit" name="aprovado" value="true">Aprovar</Button>
             <Button type="submit" name="aprovado" value="false" variant="destructive">Solicitar revisão</Button>
-            <Button type="submit" formAction={salvarRascunhoDiretoria} formNoValidate variant="ghost">
+            <Button type="submit" formAction={salvarRascunhoDiretoria} formNoValidate variant="ghost" className="col-span-2 sm:col-auto">
               Salvar rascunho
             </Button>
           </div>

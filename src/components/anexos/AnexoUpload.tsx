@@ -76,13 +76,13 @@ export function AnexoUpload({
         <div className="flex flex-col gap-2">
           {anexos.map((a) => (
             <div key={a.id} className="rounded-lg border border-border bg-muted/30 p-2.5">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {a.mime === "application/pdf" ? (
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                 ) : (
                   <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                 )}
-                <span className="min-w-0 flex-1 truncate text-sm text-foreground">{a.nome}</span>
+                <span className="min-w-[8rem] flex-1 truncate text-sm text-foreground">{a.nome}</span>
                 <span className="shrink-0 font-mono text-xs text-muted-foreground">{fmtKB(a.tamanho)}</span>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setAberto(aberto === a.id ? null : a.id)}>
                   {aberto === a.id ? "Fechar" : "Ver"}
@@ -96,7 +96,7 @@ export function AnexoUpload({
               {aberto === a.id &&
                 (a.mime === "application/pdf" ? (
                   <>
-                    <iframe src={a.url} className="mt-2.5 h-[420px] w-full rounded-md border border-border" />
+                    <iframe src={a.url} className="mt-2.5 h-[60dvh] w-full md:h-[420px] rounded-md border border-border" />
                     <div className="mt-1.5">
                       <Button asChild variant="outline" size="sm">
                         <a href={a.url} target="_blank" rel="noreferrer">Abrir em nova aba</a>

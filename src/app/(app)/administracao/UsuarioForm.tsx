@@ -28,7 +28,7 @@ export function UsuarioForm({ usuario, perfis }: { usuario: UsuarioEditavel; per
       <CardContent>
         <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={usuario?.id ?? ""} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="nome">Nome</Label>
               <Input id="nome" name="nome" required defaultValue={usuario?.nome ?? ""} />

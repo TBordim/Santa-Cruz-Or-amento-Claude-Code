@@ -93,9 +93,9 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
 
       <form className="mb-6 flex flex-wrap gap-2">
         <input type="hidden" name="aba" value={aba} />
-        <Input name="q" defaultValue={q} placeholder="Buscar por cliente…" className="max-w-[280px]" />
+        <Input name="q" defaultValue={q} placeholder="Buscar por cliente…" className="w-full sm:max-w-[280px]" />
         <Select name="periodo" defaultValue={periodoKey}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

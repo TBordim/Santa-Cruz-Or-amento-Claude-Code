@@ -7,6 +7,7 @@ import { salvarAberto, avancarEngenharia } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente } from "@/lib/orcamentos/types";
 import { Button } from "@/components/ui/button";
+import { AcoesBar } from "@/components/form-section";
 import { useSalvoToast } from "@/hooks/use-salvo-toast";
 
 export function FormAberto({ doc }: { doc: OrcamentoComAnexos }) {
@@ -63,14 +64,14 @@ export function FormAberto({ doc }: { doc: OrcamentoComAnexos }) {
       </div>
 
       {erro && <div className="anexo-erro">{erro}</div>}
-      <div className="mt-4 flex gap-2">
+      <AcoesBar>
         <Button type="submit" form="form-aberto" formAction={salvarAction} variant="outline" disabled={salvando}>
           Salvar sem liberar
         </Button>
         <Button type="submit" form="form-aberto" formAction={avancarAction} disabled={avancando}>
           {avancando ? "Enviando…" : "Liberar para Engenharia"}
         </Button>
-      </div>
+      </AcoesBar>
     </>
   );
 }

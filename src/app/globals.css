@@ -223,15 +223,37 @@
 .board:has(.col:focus-within) .col:not(:focus-within) {
   flex-grow: 0.62;
 }
+/* Celular/tablet estreito: o hover não existe (e "gruda" no toque), então em vez da sanfona o
+   quadro vira uma faixa horizontal com snap — uma etapa por vez, com a borda da próxima à
+   mostra pra indicar que dá pra deslizar. */
 @media (max-width: 900px) {
-  .board { flex-direction: column; }
+  .board {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+    scroll-padding-inline: 1rem;
+  }
   .board .col,
+  .board .col:hover,
+  .board .col:focus-within,
   .board:has(.col:hover) .col:not(:hover),
   .board:has(.col:focus-within) .col:not(:focus-within) {
-    flex-grow: 0;
+    flex: 0 0 min(84vw, 380px);
     max-width: none;
+    scroll-snap-align: start;
+    transition: none;
   }
 }
+
+/* Gaveta (Sheet do card): barra de ações fixa no rodapé enquanto se rola o formulário. Quando
+   um campo está com o teclado aberto ela volta pro fluxo normal, senão o teclado + header +
+   barra sobrariam ~140px de tela pra ver o que se digita. */
+.drawer-body { overscroll-behavior: contain; }
+.drawer-body:has(input:focus, textarea:focus) { padding-bottom: 45dvh; }
+.drawer-body:has(input:focus, textarea:focus) .acoes-fixas { position: static; }
 
 /* =====================================================================================
    CSS "legado" — classes artesanais da Fase 1/2, ainda em uso pelas telas que faltam
@@ -241,7 +263,11 @@
 
 * { box-sizing: border-box; }
 button { font-family: inherit; cursor: pointer; }
-input, select, textarea { font-family: inherit; font-size: 14px; color: var(--ink); }
+/* 16px no celular: abaixo disso o iOS dá zoom automático ao focar o campo e desloca a tela. */
+input, select, textarea { font-family: inherit; font-size: 16px; color: var(--ink); }
+@media (min-width: 768px) {
+  input, select, textarea { font-size: 14px; }
+}
 .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-faint); }
 
 .panel {

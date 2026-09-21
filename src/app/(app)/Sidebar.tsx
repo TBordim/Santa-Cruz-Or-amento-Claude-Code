@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -12,8 +13,10 @@ import {
   Settings2,
   LogOut,
   Search,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { sair } from "./actions";
 
@@ -33,7 +36,13 @@ type NavItem = {
 // Versão com identidade visual de ERP moderno da sidebarHtml() original (linhas 2980-3063):
 // cada item tem ícone + cor própria, com um leve "vidro tingido" no hover/ativo — reconstrói o
 // efeito --nav-color do HTML original, agora com Tailwind + CSS custom properties por item.
-export function Sidebar({ nome, perfilNome, admin }: Props) {
+function SidebarContent({
+  nome,
+  perfilNome,
+  admin,
+  mobile = false,
+  onNavigate,
+}: Props & { mobile?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   const logado = !!nome;
 
@@ -50,8 +59,8 @@ export function Sidebar({ nome, perfilNome, admin }: Props) {
     : [{ href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" }];
 
   return (
-    <div className="flex h-screen w-[248px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-border bg-sidebar px-3.5 py-5">
-      <div className="flex flex-col gap-1 border-b border-dashed border-border pb-3.5 px-1.5">
+    <>
+      <div className="flex flex-col gap-1 border-b border-dashed border-border pb-3.5 px-1.5 max-md:pr-9">
         <div className="flex items-center gap-2.5">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] border border-border bg-gradient-to-br from-secondary to-card p-1 shadow-[0_0_0_3px_var(--accent)]">
             {/* eslint-disable-next-line @next/next/no-img-element -- logo pequeno e fixo; o
@@ -59,7 +68,7 @@ export function Sidebar({ nome, perfilNome, admin }: Props) {
             <img src="/logo-santa-cruz.png" alt="Santa Cruz" width={28} height={28} />
           </span>
           <h1 className="flex-1 font-serif text-lg font-semibold tracking-tight text-foreground">Orçamentos</h1>
-          <ThemeToggle />
+          {!mobile && <ThemeToggle />}
         </div>
         <div className="font-mono text-[10px] tracking-widest text-muted-foreground">SANTA CRUZ IND. GRÁFICA</div>
       </div>
@@ -67,12 +76,15 @@ export function Sidebar({ nome, perfilNome, admin }: Props) {
       {logado && (
         <button
           type="button"
-          onClick={() => window.dispatchEvent(new Event("abrir-busca-rapida"))}
-          className="flex items-center gap-2 rounded-[10px] border border-border bg-muted/40 px-2.5 py-2 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          onClick={() => {
+            onNavigate?.();
+            window.dispatchEvent(new Event("abrir-busca-rapida"));
+          }}
+          className="flex items-center gap-2 rounded-[10px] border border-border bg-muted/40 px-2.5 py-2.5 md:py-2 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Search className="h-3.5 w-3.5 shrink-0" />
           <span className="flex-1">Buscar…</span>
-          <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
+          <kbd className="max-md:hidden rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
         </button>
       )}
 
@@ -84,9 +96,10 @@ export function Sidebar({ nome, perfilNome, admin }: Props) {
             <Link
               key={it.href}
               href={it.href}
+              onClick={onNavigate}
               style={{ "--nav-color": it.color, animationDelay: `${i * 45}ms` } as React.CSSProperties}
               className={[
-                "group relative isolate flex animate-in fade-in slide-in-from-left-1 items-center gap-2.5 rounded-[10px] border px-2.5 py-2 text-[13.5px] font-medium no-underline duration-300 fill-mode-backwards",
+                "group relative isolate flex animate-in fade-in slide-in-from-left-1 items-center gap-2.5 rounded-[10px] border px-2.5 py-2.5 md:py-2 text-[13.5px] font-medium no-underline duration-300 fill-mode-backwards",
                 "border-[color-mix(in_srgb,var(--nav-color)_20%,var(--border))] bg-[color-mix(in_srgb,var(--nav-color)_4%,var(--sidebar))] text-muted-foreground",
                 "transition-[background-color,border-color,color,transform] hover:translate-x-0.5 hover:text-foreground hover:border-[color-mix(in_srgb,var(--nav-color)_40%,var(--border))]",
                 active
@@ -128,10 +141,58 @@ export function Sidebar({ nome, perfilNome, admin }: Props) {
       ) : (
         <div className="mt-auto pt-3.5">
           <Button asChild variant="outline" className="w-full">
-            <Link href="/login">Sou colaborador · Entrar</Link>
+            <Link href="/login" onClick={onNavigate}>Sou colaborador · Entrar</Link>
           </Button>
         </div>
       )}
+    </>
+  );
+}
+
+// Desktop: barra lateral fixa de sempre. Escondida abaixo de md — no celular a navegação é o
+// MobileNav (barra superior + gaveta), senão os 248px da lateral comem 2/3 da tela.
+export function Sidebar(props: Props) {
+  return (
+    <div className="hidden h-screen w-[248px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-border bg-sidebar px-3.5 py-5 md:flex">
+      <SidebarContent {...props} />
     </div>
+  );
+}
+
+export function MobileNav(props: Props) {
+  const [aberto, setAberto] = useState(false);
+  const logado = !!props.nome;
+
+  return (
+    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-sidebar/95 px-3 backdrop-blur md:hidden">
+      <Button type="button" variant="ghost" size="icon-lg" aria-label="Abrir menu" onClick={() => setAberto(true)}>
+        <Menu className="size-5" />
+      </Button>
+      <Link href={logado ? "/painel" : "/novo"} className="flex min-w-0 flex-1 items-center gap-2 no-underline">
+        {/* eslint-disable-next-line @next/next/no-img-element -- mesmo motivo do logo da Sidebar */}
+        <img src="/logo-santa-cruz.png" alt="" width={26} height={26} />
+        <span className="truncate font-serif text-base font-semibold text-foreground">Orçamentos</span>
+      </Link>
+      {logado && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-lg"
+          aria-label="Buscar"
+          onClick={() => window.dispatchEvent(new Event("abrir-busca-rapida"))}
+        >
+          <Search className="size-[18px]" />
+        </Button>
+      )}
+      <ThemeToggle />
+
+      <Sheet open={aberto} onOpenChange={setAberto}>
+        <SheetContent side="left" className="w-[86vw]! max-w-[320px]! gap-5 overflow-y-auto px-3.5 py-5">
+          <SheetTitle className="sr-only">Menu</SheetTitle>
+          <SheetDescription className="sr-only">Navegação do sistema de orçamentos</SheetDescription>
+          <SidebarContent {...props} mobile onNavigate={() => setAberto(false)} />
+        </SheetContent>
+      </Sheet>
+    </header>
   );
 }

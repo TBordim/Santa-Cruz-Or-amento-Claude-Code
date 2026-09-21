@@ -7,7 +7,7 @@ import { salvarRequisitos, avancarOrcamento } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
 import { OPCOES_ANEXOS_ENGENHARIA } from "@/lib/orcamentos/constantes";
-import { FormSection, Field, Row2, ResumoBox, DiretrizBlock } from "@/components/form-section";
+import { FormSection, Field, Row2, ResumoBox, DiretrizBlock, AcoesBar } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -67,19 +67,19 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
         </FormSection>
 
         <FormSection title="Formato suporte">
-          <Row2>
+          <Row2 compacto>
             <Field label="Qtd. por Folha Inteira"><Input name="qtdFolha" defaultValue={r?.qtdFolha ?? ""} form="form-engenharia" /></Field>
             <Field label="Fls. Acerto"><Input name="flsAcerto" defaultValue={r?.flsAcerto ?? ""} form="form-engenharia" /></Field>
           </Row2>
-          <Row2>
+          <Row2 compacto>
             <Field label="Fator — Comprimento (cm)"><Input name="fatorC" defaultValue={r?.fatorC ?? ""} form="form-engenharia" /></Field>
             <Field label="Fator — Largura (cm)"><Input name="fatorL" defaultValue={r?.fatorL ?? ""} form="form-engenharia" /></Field>
           </Row2>
-          <Row2>
+          <Row2 compacto>
             <Field label="Corte"><Input name="corte" defaultValue={r?.corte ?? ""} form="form-engenharia" /></Field>
             <Field label="Qtd./ch."><Input name="qtdCh" defaultValue={r?.qtdCh ?? ""} form="form-engenharia" /></Field>
           </Row2>
-          <Row2>
+          <Row2 compacto>
             <Field label="Formato Ideal — Comprimento (cm)"><Input name="idealC" defaultValue={r?.idealC ?? ""} form="form-engenharia" /></Field>
             <Field label="Formato Ideal — Largura (cm)"><Input name="idealL" defaultValue={r?.idealL ?? ""} form="form-engenharia" /></Field>
           </Row2>
@@ -88,7 +88,7 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
         <FormSection title="Anexos previstos">
           <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
             {OPCOES_ANEXOS_ENGENHARIA.map((op) => (
-              <label key={op} className="flex items-center gap-2 text-sm">
+              <label key={op} className="flex min-h-9 items-center gap-2 text-sm md:min-h-0">
                 <Checkbox name="anexosPrevistos" value={op} defaultChecked={r?.anexos?.includes(op)} form="form-engenharia" />
                 <span>{op}</span>
               </label>
@@ -112,14 +112,14 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
       </div>
 
       {erro && <div className="anexo-erro">{erro}</div>}
-      <div className="mt-4 flex gap-2">
+      <AcoesBar>
         <Button type="submit" form="form-engenharia" formAction={salvarAction} variant="outline" disabled={salvando}>
           Salvar sem liberar
         </Button>
         <Button type="submit" form="form-engenharia" formAction={avancarAction} disabled={avancando}>
           {avancando ? "Enviando…" : "Liberar para Orçamento"}
         </Button>
-      </div>
+      </AcoesBar>
     </>
   );
 }

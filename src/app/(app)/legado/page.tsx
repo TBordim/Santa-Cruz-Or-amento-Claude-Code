@@ -29,7 +29,7 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
       <LegadoForm />
 
       <form className="mb-3.5 flex flex-wrap gap-2">
-        <Input name="q" defaultValue={q ?? ""} placeholder="Buscar por cliente…" className="max-w-[320px]" />
+        <Input name="q" defaultValue={q ?? ""} placeholder="Buscar por cliente…" className="w-full sm:max-w-[320px]" />
         <Button type="submit" variant="outline" className="gap-1.5">
           <Search className="h-3.5 w-3.5" /> Buscar
         </Button>
