@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { RegisterServiceWorker } from "@/components/register-sw";
 
 // Mesmas 4 famílias do painel atual (link do Google Fonts nas linhas 1-2 do HTML original),
 // só que auto-hospedadas pelo next/font em vez de carregadas de fonts.googleapis.com — mesma
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <TooltipProvider>
             {children}
             <Toaster />
+            <RegisterServiceWorker />
           </TooltipProvider>
         </ThemeProvider>
       </body>
