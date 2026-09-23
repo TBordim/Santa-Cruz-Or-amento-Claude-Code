@@ -326,6 +326,7 @@ enum OrigemRodada {
   FORNECEDOR
   SUGESTAO_SISTEMA // reservado pra Fase 2/3 — não usado ainda
   AJUSTE_MANUAL
+  IMPORTADO // fórmula final vinda da planilha antiga — só a final sobreviveu, origem real desconhecida
 }
 
 model Rodada {

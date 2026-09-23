@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { NovaCorForm } from "./NovaCorForm";
 import { labToCssColor } from "@/lib/cor/lab-to-rgb";
 
@@ -18,13 +20,32 @@ const STATUS_LABEL: Record<string, string> = {
 
 // Lista em tabela de propósito — não em cards, dinâmica diferente do painel de orçamentos
 // (decisão explícita: bancada única por cor, não visualização por cards).
-export default async function CorPage() {
+export default async function CorPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
 
   const podeRegistrar = (await podeEditar("COR_LABORATORIO")) || (await podeEditar("COR_ENGENHARIA"));
 
-  const cores = await prisma.cor.findMany({ orderBy: { atualizadaEm: "desc" }, take: 200 });
+  const { q } = await searchParams;
+  const busca = q?.trim();
+  const contem = (campo: string) => ({ [campo]: { contains: busca, mode: "insensitive" as const } });
+
+  // Também traz a leitura FINAL mais recente: as cores importadas da planilha antiga só têm o LAB
+  // da fórmula final (o alvo nunca foi registrado), então a lista usa ele como fallback pra
+  // mostrar a amostra e o LAB — identificado como "final" na tela.
+  const cores = await prisma.cor.findMany({
+    where: busca
+      ? { OR: [contem("codigo"), contem("cliente"), contem("codigoProduto"), contem("referenciaDeclarada")] }
+      : undefined,
+    orderBy: [{ atualizadaEm: "desc" }, { codigo: "asc" }],
+    take: 1000,
+    include: {
+      rodadas: {
+        orderBy: { numero: "desc" },
+        include: { leituras: { where: { contexto: "FINAL" }, orderBy: { lidaEm: "desc" }, take: 1 } },
+      },
+    },
+  });
 
   return (
     <>
@@ -36,9 +57,22 @@ export default async function CorPage() {
       {podeRegistrar && <NovaCorForm />}
 
       <div className="mt-6">
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Cores cadastradas</h3>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Cores cadastradas <span className="font-normal text-muted-foreground">({cores.length}{busca ? " encontradas" : ""})</span>
+          </h3>
+          <form action="/laboratorio/cor" className="flex gap-2">
+            <Input name="q" defaultValue={busca ?? ""} placeholder="Buscar código, cliente, referência…" className="w-72" aria-label="Buscar cor" />
+            <Button type="submit" variant="outline">Buscar</Button>
+            {busca && (
+              <Button asChild variant="ghost">
+                <Link href="/laboratorio/cor">Limpar</Link>
+              </Button>
+            )}
+          </form>
+        </div>
         {cores.length === 0 ? (
-          <div className="empty-state">Nenhuma cor cadastrada ainda.</div>
+          <div className="empty-state">{busca ? `Nenhuma cor encontrada para "${busca}".` : "Nenhuma cor cadastrada ainda."}</div>
         ) : (
           <div className="rounded-xl border border-border">
             <Table>
@@ -48,26 +82,26 @@ export default async function CorPage() {
                   <TableHead>Código</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Referência</TableHead>
-                  <TableHead>LAB alvo</TableHead>
+                  <TableHead>LAB</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {cores.map((c) => {
-                  const temLab = c.labAlvoL != null && c.labAlvoA != null && c.labAlvoB != null;
+                  const temAlvo = c.labAlvoL != null && c.labAlvoA != null && c.labAlvoB != null;
+                  const final = c.rodadas.flatMap((r) => r.leituras)[0];
+                  const lab = temAlvo
+                    ? { l: Number(c.labAlvoL), a: Number(c.labAlvoA), b: Number(c.labAlvoB), rotulo: "alvo" }
+                    : final
+                      ? { l: Number(final.l), a: Number(final.a), b: Number(final.b), rotulo: "final" }
+                      : null;
                   return (
                     <TableRow key={c.id}>
                       <TableCell>
-                        {temLab && (
+                        {lab && (
                           <span
                             className="inline-block h-5 w-5 rounded-full border border-border"
-                            style={{
-                              background: labToCssColor({
-                                l: Number(c.labAlvoL),
-                                a: Number(c.labAlvoA),
-                                b: Number(c.labAlvoB),
-                              }),
-                            }}
+                            style={{ background: labToCssColor(lab) }}
                             title="Apoio visual — não substitui a cabine de luz D50"
                           />
                         )}
@@ -80,7 +114,8 @@ export default async function CorPage() {
                       <TableCell className="text-muted-foreground">{c.cliente ?? "—"}</TableCell>
                       <TableCell className="text-muted-foreground">{c.referenciaDeclarada ?? "—"}</TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
-                        {temLab ? `${c.labAlvoL} / ${c.labAlvoA} / ${c.labAlvoB}` : "—"}
+                        {lab ? `${lab.l} / ${lab.a} / ${lab.b}` : "—"}
+                        {lab && lab.rotulo === "final" && <span className="ml-1 font-sans text-[10px] uppercase tracking-wide">final</span>}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{STATUS_LABEL[c.status] ?? c.status}</Badge>

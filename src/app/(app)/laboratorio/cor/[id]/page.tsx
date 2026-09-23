@@ -21,6 +21,7 @@ const ORIGEM_LABEL: Record<string, string> = {
   FORNECEDOR: "Fornecedor",
   SUGESTAO_SISTEMA: "Sugestão do sistema",
   AJUSTE_MANUAL: "Ajuste manual",
+  IMPORTADO: "Importada da planilha (só a final)",
 };
 
 // Lote padrão do Quick Peek — a quantidade de tinta necessária pro teste é fixa em 10g (ver
@@ -67,25 +68,33 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
     ? { l: Number(cor.labAlvoL), a: Number(cor.labAlvoA), b: Number(cor.labAlvoB) }
     : null;
 
+  // Cor importada da planilha antiga só tem o LAB da fórmula final (o alvo nunca foi registrado):
+  // usa ele pra amostra e pro texto, identificado como "final" — e sem ΔE, que exigiria um alvo.
+  const leituraFinal = cor.rodadas.flatMap((r) => r.leituras).filter((l) => l.contexto === "FINAL").at(-1);
+  const labFinal = leituraFinal ? { l: Number(leituraFinal.l), a: Number(leituraFinal.a), b: Number(leituraFinal.b) } : null;
+  const labExibido = labAlvo ?? labFinal;
+
   return (
     <>
       <PageHeader title={cor.codigo} description={[cor.cliente, cor.referenciaDeclarada].filter(Boolean).join(" · ") || undefined} />
 
       <div className="mb-6 flex flex-wrap gap-4">
         <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
-          {labAlvo ? (
+          {labExibido ? (
             <span
               className="h-14 w-14 shrink-0 rounded-xl border border-border"
-              style={{ background: labToCssColor(labAlvo) }}
+              style={{ background: labToCssColor(labExibido) }}
               title="Apoio visual — não substitui a cabine de luz D50"
             />
           ) : (
             <span className="h-14 w-14 shrink-0 rounded-xl border border-dashed border-border" />
           )}
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">LAB alvo</span>
+            <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+              {labAlvo || !labFinal ? "LAB alvo" : "LAB final (alvo não registrado)"}
+            </span>
             <span className="font-mono text-sm">
-              {labAlvo ? `L* ${labAlvo.l} · a* ${labAlvo.a} · b* ${labAlvo.b}` : "não registrado"}
+              {labExibido ? `L* ${labExibido.l} · a* ${labExibido.a} · b* ${labExibido.b}` : "não registrado"}
             </span>
           </div>
         </div>
