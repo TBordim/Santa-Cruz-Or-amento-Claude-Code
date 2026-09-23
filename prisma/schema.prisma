@@ -48,6 +48,12 @@ model Usuario {
   orcamentosCriados Orcamento[] @relation("OrcamentoCriadoPor")
   anexosEnviados    Anexo[]     @relation("AnexoEnviadoPor")
 
+  // Módulo Cor
+  corasCriadas          Cor[]                 @relation("CorCriadaPor")
+  rodadasRegistradas    Rodada[]              @relation("RodadaRegistradaPor")
+  leiturasLidas         LeituraLab[]          @relation("LeituraLidaPor")
+  interacoesRegistradas InteracaoFornecedor[] @relation("InteracaoRegistradaPor")
+
   @@map("usuarios")
 }
 
@@ -229,4 +235,195 @@ model Anexo {
   enviadoEm    DateTime  @default(now())
 
   @@map("anexos")
+}
+
+// ============================================================
+// Módulo Cor — formulação de tinta (Santa Cruz + Sun Chemical/IRO)
+// Tabelas prefixadas "cor_" pra ficarem separadas das de orçamento.
+// Fase 1: só registro completo, sem motor de sugestão/ajuste ainda
+// (isso é Fase 2/3 — ver o enum OrigemRodada.SUGESTAO_SISTEMA, ainda
+// não usado por nenhum código).
+// ============================================================
+
+// ---------- catálogo de bases ----------
+
+enum SistemaBase {
+  IRO      // bases proprietárias Sun Chemical
+  METALICO // ex.: Ouro Rico, Prata 877
+  CMYK     // formulação experimental fora do catálogo IRO — ver histórico STA0175
+}
+
+model Base {
+  id     String      @id @default(cuid())
+  codigo String      @unique // "IRO48", "IRO50", "OURO RICO"...
+  nome   String
+  sistema SistemaBase @default(IRO)
+
+  // Resistência (ISO 12040 pra luz; os outros vêm como "+"/"-" no material do fornecedor)
+  resistenciaLuz      Int?
+  resistenciaAlcali   String?
+  resistenciaSolvente String?
+  resistenciaAlcool   String?
+
+  ativa    Boolean  @default(true)
+  criadaEm DateTime @default(now())
+
+  composicoes Composicao[]
+
+  @@map("cor_bases")
+}
+
+// ---------- registro central de uma cor ----------
+
+enum TipoReferencia {
+  AMOSTRA_CLIENTE
+  PADRAO_INTERNO
+  PLOTTER_PANTONE_DIGITAL
+}
+
+enum StatusCor {
+  EM_DESENVOLVIMENTO
+  APROVADO
+  ALTERNATIVA
+  AGUARDANDO_APROVACAO_CLIENTE
+  CANCELADO
+}
+
+model Cor {
+  id                  String          @id @default(cuid())
+  codigo              String          @unique // STA00xx
+  cliente             String?
+  codigoProduto       String?
+  referenciaDeclarada String?         // ex.: "VERDE P. 335", texto livre citado
+  tipoReferencia      TipoReferencia?
+  pantoneMaisProximo  String?         // calculado por ΔE2000 contra o LAB alvo, quando fizer sentido
+
+  // LAB alvo — um valor só por Cor. Hoje isso não é registrado (só o final); aqui passa a ser.
+  labAlvoL Decimal? @db.Decimal(6, 2)
+  labAlvoA Decimal? @db.Decimal(6, 2)
+  labAlvoB Decimal? @db.Decimal(6, 2)
+
+  substrato          String?
+  acabamento         String?
+  resistenciaExigida String?
+
+  status StatusCor @default(EM_DESENVOLVIMENTO)
+
+  criadaPorId  String?
+  criadaPor    Usuario? @relation("CorCriadaPor", fields: [criadaPorId], references: [id])
+  criadaEm     DateTime @default(now())
+  atualizadaEm DateTime @updatedAt
+
+  rodadas              Rodada[]
+  interacoesFornecedor InteracaoFornecedor[]
+
+  @@map("cor_cores")
+}
+
+// ---------- rodadas (cada tentativa de fórmula) ----------
+
+enum OrigemRodada {
+  FORNECEDOR
+  SUGESTAO_SISTEMA // reservado pra Fase 2/3 — não usado ainda
+  AJUSTE_MANUAL
+}
+
+model Rodada {
+  id       String       @id @default(cuid())
+  corId    String
+  cor      Cor          @relation(fields: [corId], references: [id], onDelete: Cascade)
+  numero   Int          // 1, 2, 3... sequencial dentro da Cor
+  origem   OrigemRodada
+  aprovada Boolean      @default(false)
+
+  registradaPorId String?
+  registradaPor   Usuario? @relation("RodadaRegistradaPor", fields: [registradaPorId], references: [id])
+  criadaEm        DateTime @default(now())
+
+  composicoes         Composicao[]
+  leituras            LeituraLab[]
+  interacaoFornecedor InteracaoFornecedor?
+
+  @@unique([corId, numero])
+  @@map("cor_rodadas")
+}
+
+model Composicao {
+  id         String  @id @default(cuid())
+  rodadaId   String
+  rodada     Rodada  @relation(fields: [rodadaId], references: [id], onDelete: Cascade)
+  baseId     String
+  base       Base    @relation(fields: [baseId], references: [id])
+  percentual Decimal @db.Decimal(5, 2) // soma das bases de uma rodada deve fechar 100.00
+
+  @@map("cor_composicoes")
+}
+
+// ---------- leituras (referência, Quick Peek, final, produção) ----------
+
+enum ContextoLeitura {
+  QUICKPEEK_FAIXA_1
+  QUICKPEEK_FAIXA_2
+  QUICKPEEK_FAIXA_3
+  QUICKPEEK_FAIXA_4
+  QUICKPEEK_FAIXA_5
+  FINAL
+  PRODUCAO // leitura tomada na produção real — compara com FINAL pra flagrar quando a premissa densidade=LAB falha
+}
+
+model LeituraLab {
+  id        String          @id @default(cuid())
+  rodadaId  String
+  rodada    Rodada          @relation(fields: [rodadaId], references: [id], onDelete: Cascade)
+  contexto  ContextoLeitura
+  vencedora Boolean         @default(false) // marca qual faixa do Quick Peek foi escolhida
+
+  l Decimal @db.Decimal(6, 2)
+  a Decimal @db.Decimal(6, 2)
+  b Decimal @db.Decimal(6, 2)
+
+  densidade Decimal? @db.Decimal(6, 3) // leitura do densitômetro, relevante nas faixas do Quick Peek
+
+  // Cache — recalculado sempre que essa leitura ou o LAB alvo da Cor mudar, não é fonte da verdade.
+  deltaE2000 Decimal? @db.Decimal(6, 3)
+
+  instrumento String? // ex.: "Eye-One Pro ES 2000"
+  iluminante  String? // ex.: "D50"
+  observador  String? // ex.: "2°"
+
+  // Só relevante em PRODUCAO: registra se o papel real divergiu do substrato declarado na Cor.
+  substratoReal String?
+
+  lidaPorId String?
+  lidaPor   Usuario? @relation("LeituraLidaPor", fields: [lidaPorId], references: [id])
+  lidaEm    DateTime @default(now())
+
+  @@map("cor_leituras")
+}
+
+// ---------- interação com o fornecedor ----------
+
+enum TipoEnvioFornecedor {
+  SIMULACAO_FORMULA
+  FORMULA_FINALIZADA
+}
+
+model InteracaoFornecedor {
+  id    String @id @default(cuid())
+  corId String
+  cor   Cor    @relation(fields: [corId], references: [id], onDelete: Cascade)
+
+  // A rodada que essa interação gerou, uma vez cadastrada — evita duplicar a fórmula em dois lugares.
+  rodadaId String? @unique
+  rodada   Rodada? @relation(fields: [rodadaId], references: [id])
+
+  tipoEnvio  TipoEnvioFornecedor
+  enviadoEm  DateTime?
+  recebidoEm DateTime? // junto com enviadoEm dá o SLA observado
+
+  registradaPorId String?
+  registradaPor   Usuario? @relation("InteracaoRegistradaPor", fields: [registradaPorId], references: [id])
+  criadaEm        DateTime @default(now())
+
+  @@map("cor_interacoes_fornecedor")
 }

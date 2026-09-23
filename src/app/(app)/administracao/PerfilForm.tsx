@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { salvarPerfil } from "./actions";
 import { AREAS } from "@/lib/areas";
+import { MODULOS } from "@/lib/modulos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,19 +33,28 @@ export function PerfilForm({ perfil }: { perfil: PerfilEditavel }) {
             <Checkbox name="admin" defaultChecked={perfil?.admin ?? false} />
             <span><strong>Administrador</strong> — acesso total, inclusive esta tela de Administração</span>
           </label>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <Label>Pode editar</Label>
             <p className="text-xs text-muted-foreground">
-              Colaboradores sempre podem ver todas as áreas do painel — isto só controla onde podem salvar/alterar algo.
+              Colaboradores sempre podem ver todos os módulos — isto só controla onde podem salvar/alterar algo, agrupado por módulo.
             </p>
-            <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3">
-              {AREAS.map((a) => (
-                <label key={a.key} className="flex items-start gap-2 text-sm">
-                  <Checkbox name="areas" value={a.key} defaultChecked={areasMarcadas.has(a.key)} className="mt-0.5" />
-                  <span>{a.label} <span className="text-xs text-muted-foreground">— {a.hint}</span></span>
-                </label>
-              ))}
-            </div>
+            {MODULOS.map((m) => {
+              const areasDoModulo = AREAS.filter((a) => a.modulo === m.key);
+              if (areasDoModulo.length === 0) return null;
+              return (
+                <div key={m.key} className="flex flex-col gap-2">
+                  <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">{m.label}</span>
+                  <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3">
+                    {areasDoModulo.map((a) => (
+                      <label key={a.key} className="flex items-start gap-2 text-sm">
+                        <Checkbox name="areas" value={a.key} defaultChecked={areasMarcadas.has(a.key)} className="mt-0.5" />
+                        <span>{a.label} <span className="text-xs text-muted-foreground">— {a.hint}</span></span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           {erro && <div className="anexo-erro">{erro}</div>}
           <div className="flex gap-2">

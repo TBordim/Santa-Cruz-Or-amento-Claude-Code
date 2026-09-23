@@ -14,11 +14,16 @@ import {
   LogOut,
   Search,
   Menu,
+  Palette,
+  LayoutGrid,
+  Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { sair } from "./actions";
+import { ModuloSwitcher } from "./ModuloSwitcher";
+import { MODULOS, moduloAtual } from "@/lib/modulos";
 
 type Props = {
   nome: string | null;
@@ -45,18 +50,32 @@ function SidebarContent({
 }: Props & { mobile?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   const logado = !!nome;
+  const modulo = moduloAtual(pathname);
 
-  const items: NavItem[] = logado
-    ? [
-        { href: "/painel", label: "Painel", icon: KanbanSquare, color: "#26405C" },
-        { href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" },
-        { href: "/diretoria", label: "Diretoria", icon: Gavel, color: "#946522" },
-        { href: "/historico", label: "Histórico", icon: History, color: "#5B6270" },
-        { href: "/legado", label: "Arquivo legado", icon: Archive, color: "#8C3B21" },
-        { href: "/resumo", label: "Resumo semanal", icon: BarChart3, color: "#2C6E8C" },
-        ...(admin ? [{ href: "/administracao", label: "Administração", icon: Settings2, color: "#233248" }] : []),
-      ]
-    : [{ href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" }];
+  // Cada módulo tem sua própria navegação — trocar de módulo (ModuloSwitcher, acima) troca essa
+  // lista inteira, não só adiciona um item. "Administração" fica sempre no módulo Orçamento por
+  // enquanto (é onde o cadastro de usuários/perfis já vive).
+  const itemsOrcamento: NavItem[] = [
+    { href: "/painel", label: "Painel", icon: KanbanSquare, color: "#26405C" },
+    { href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" },
+    { href: "/diretoria", label: "Diretoria", icon: Gavel, color: "#946522" },
+    { href: "/historico", label: "Histórico", icon: History, color: "#5B6270" },
+    { href: "/legado", label: "Arquivo legado", icon: Archive, color: "#8C3B21" },
+    { href: "/resumo", label: "Resumo semanal", icon: BarChart3, color: "#2C6E8C" },
+    ...(admin ? [{ href: "/administracao", label: "Administração", icon: Settings2, color: "#233248" }] : []),
+  ];
+
+  const itemsLaboratorio: NavItem[] = [
+    { href: "/laboratorio", label: "Início", icon: LayoutGrid, color: "#5C3D75" },
+    { href: "/laboratorio/cor", label: "Cor", icon: Palette, color: "#7A3B69" },
+    { href: "/laboratorio/producao", label: "Produção", icon: Scale, color: "#3D6B6B" },
+  ];
+
+  const items: NavItem[] = !logado
+    ? [{ href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" }]
+    : modulo === "laboratorio"
+      ? itemsLaboratorio
+      : itemsOrcamento;
 
   return (
     <>
@@ -67,7 +86,13 @@ function SidebarContent({
                 otimizador do next/image rejeita este PNG específico ("not a valid image") */}
             <img src="/logo-santa-cruz.png" alt="Santa Cruz" width={28} height={28} />
           </span>
-          <h1 className="flex-1 font-serif text-lg font-semibold tracking-tight text-foreground">Orçamentos</h1>
+          <div className="min-w-0 flex-1">
+            {logado ? (
+              <ModuloSwitcher />
+            ) : (
+              <h1 className="font-serif text-lg font-semibold tracking-tight text-foreground">Orçamentos</h1>
+            )}
+          </div>
           {!mobile && <ThemeToggle />}
         </div>
         <div className="font-mono text-[10px] tracking-widest text-muted-foreground">SANTA CRUZ IND. GRÁFICA</div>
@@ -161,18 +186,26 @@ export function Sidebar(props: Props) {
 
 export function MobileNav(props: Props) {
   const [aberto, setAberto] = useState(false);
+  const pathname = usePathname();
   const logado = !!props.nome;
+  const modulo = MODULOS.find((m) => m.key === moduloAtual(pathname));
 
   return (
     <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-sidebar/95 px-3 backdrop-blur md:hidden">
       <Button type="button" variant="ghost" size="icon-lg" aria-label="Abrir menu" onClick={() => setAberto(true)}>
         <Menu className="size-5" />
       </Button>
-      <Link href={logado ? "/painel" : "/novo"} className="flex min-w-0 flex-1 items-center gap-2 no-underline">
+      <Link href={logado ? (modulo?.basePath ?? "/painel") : "/novo"} className="shrink-0 no-underline" aria-label="Início">
         {/* eslint-disable-next-line @next/next/no-img-element -- mesmo motivo do logo da Sidebar */}
         <img src="/logo-santa-cruz.png" alt="" width={26} height={26} />
-        <span className="truncate font-serif text-base font-semibold text-foreground">Orçamentos</span>
       </Link>
+      <div className="min-w-0 flex-1">
+        {logado ? (
+          <ModuloSwitcher className="text-base" />
+        ) : (
+          <span className="truncate font-serif text-base font-semibold text-foreground">Orçamentos</span>
+        )}
+      </div>
       {logado && (
         <Button
           type="button"
