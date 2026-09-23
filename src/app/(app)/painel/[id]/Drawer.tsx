@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CornerUpLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { podeEditar } from "@/lib/permissions";
 import { etapaInfo } from "@/lib/orcamentos/constantes";
 import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
@@ -51,7 +52,7 @@ export async function Drawer({ id }: { id: string }) {
       corpo = <FormEnvioOferta doc={doc} />;
       break;
     case "FINALIZADO":
-      corpo = <FormFinalizado doc={doc} />;
+      corpo = <FormFinalizado doc={doc} podeGerarCodigo={await podeEditar("ENGENHARIA")} />;
       break;
     default:
       corpo = <p>Etapa desconhecida.</p>;

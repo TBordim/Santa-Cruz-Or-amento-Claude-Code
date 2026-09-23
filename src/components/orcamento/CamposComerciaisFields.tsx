@@ -178,10 +178,10 @@ export function CamposComerciaisFields({
 
       <FormSection title="Medidas e suporte">
         <Row2 compacto>
-          <Field label="Formato — Comprimento (cm)"><Input name="medidaF" defaultValue={r?.medidaF ?? ""} /></Field>
-          <Field label="Formato — Largura (cm)"><Input name="medidaL" defaultValue={r?.medidaL ?? ""} /></Field>
+          <Field label="Formato — Comprimento (mm)"><Input name="medidaF" defaultValue={r?.medidaF ?? ""} /></Field>
+          <Field label="Formato — Largura (mm)"><Input name="medidaL" defaultValue={r?.medidaL ?? ""} /></Field>
         </Row2>
-        <Field label="Altura (cm)"><Input name="medidaA" defaultValue={r?.medidaA ?? ""} /></Field>
+        <Field label="Altura (mm)"><Input name="medidaA" defaultValue={r?.medidaA ?? ""} /></Field>
         <SuportesLista
           campoA="suporteDescricao"
           campoB="suporteGramatura"

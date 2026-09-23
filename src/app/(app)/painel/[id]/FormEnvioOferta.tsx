@@ -35,7 +35,7 @@ export function FormEnvioOferta({ doc }: { doc: OrcamentoComAnexos }) {
       </div>
 
       <div className="mt-4">
-        <DiretrizBlock>Gere e envie a oferta ao cliente antes de marcar como finalizado.</DiretrizBlock>
+        <DiretrizBlock>Gere e envie a oferta ao cliente antes de seguir para o Retorno do Cliente.</DiretrizBlock>
       </div>
 
       <form action={salvarNumeroOrcamento} className="mt-4">
@@ -52,7 +52,7 @@ export function FormEnvioOferta({ doc }: { doc: OrcamentoComAnexos }) {
 
       <form action={marcarFinalizado} className="mt-4">
         <input type="hidden" name="id" value={doc.id} />
-        <Button type="submit">Marcar como finalizado</Button>
+        <Button type="submit">Marcar oferta como enviada</Button>
       </form>
 
       <div className="mt-4 flex flex-col gap-4">

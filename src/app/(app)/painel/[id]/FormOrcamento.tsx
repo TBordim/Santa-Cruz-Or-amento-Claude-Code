@@ -111,10 +111,9 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
         )}
 
         <FormSection title="Comum a todas as faixas">
-          <Row2 compacto>
-            <Field label="Nº de SOPP"><Input name="numeroSequencial" required defaultValue={doc.numeroSequencial ?? ""} form="form-orcamento" /></Field>
-            <Field label="Prazo (dias)"><Input name="prazoDias" inputMode="numeric" defaultValue={doc.prazoDias ?? ""} form="form-orcamento" /></Field>
-          </Row2>
+          {/* Prazo saiu daqui — já é lançado na Solicitação (campo "Datas de entrega"), não
+              precisa de um segundo lugar pra essa informação. Pedido do Thiago em 23/09/2026. */}
+          <Field label="Nº de SOPP"><Input name="numeroSequencial" required defaultValue={doc.numeroSequencial ?? ""} form="form-orcamento" /></Field>
           <Field label="Acabamento" hint="Sugerido a partir da Solicitação — ajuste se precisar.">
             <Input name="acabamento" defaultValue={doc.acabamento || resumoAcabamento(c)} form="form-orcamento" />
           </Field>

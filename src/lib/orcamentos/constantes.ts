@@ -43,7 +43,7 @@ export const ETAPAS = [
   { key: "ORCAMENTO", label: "3. Orçamento", color: "#2C7A8C" },
   { key: "DIRETORIA", label: "4. Diretoria", color: "#8C3B2E" },
   { key: "ENVIO_OFERTA", label: "5. Envio de oferta", color: "#3E7FA6" },
-  { key: "FINALIZADO", label: "6. Finalizado", color: "#2F8F5B" },
+  { key: "FINALIZADO", label: "6. Retorno do Cliente", color: "#2F8F5B" },
 ] as const;
 
 export function etapaInfo(key: string) {

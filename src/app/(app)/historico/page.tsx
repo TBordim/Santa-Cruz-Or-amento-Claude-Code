@@ -40,7 +40,11 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
   const docs = await prisma.orcamento.findMany({
     where: {
       OR: [
-        { origem: "NOVO", etapa: { in: ["ENVIO_OFERTA", "FINALIZADO"] } },
+        { origem: "NOVO", etapa: "ENVIO_OFERTA" },
+        // FINALIZADO (Retorno do Cliente) entra aqui, EXCETO enquanto estiver com a pendência
+        // de Código de Produto Interno em aberto (desfecho POSITIVO sem código ainda) — esse
+        // fica retido no Painel até ser resolvido. Mesmo filtro em PainelBoard.tsx.
+        { origem: "NOVO", etapa: "FINALIZADO", NOT: { desfecho: "POSITIVO", OR: [{ codInterno: null }, { codInterno: "" }] } },
         { origem: "LEGADO" },
       ],
       ...(periodo.dias ? { criadoEm: { gte: dataLimite(periodo.dias) } } : {}),

@@ -114,7 +114,11 @@ export function AnexoUpload({
 
       {!somenteLeitura && (
         <div>
-          <Button asChild variant="outline" size="sm" className="gap-1.5">
+          {/* variant="secondary" (não "outline"): o "outline" usa o mesmo fundo da página por
+              trás do botão, então sozinho (sem um botão colorido do lado pra dar contraste,
+              como acontece nos outros "outline" da gaveta) ele ficava quase sem área visível de
+              clique — só a borda fina e o texto. Pedido do Thiago em 23/09/2026. */}
+          <Button asChild variant="secondary" size="sm" className="gap-1.5">
             <label className="cursor-pointer">
               <Paperclip className="h-3.5 w-3.5" />
               {pending ? "Enviando…" : "Anexar arquivo"}

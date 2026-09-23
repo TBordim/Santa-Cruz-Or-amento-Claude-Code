@@ -21,12 +21,20 @@ const PILL_STYLE: Record<string, string> = {
 };
 
 export async function PainelBoard() {
-  // Um card em FINALIZADO some do kanban assim que o desfecho é registrado (deixa de ser
-  // "aguardando") — continua acessível pelo Histórico. Mesma regra do viewPainel() original.
+  // Um card em FINALIZADO (Retorno do Cliente) some do kanban assim que o desfecho é
+  // registrado (deixa de ser "aguardando") — continua acessível pelo Histórico. Mesma regra do
+  // viewPainel() original. EXCETO desfecho POSITIVO sem Código de Produto Interno ainda: aí o
+  // card fica retido aqui até a pendência ser resolvida (ver PendenciaCodigoProduto em
+  // FormFinalizado.tsx e o mesmo filtro em historico/page.tsx).
   const docs = await prisma.orcamento.findMany({
     where: {
       origem: "NOVO",
-      NOT: { etapa: "FINALIZADO", AND: { desfecho: { not: null }, NOT: { desfecho: "AGUARDANDO" } } },
+      OR: [
+        { NOT: { etapa: "FINALIZADO" } },
+        { etapa: "FINALIZADO", desfecho: null },
+        { etapa: "FINALIZADO", desfecho: "AGUARDANDO" },
+        { etapa: "FINALIZADO", desfecho: "POSITIVO", OR: [{ codInterno: null }, { codInterno: "" }] },
+      ],
     },
     orderBy: { atualizadoEm: "desc" },
   });
@@ -68,11 +76,13 @@ export async function PainelBoard() {
             ) : (
               itens.map((d, i) => {
                 const tiers = d.precificacao as unknown as PrecificacaoTier[] | null;
-                const pendFlag = (d.etapa === "DIRETORIA" && d.statusDiretoria === "PENDENTE") || d.aguardandoCompras;
+                const pendenteCodigo = d.etapa === "FINALIZADO" && d.desfecho === "POSITIVO" && !d.codInterno;
+                const pendFlag = (d.etapa === "DIRETORIA" && d.statusDiretoria === "PENDENTE") || d.aguardandoCompras || pendenteCodigo;
                 let pill: { texto: string; classe: string } | null = null;
                 if (d.etapa === "DIRETORIA" && d.statusDiretoria === "PENDENTE") pill = { texto: "Aguarda diretoria", classe: "pend" };
                 else if (d.etapa === "ORCAMENTO" && d.aguardandoCompras) pill = { texto: "Aguarda Compras", classe: "pend" };
                 else if (d.statusDiretoria === "REVISAO") pill = { texto: "Revisão solicitada", classe: "bad" };
+                else if (pendenteCodigo) pill = { texto: "Gerar código de produto", classe: "pend" };
                 else if (d.etapa === "FINALIZADO" && d.desfecho) {
                   const info = desfechoInfo(d.desfecho);
                   pill = { texto: info.label.split(" —")[0].split(" (")[0], classe: info.pill };

@@ -90,11 +90,16 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
   const preCadastro = String(formData.get("preCadastro") ?? "").trim();
   if (!preCadastro) return { erro: "Informe o Nº de Pré Cadastro antes de liberar para o Orçamento." };
 
+  // Produto novo não exige mais Código interno nesta etapa — gerar um código pra cada produto
+  // que só vira orçamento (nunca produção) inflava o cadastro à toa. Agora o código só é
+  // pedido depois que o cliente aprova de verdade, como pendência na etapa Retorno do Cliente
+  // (ver salvarCodigoProduto). Repetição continua exigindo aqui: o produto já existe, o código
+  // já deveria ter vindo da Solicitação (é por ele que a Diretoria casa com o histórico).
   const ehRepeticao = !!doc.classificacao?.startsWith("REPETICAO");
   const codInternoForm = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
   const codInternoFinal = codInternoForm || doc.codInterno || "";
-  if (!ehRepeticao && !codInternoFinal) {
-    return { erro: "Informe o Código interno (Santa Cruz) antes de liberar para o Orçamento." };
+  if (ehRepeticao && !codInternoFinal) {
+    return { erro: "Como esta solicitação é uma repetição, o Código interno (Santa Cruz) é obrigatório antes de liberar para o Orçamento." };
   }
   if (codInternoFinal && !codigoInternoValido(codInternoFinal)) {
     return { erro: "Código interno (Santa Cruz) deve ter o formato 0.000.000 (7 dígitos)." };
@@ -160,7 +165,6 @@ export async function salvarOrcamento(_prev: FormState, formData: FormData): Pro
     data: {
       precificacao: rascunho,
       numeroSequencial: String(formData.get("numeroSequencial") ?? "").trim(),
-      prazoDias: formData.get("prazoDias") ? parseInt(String(formData.get("prazoDias")), 10) : null,
       comissaoEspecial: formData.get("comissaoEspecial") === "on",
       comissaoObs: String(formData.get("comissaoObs") ?? "").trim(),
       acabamento: String(formData.get("acabamento") ?? "").trim(),
@@ -231,7 +235,6 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
       numeroSequencial,
       orcamentoAnteriorId: anterior?.id ?? null,
       precoAnterior: anterior?.precoFinal ?? null,
-      prazoDias: formData.get("prazoDias") ? parseInt(String(formData.get("prazoDias")), 10) : null,
       comissaoEspecial,
       comissaoObs: String(formData.get("comissaoObs") ?? "").trim(),
       acabamento,
@@ -341,6 +344,30 @@ export async function registrarDesfecho(formData: FormData) {
   });
   revalidatePath(`/painel/${id}`);
   revalidatePath("/historico");
+}
+
+// Pendência de Código de Produto Interno — só existe pra orçamento com desfecho POSITIVO
+// (cliente aprovou, virou pedido de verdade) e ainda sem código, porque produto novo não gera
+// mais código na Engenharia (ver avancarOrcamento acima). Enquanto não for preenchido, o card
+// continua aparecendo no Painel (ver PainelBoard) e fica de fora do Histórico (ver
+// historico/page.tsx) — reprovado/sem retorno não passa por aqui, vai direto pro Histórico
+// porque o código deixou de ser necessário se não vai virar produção.
+//
+// Permissão própria (Engenharia), não a da etapa (Retorno do Cliente): quem registra o
+// retorno do cliente normalmente não é quem cadastra código de produto — são times diferentes.
+export async function salvarCodigoProduto(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  if (!(await podeEditar("ENGENHARIA"))) return { erro: "Sem permissão da Engenharia para gerar código de produto." };
+
+  const codInterno = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
+  if (!codInterno) return { erro: "Informe o Código de Produto Interno." };
+  if (!codigoInternoValido(codInterno)) return { erro: "Código de Produto Interno deve ter o formato 0.000.000 (7 dígitos)." };
+
+  await prisma.orcamento.update({ where: { id }, data: { codInterno } });
+  revalidatePath(`/painel/${id}`);
+  revalidatePath("/painel");
+  revalidatePath("/historico");
+  return undefined;
 }
 
 // ---------- Ações gerais do card ----------
