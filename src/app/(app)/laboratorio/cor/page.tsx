@@ -19,6 +19,25 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELADO: "Cancelado",
 };
 
+type Lab = { l: number; a: number; b: number };
+
+// Amostra + valores; a amostra é só apoio visual (tela ≠ cabine de luz D50).
+function CelulaLab({ lab }: { lab: Lab | null }) {
+  if (!lab) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className="flex items-center gap-2">
+      <span
+        className="inline-block h-5 w-5 shrink-0 rounded-full border border-border"
+        style={{ background: labToCssColor(lab) }}
+        title="Apoio visual — não substitui a cabine de luz D50"
+      />
+      <span className="font-mono text-xs text-muted-foreground">
+        {lab.l} / {lab.a} / {lab.b}
+      </span>
+    </span>
+  );
+}
+
 // Lista em tabela de propósito — não em cards, dinâmica diferente do painel de orçamentos
 // (decisão explícita: bancada única por cor, não visualização por cards).
 export default async function CorPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
@@ -31,9 +50,8 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
   const busca = q?.trim();
   const contem = (campo: string) => ({ [campo]: { contains: busca, mode: "insensitive" as const } });
 
-  // Traz as leituras de cada rodada: as cores importadas da planilha antiga só têm o LAB da fórmula
-  // final (o alvo nunca foi registrado), então a lista usa ele como fallback pra mostrar a amostra e
-  // o LAB — identificado como "final" na tela; e as puxadas alimentam a coluna "Melhor ΔE".
+  // Traz as leituras de cada rodada: dão o LAB aprovado (puxada ou, no histórico importado, o final da
+  // planilha) e alimentam a coluna "Melhor ΔE".
   const cores = await prisma.cor.findMany({
     where: busca
       ? { OR: [contem("codigo"), contem("cliente"), contem("codigoProduto"), contem("referenciaDeclarada")] }
@@ -79,11 +97,11 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-10"></TableHead>
                   <TableHead>Código</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Referência</TableHead>
-                  <TableHead>LAB</TableHead>
+                  <TableHead>LAB alvo</TableHead>
+                  <TableHead>LAB aprovado</TableHead>
                   <TableHead className="text-right">Rodadas</TableHead>
                   <TableHead className="text-right">Melhor ΔE</TableHead>
                   <TableHead>Status</TableHead>
@@ -92,29 +110,18 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
               <TableBody>
                 {cores.map((c) => {
                   const temAlvo = c.labAlvoL != null && c.labAlvoA != null && c.labAlvoB != null;
-                  const leituras = c.rodadas.flatMap((r) => r.leituras);
-                  const final = leituras.find((l) => l.contexto === "FINAL");
-                  const alvo = temAlvo ? { l: Number(c.labAlvoL), a: Number(c.labAlvoA), b: Number(c.labAlvoB) } : null;
+                  const alvo: Lab | null = temAlvo ? { l: Number(c.labAlvoL), a: Number(c.labAlvoA), b: Number(c.labAlvoB) } : null;
+                  // LAB aprovado = o da rodada aprovada: a puxada (fluxo novo) ou, no histórico importado
+                  // da planilha, o LAB da fórmula final. Cor sem rodada aprovada fica sem esse valor.
+                  const leiturasAprovada = c.rodadas.find((r) => r.aprovada)?.leituras ?? [];
+                  const leituraAprovada = leiturasAprovada.find((l) => l.contexto === "PUXADA") ?? leiturasAprovada.find((l) => l.contexto === "FINAL");
+                  const aprovado: Lab | null = leituraAprovada ? { l: Number(leituraAprovada.l), a: Number(leituraAprovada.a), b: Number(leituraAprovada.b) } : null;
                   const des = alvo
-                    ? leituras.filter((l) => l.contexto === "PUXADA").map((l) => deltaE2000(alvo, { l: Number(l.l), a: Number(l.a), b: Number(l.b) }))
+                    ? c.rodadas.flatMap((r) => r.leituras).filter((l) => l.contexto === "PUXADA").map((l) => deltaE2000(alvo, { l: Number(l.l), a: Number(l.a), b: Number(l.b) }))
                     : [];
                   const melhorDe = des.length > 0 ? Math.min(...des) : null;
-                  const lab = temAlvo
-                    ? { l: Number(c.labAlvoL), a: Number(c.labAlvoA), b: Number(c.labAlvoB), rotulo: "alvo" }
-                    : final
-                      ? { l: Number(final.l), a: Number(final.a), b: Number(final.b), rotulo: "final" }
-                      : null;
                   return (
                     <TableRow key={c.id}>
-                      <TableCell>
-                        {lab && (
-                          <span
-                            className="inline-block h-5 w-5 rounded-full border border-border"
-                            style={{ background: labToCssColor(lab) }}
-                            title="Apoio visual — não substitui a cabine de luz D50"
-                          />
-                        )}
-                      </TableCell>
                       <TableCell className="font-medium">
                         {/* prefetch off: com centenas de linhas, o prefetch automático dispara uma renderização
                             de servidor (com consultas ao banco) por cor visível de uma vez e esgota as conexões. */}
@@ -124,9 +131,11 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                       </TableCell>
                       <TableCell className="text-muted-foreground">{c.cliente ?? "—"}</TableCell>
                       <TableCell className="text-muted-foreground">{c.referenciaDeclarada ?? "—"}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {lab ? `${lab.l} / ${lab.a} / ${lab.b}` : "—"}
-                        {lab && lab.rotulo === "final" && <span className="ml-1 font-sans text-[10px] uppercase tracking-wide">final</span>}
+                      <TableCell>
+                        <CelulaLab lab={alvo} />
+                      </TableCell>
+                      <TableCell>
+                        <CelulaLab lab={aprovado} />
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs text-muted-foreground">{c.rodadas.length}</TableCell>
                       <TableCell className="text-right font-mono text-xs">{melhorDe != null ? melhorDe.toFixed(2) : "—"}</TableCell>
