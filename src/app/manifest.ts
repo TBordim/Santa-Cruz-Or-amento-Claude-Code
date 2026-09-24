@@ -6,9 +6,9 @@ import type { MetadataRoute } from "next";
 // própria (sem barra de endereço) em vez de numa aba comum.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Orçamento Santa Cruz",
-    short_name: "Orçamento SC",
-    description: "Sistema interno de orçamentos da Santa Cruz Ind. Gráfica",
+    name: "App Sta Cruz",
+    short_name: "App Sta Cruz",
+    description: "Sistema integrado da Santa Cruz Ind. Gráfica",
     start_url: "/",
     display: "standalone",
     background_color: "#EDE7DA",

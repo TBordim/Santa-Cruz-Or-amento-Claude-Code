@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -41,6 +41,18 @@ type NavItem = {
 // Versão com identidade visual de ERP moderno da sidebarHtml() original (linhas 2980-3063):
 // cada item tem ícone + cor própria, com um leve "vidro tingido" no hover/ativo — reconstrói o
 // efeito --nav-color do HTML original, agora com Tailwind + CSS custom properties por item.
+// ⌘ só existe no teclado do Mac — no Windows/Linux o atalho é Ctrl+K (o command-palette já
+// aceita os dois) e o glifo ⌘ aparecia quebrado. useSyncExternalStore (como o ThemeToggle) dá
+// "Ctrl K" no servidor e na hidratação e troca pra ⌘K só no cliente Mac, sem mismatch.
+const semSubscricao = () => () => {};
+function useAtalhoBusca(): string {
+  return useSyncExternalStore(
+    semSubscricao,
+    () => (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent) ? "⌘K" : "Ctrl K"),
+    () => "Ctrl K",
+  );
+}
+
 function SidebarContent({
   nome,
   perfilNome,
@@ -49,6 +61,7 @@ function SidebarContent({
   onNavigate,
 }: Props & { mobile?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const atalhoBusca = useAtalhoBusca();
   const logado = !!nome;
   const modulo = moduloAtual(pathname);
 
@@ -86,16 +99,16 @@ function SidebarContent({
                 otimizador do next/image rejeita este PNG específico ("not a valid image") */}
             <img src="/logo-santa-cruz.png" alt="Santa Cruz" width={28} height={28} />
           </span>
-          <div className="min-w-0 flex-1">
-            {logado ? (
-              <ModuloSwitcher />
-            ) : (
-              <h1 className="font-serif text-lg font-semibold tracking-tight text-foreground">Orçamentos</h1>
-            )}
-          </div>
+          <h1 className="min-w-0 flex-1 truncate font-serif text-lg font-semibold tracking-tight text-foreground">App Sta Cruz</h1>
           {!mobile && <ThemeToggle />}
         </div>
         <div className="font-mono text-[10px] tracking-widest text-muted-foreground">SANTA CRUZ IND. GRÁFICA</div>
+        {logado && (
+          <div className="mt-2 flex items-center gap-1.5">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Módulo</span>
+            <ModuloSwitcher className="text-sm! font-sans! font-semibold!" />
+          </div>
+        )}
       </div>
 
       {logado && (
@@ -109,7 +122,7 @@ function SidebarContent({
         >
           <Search className="h-3.5 w-3.5 shrink-0" />
           <span className="flex-1">Buscar…</span>
-          <kbd className="max-md:hidden rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
+          <kbd className="max-md:hidden rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px]">{atalhoBusca}</kbd>
         </button>
       )}
 
@@ -200,11 +213,8 @@ export function MobileNav(props: Props) {
         <img src="/logo-santa-cruz.png" alt="" width={26} height={26} />
       </Link>
       <div className="min-w-0 flex-1">
-        {logado ? (
-          <ModuloSwitcher className="text-base" />
-        ) : (
-          <span className="truncate font-serif text-base font-semibold text-foreground">Orçamentos</span>
-        )}
+        <span className="block truncate font-serif text-base font-semibold leading-tight text-foreground">App Sta Cruz</span>
+        {logado && <ModuloSwitcher className="text-xs! font-sans! font-medium! text-muted-foreground!" />}
       </div>
       {logado && (
         <Button
@@ -222,7 +232,7 @@ export function MobileNav(props: Props) {
       <Sheet open={aberto} onOpenChange={setAberto}>
         <SheetContent side="left" className="w-[86vw]! max-w-[320px]! gap-5 overflow-y-auto px-3.5 py-5">
           <SheetTitle className="sr-only">Menu</SheetTitle>
-          <SheetDescription className="sr-only">Navegação do sistema de orçamentos</SheetDescription>
+          <SheetDescription className="sr-only">Navegação do App Sta Cruz</SheetDescription>
           <SidebarContent {...props} mobile onNavigate={() => setAberto(false)} />
         </SheetContent>
       </Sheet>
