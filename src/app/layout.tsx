@@ -31,8 +31,8 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Orçamento Santa Cruz",
-  description: "Sistema interno de orçamentos da Santa Cruz Ind. Gráfica",
+  title: "App Sta Cruz",
+  description: "Sistema integrado da Santa Cruz Ind. Gráfica",
   // apple-touch-icon e o título de tela cheia do iOS não vêm do manifest.ts (o Safari ignora
   // manifest para "Adicionar à Tela de Início") — precisam desses meta tags/links próprios.
   icons: {
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Orçamento SC",
+    title: "App Sta Cruz",
   },
 };
 

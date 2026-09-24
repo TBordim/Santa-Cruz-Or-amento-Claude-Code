@@ -16,7 +16,7 @@ export function PrimeiroAdminForm() {
         {/* eslint-disable-next-line @next/next/no-img-element -- logo pequeno e fixo */}
         <img src="/logo-santa-cruz.png" alt="Santa Cruz" width={44} height={44} />
         <div>
-          <h1 className="font-serif text-xl font-semibold text-foreground">Orçamentos</h1>
+          <h1 className="font-serif text-xl font-semibold text-foreground">App Sta Cruz</h1>
           <p className="font-mono text-[10px] tracking-widest text-muted-foreground">SANTA CRUZ IND. GRÁFICA</p>
         </div>
       </CardHeader>
