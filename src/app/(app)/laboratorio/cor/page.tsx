@@ -21,18 +21,30 @@ const STATUS_LABEL: Record<string, string> = {
 
 type Lab = { l: number; a: number; b: number };
 
-// Amostra + valores; a amostra é só apoio visual (tela ≠ cabine de luz D50).
+// O globals.css dá padding largo a todo th/td (fora de @layer, então vence utilitário comum); aqui
+// o "!" compacta as colunas pra a lista caber no painel sem rolagem lateral.
+const TH = "px-2! py-2! sm:px-2.5!";
+const TD = "px-2! py-2! sm:px-2.5!";
+// Estreito (celular/tablet com a barra lateral aberta): LAB alvo e ΔE só a partir de lg, e o status sai da
+// própria coluna (SO_SM) e vai pra baixo do código. Tudo continua na bancada da cor.
+const SO_MD = "hidden lg:table-cell";
+const SO_SM = "hidden sm:table-cell";
+
+// Amostra + valores; a amostra é só apoio visual (tela ≠ cabine de luz D50). Os valores podem
+// quebrar de linha em telas estreitas em vez de forçar rolagem lateral.
 function CelulaLab({ lab }: { lab: Lab | null }) {
   if (!lab) return <span className="text-muted-foreground">—</span>;
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex items-center gap-1.5">
       <span
-        className="inline-block h-5 w-5 shrink-0 rounded-full border border-border"
+        className="inline-block h-4 w-4 shrink-0 rounded-full border border-border"
         style={{ background: labToCssColor(lab) }}
         title="Apoio visual — não substitui a cabine de luz D50"
       />
-      <span className="font-mono text-xs text-muted-foreground">
-        {lab.l} / {lab.a} / {lab.b}
+      <span className="flex flex-wrap gap-x-1 font-mono text-[11px] leading-tight text-muted-foreground">
+        <span className="whitespace-nowrap">{lab.l} /</span>
+        <span className="whitespace-nowrap">{lab.a} /</span>
+        <span className="whitespace-nowrap">{lab.b}</span>
       </span>
     </span>
   );
@@ -97,14 +109,14 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Referência</TableHead>
-                  <TableHead>LAB alvo</TableHead>
-                  <TableHead>LAB aprovado</TableHead>
-                  <TableHead className="text-right">Rodadas</TableHead>
-                  <TableHead className="text-right">Melhor ΔE</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className={TH}>Código</TableHead>
+                  <TableHead className={TH}>
+                    Cliente<span className="hidden sm:inline"> / referência</span>
+                  </TableHead>
+                  <TableHead className={`${TH} ${SO_MD}`}>LAB alvo</TableHead>
+                  <TableHead className={TH}>LAB aprovado</TableHead>
+                  <TableHead className={`${TH} ${SO_MD} text-right`}>ΔE</TableHead>
+                  <TableHead className={`${TH} ${SO_SM}`}>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -122,24 +134,37 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                   const melhorDe = des.length > 0 ? Math.min(...des) : null;
                   return (
                     <TableRow key={c.id}>
-                      <TableCell className="font-medium">
+                      <TableCell className={TD}>
                         {/* prefetch off: com centenas de linhas, o prefetch automático dispara uma renderização
                             de servidor (com consultas ao banco) por cor visível de uma vez e esgota as conexões. */}
-                        <Link href={`/laboratorio/cor/${c.id}`} prefetch={false} className="hover:underline">
+                        <Link href={`/laboratorio/cor/${c.id}`} prefetch={false} className="font-medium hover:underline">
                           {c.codigo}
                         </Link>
+                        <div className="text-[11px] text-muted-foreground">
+                          {c.rodadas.length} {c.rodadas.length === 1 ? "rodada" : "rodadas"}
+                        </div>
+                        <Badge variant="secondary" className="mt-1 h-auto whitespace-normal! px-1.5 py-0.5 text-[10px] sm:hidden">
+                          {STATUS_LABEL[c.status] ?? c.status}
+                        </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{c.cliente ?? "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{c.referenciaDeclarada ?? "—"}</TableCell>
-                      <TableCell>
+                      <TableCell className={`${TD} max-w-24 whitespace-normal! sm:max-w-36 lg:max-w-48`}>
+                        <div className="truncate" title={c.cliente ?? undefined}>{c.cliente ?? "—"}</div>
+                        {c.referenciaDeclarada && (
+                          <div className="truncate text-[11px] text-muted-foreground" title={c.referenciaDeclarada}>
+                            {c.referenciaDeclarada}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className={`${TD} ${SO_MD} whitespace-normal!`}>
                         <CelulaLab lab={alvo} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={`${TD} whitespace-normal!`}>
                         <CelulaLab lab={aprovado} />
                       </TableCell>
-                      <TableCell className="text-right font-mono text-xs text-muted-foreground">{c.rodadas.length}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{melhorDe != null ? melhorDe.toFixed(2) : "—"}</TableCell>
-                      <TableCell>
+                      <TableCell className={`${TD} ${SO_MD} text-right font-mono text-xs`} title="Menor ΔE2000 entre as puxadas e o alvo">
+                        {melhorDe != null ? melhorDe.toFixed(2) : "—"}
+                      </TableCell>
+                      <TableCell className={`${TD} ${SO_SM}`}>
                         <Badge variant="secondary">{STATUS_LABEL[c.status] ?? c.status}</Badge>
                       </TableCell>
                     </TableRow>
