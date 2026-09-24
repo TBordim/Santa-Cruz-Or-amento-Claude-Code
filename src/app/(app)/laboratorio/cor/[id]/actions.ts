@@ -63,43 +63,49 @@ export async function criarRodada(_prev: FormState, formData: FormData): Promise
   return undefined;
 }
 
-// Registra uma leitura LAB (referência, uma das 5 faixas do Quick Peek, final ou produção) —
-// tudo que hoje se perde (só a faixa vencedora sobrevive) passa a ficar registrado.
-export async function registrarLeitura(_prev: FormState, formData: FormData): Promise<FormState> {
+// Registra o resultado da "puxada" (Quick Peek) da rodada: só o MELHOR LAB achado — o mais próximo
+// do alvo. O laboratório não lê todas as faixas (moroso) nem tem densidade, então é 1 leitura por
+// rodada; registrar de novo corrige a anterior em vez de acumular.
+export async function registrarPuxada(_prev: FormState, formData: FormData): Promise<FormState> {
   await exigirAcessoCor();
   const sessao = await sessaoAtual();
 
   const rodadaId = String(formData.get("rodadaId") ?? "");
   const corId = String(formData.get("corId") ?? "");
-  const contextoRaw = String(formData.get("contexto") ?? "");
-  const contexto = (Object.values(ContextoLeitura) as string[]).includes(contextoRaw)
-    ? (contextoRaw as ContextoLeitura)
-    : null;
   const l = parseDecimalOrNull(formData, "l");
   const a = parseDecimalOrNull(formData, "a");
   const b = parseDecimalOrNull(formData, "b");
 
-  if (!rodadaId || !contexto || l == null || a == null || b == null) {
-    return "Preencha o contexto e os 3 valores de LAB.";
-  }
+  if (!rodadaId || l == null || a == null || b == null) return "Preencha os 3 valores de LAB.";
 
-  await prisma.leituraLab.create({
-    data: {
-      rodadaId,
-      contexto,
-      vencedora: formData.get("vencedora") === "on",
-      l,
-      a,
-      b,
-      densidade: parseDecimalOrNull(formData, "densidade"),
-      instrumento: String(formData.get("instrumento") ?? "").trim() || null,
-      iluminante: String(formData.get("iluminante") ?? "").trim() || null,
-      observador: String(formData.get("observador") ?? "").trim() || null,
-      substratoReal: String(formData.get("substratoReal") ?? "").trim() || null,
-      lidaPorId: sessao?.usuarioId,
-    },
-  });
+  const existente = await prisma.leituraLab.findFirst({ where: { rodadaId, contexto: ContextoLeitura.PUXADA } });
+  const dados = { l, a, b, lidaPorId: sessao?.usuarioId, lidaEm: new Date() };
+  if (existente) {
+    await prisma.leituraLab.update({ where: { id: existente.id }, data: dados });
+  } else {
+    await prisma.leituraLab.create({ data: { rodadaId, contexto: ContextoLeitura.PUXADA, ...dados } });
+  }
 
   revalidatePath(`/laboratorio/cor/${corId}`);
   return undefined;
+}
+
+// Aprova a rodada: é o fim do ciclo (puxada → ajuste → puxada… até o menor LAB). Só uma rodada por
+// cor fica aprovada; a cor passa a APROVADO. Exige ao menos uma leitura pra não aprovar às cegas.
+export async function aprovarRodada(formData: FormData): Promise<void> {
+  await exigirAcessoCor();
+
+  const rodadaId = String(formData.get("rodadaId") ?? "");
+  const rodada = await prisma.rodada.findUnique({ where: { id: rodadaId }, include: { leituras: { select: { id: true } } } });
+  if (!rodada) throw new Error("Rodada não encontrada.");
+  if (rodada.leituras.length === 0) throw new Error("Registre a puxada desta rodada antes de aprovar.");
+
+  await prisma.$transaction([
+    prisma.rodada.updateMany({ where: { corId: rodada.corId }, data: { aprovada: false } }),
+    prisma.rodada.update({ where: { id: rodada.id }, data: { aprovada: true } }),
+    prisma.cor.update({ where: { id: rodada.corId }, data: { status: "APROVADO" } }),
+  ]);
+
+  revalidatePath(`/laboratorio/cor/${rodada.corId}`);
+  revalidatePath("/laboratorio/cor");
 }

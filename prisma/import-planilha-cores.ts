@@ -145,7 +145,7 @@ async function main() {
             origem: "IMPORTADO",
             aprovada: status === "APROVADO",
             composicoes: { create: b.tintas.map((t) => ({ baseId: bases.get(t.base)!, percentual: t.pct })) },
-            ...(b.lab ? { leituras: { create: { contexto: "FINAL", vencedora: true, l: b.lab[0], a: b.lab[1], b: b.lab[2] } } } : {}),
+            ...(b.lab ? { leituras: { create: { contexto: "FINAL", l: b.lab[0], a: b.lab[1], b: b.lab[2] } } } : {}),
           },
         },
       },

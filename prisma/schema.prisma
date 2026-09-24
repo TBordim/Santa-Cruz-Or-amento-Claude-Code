@@ -363,13 +363,9 @@ model Composicao {
 // ---------- leituras (referência, Quick Peek, final, produção) ----------
 
 enum ContextoLeitura {
-  QUICKPEEK_FAIXA_1
-  QUICKPEEK_FAIXA_2
-  QUICKPEEK_FAIXA_3
-  QUICKPEEK_FAIXA_4
-  QUICKPEEK_FAIXA_5
-  FINAL
-  PRODUCAO // leitura tomada na produção real — compara com FINAL pra flagrar quando a premissa densidade=LAB falha
+  PUXADA // o melhor LAB (o mais próximo do alvo) achado no teste Quick Peek da rodada — 1 por rodada
+  FINAL // LAB da fórmula final vindo da planilha antiga (histórico importado)
+  PRODUCAO // leitura tomada na produção real — compara com a aprovada pra flagrar deriva entre lab e produção
 }
 
 model LeituraLab {
@@ -377,13 +373,10 @@ model LeituraLab {
   rodadaId  String
   rodada    Rodada          @relation(fields: [rodadaId], references: [id], onDelete: Cascade)
   contexto  ContextoLeitura
-  vencedora Boolean         @default(false) // marca qual faixa do Quick Peek foi escolhida
 
   l Decimal @db.Decimal(6, 2)
   a Decimal @db.Decimal(6, 2)
   b Decimal @db.Decimal(6, 2)
-
-  densidade Decimal? @db.Decimal(6, 3) // leitura do densitômetro, relevante nas faixas do Quick Peek
 
   // Cache — recalculado sempre que essa leitura ou o LAB alvo da Cor mudar, não é fonte da verdade.
   deltaE2000 Decimal? @db.Decimal(6, 3)

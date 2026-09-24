@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { NovaCorForm } from "./NovaCorForm";
 import { labToCssColor } from "@/lib/cor/lab-to-rgb";
+import { deltaE2000 } from "@/lib/cor/deltae";
 
 const STATUS_LABEL: Record<string, string> = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -30,9 +31,9 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
   const busca = q?.trim();
   const contem = (campo: string) => ({ [campo]: { contains: busca, mode: "insensitive" as const } });
 
-  // Também traz a leitura FINAL mais recente: as cores importadas da planilha antiga só têm o LAB
-  // da fórmula final (o alvo nunca foi registrado), então a lista usa ele como fallback pra
-  // mostrar a amostra e o LAB — identificado como "final" na tela.
+  // Traz as leituras de cada rodada: as cores importadas da planilha antiga só têm o LAB da fórmula
+  // final (o alvo nunca foi registrado), então a lista usa ele como fallback pra mostrar a amostra e
+  // o LAB — identificado como "final" na tela; e as puxadas alimentam a coluna "Melhor ΔE".
   const cores = await prisma.cor.findMany({
     where: busca
       ? { OR: [contem("codigo"), contem("cliente"), contem("codigoProduto"), contem("referenciaDeclarada")] }
@@ -42,7 +43,7 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
     include: {
       rodadas: {
         orderBy: { numero: "desc" },
-        include: { leituras: { where: { contexto: "FINAL" }, orderBy: { lidaEm: "desc" }, take: 1 } },
+        include: { leituras: { orderBy: { lidaEm: "desc" } } },
       },
     },
   });
@@ -83,13 +84,21 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                   <TableHead>Cliente</TableHead>
                   <TableHead>Referência</TableHead>
                   <TableHead>LAB</TableHead>
+                  <TableHead className="text-right">Rodadas</TableHead>
+                  <TableHead className="text-right">Melhor ΔE</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {cores.map((c) => {
                   const temAlvo = c.labAlvoL != null && c.labAlvoA != null && c.labAlvoB != null;
-                  const final = c.rodadas.flatMap((r) => r.leituras)[0];
+                  const leituras = c.rodadas.flatMap((r) => r.leituras);
+                  const final = leituras.find((l) => l.contexto === "FINAL");
+                  const alvo = temAlvo ? { l: Number(c.labAlvoL), a: Number(c.labAlvoA), b: Number(c.labAlvoB) } : null;
+                  const des = alvo
+                    ? leituras.filter((l) => l.contexto === "PUXADA").map((l) => deltaE2000(alvo, { l: Number(l.l), a: Number(l.a), b: Number(l.b) }))
+                    : [];
+                  const melhorDe = des.length > 0 ? Math.min(...des) : null;
                   const lab = temAlvo
                     ? { l: Number(c.labAlvoL), a: Number(c.labAlvoA), b: Number(c.labAlvoB), rotulo: "alvo" }
                     : final
@@ -107,7 +116,9 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                         )}
                       </TableCell>
                       <TableCell className="font-medium">
-                        <Link href={`/laboratorio/cor/${c.id}`} className="hover:underline">
+                        {/* prefetch off: com centenas de linhas, o prefetch automático dispara uma renderização
+                            de servidor (com consultas ao banco) por cor visível de uma vez e esgota as conexões. */}
+                        <Link href={`/laboratorio/cor/${c.id}`} prefetch={false} className="hover:underline">
                           {c.codigo}
                         </Link>
                       </TableCell>
@@ -117,6 +128,8 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                         {lab ? `${lab.l} / ${lab.a} / ${lab.b}` : "—"}
                         {lab && lab.rotulo === "final" && <span className="ml-1 font-sans text-[10px] uppercase tracking-wide">final</span>}
                       </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-muted-foreground">{c.rodadas.length}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{melhorDe != null ? melhorDe.toFixed(2) : "—"}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{STATUS_LABEL[c.status] ?? c.status}</Badge>
                       </TableCell>
