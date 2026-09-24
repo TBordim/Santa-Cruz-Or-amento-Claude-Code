@@ -15,6 +15,7 @@ import { FormOrcamento } from "./FormOrcamento";
 import { PainelDiretoria } from "./PainelDiretoria";
 import { FormEnvioOferta } from "./FormEnvioOferta";
 import { FormFinalizado } from "./FormFinalizado";
+import { EtapasAnteriores } from "./EtapasAnteriores";
 
 export async function Drawer({ id }: { id: string }) {
   const raw = await prisma.orcamento.findUnique({
@@ -92,6 +93,8 @@ export async function Drawer({ id }: { id: string }) {
         </form>
         <ExcluirCardButton id={doc.id} />
       </div>
+
+      <EtapasAnteriores doc={doc} />
 
       {corpo}
     </DrawerSheet>

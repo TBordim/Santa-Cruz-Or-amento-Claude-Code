@@ -14,7 +14,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useSalvoToast } from "@/hooks/use-salvo-toast";
 import { CodigoInternoInput } from "@/components/orcamento/CodigoInternoInput";
-import { ResumoSolicitacao } from "@/components/orcamento/ResumoSolicitacao";
 
 export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
   const [state, salvarAction, salvando] = useActionState(salvarRequisitos, undefined);
@@ -38,10 +37,6 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
 
       <div className="mt-4">
         <DiretrizBlock>Preencha os requisitos técnicos (formato suporte, anexos previstos) antes de enviar para o Orçamento.</DiretrizBlock>
-      </div>
-
-      <div className="mt-4">
-        <ResumoSolicitacao doc={{ ...doc, reqCliente: c }} />
       </div>
 
       <form id="form-engenharia" className="mt-4">
@@ -112,7 +107,6 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
       </form>
 
       <div className="mt-2 flex flex-col gap-4">
-        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
         <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} />
       </div>
 

@@ -2,7 +2,6 @@
 
 import { useActionState } from "react";
 import { salvarOrcamento, enviarParaDiretoria, solicitarCompras, registrarRetornoCompras } from "../actions";
-import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtDateTime, resumoAcabamento } from "@/lib/orcamentos/constantes";
@@ -127,10 +126,6 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
         </FormSection>
       </form>
 
-      <div className="mt-2 flex flex-col gap-4">
-        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
-        <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
-      </div>
 
       {erro && <div className="anexo-erro">{erro}</div>}
       <AcoesBar>

@@ -5,7 +5,6 @@ import { registrarDesfecho, salvarCodigoProduto } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtMoney, fmtDateTime, DESFECHOS } from "@/lib/orcamentos/constantes";
-import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { FormSection, Field, ResumoBox } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -105,10 +104,6 @@ export function FormFinalizado({ doc, podeGerarCodigo }: { doc: OrcamentoComAnex
         </div>
       </form>
 
-      <div className="mt-4 flex flex-col gap-4">
-        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
-        <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
-      </div>
     </>
   );
 }

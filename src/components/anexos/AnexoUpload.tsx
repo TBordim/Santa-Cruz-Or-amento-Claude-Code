@@ -24,11 +24,13 @@ export function AnexoUpload({
   tipo,
   anexos,
   somenteLeitura,
+  compacto,
 }: {
   orcamentoId: string;
   tipo: "ARTE" | "ENGENHARIA";
   anexos: AnexoItem[];
   somenteLeitura?: boolean;
+  compacto?: boolean;
 }) {
   const pathname = usePathname();
   const [erro, setErro] = useState<string | undefined>();
@@ -68,7 +70,7 @@ export function AnexoUpload({
 
   return (
     <FormSection title={info.label}>
-      <p className="-mt-2 text-xs text-muted-foreground">{info.hint}</p>
+      {!compacto && <p className="-mt-2 text-xs text-muted-foreground">{info.hint}</p>}
 
       {anexos.length === 0 ? (
         <div className="text-sm text-muted-foreground">Nenhum arquivo anexado ainda.</div>

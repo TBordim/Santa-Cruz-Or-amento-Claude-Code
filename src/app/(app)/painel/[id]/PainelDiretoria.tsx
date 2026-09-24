@@ -7,7 +7,6 @@ import type { OrcamentoAnteriorRef } from "@/lib/orcamentos/tiers";
 import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQuantidade } from "@/lib/orcamentos/motor";
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
 import { fmtMoney } from "@/lib/orcamentos/constantes";
-import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -203,10 +202,6 @@ export function PainelDiretoria({
         <TierCard key={i} doc={doc} tier={t} idx={i} total={tiers.length} anteriorAoVivo={anteriorAoVivo} />
       ))}
 
-      <div className="mt-2 flex flex-col gap-4">
-        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
-        <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
-      </div>
     </>
   );
 }
