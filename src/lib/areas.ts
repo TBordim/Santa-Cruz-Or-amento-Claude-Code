@@ -14,6 +14,7 @@ export type AreaKey =
   | "DIRETORIA"
   | "ENVIO_OFERTA"
   | "FINALIZADO"
+  | "CADASTRO_PRODUTO"
   | "LEGADO"
   | "HISTORICO"
   // Módulo Laboratório, área Cor (formulação de tinta). Só Laboratório e Engenharia
@@ -36,7 +37,8 @@ export const AREAS: Area[] = [
   { key: "ORCAMENTO", label: "Orçamento", hint: "Etapa 3 — preço e margem", modulo: "orcamento" },
   { key: "DIRETORIA", label: "Diretoria", hint: "Etapa 4 — aprovação", modulo: "orcamento" },
   { key: "ENVIO_OFERTA", label: "Envio de Oferta", hint: "Etapa 5 — monta e envia a oferta ao cliente", modulo: "orcamento" },
-  { key: "FINALIZADO", label: "Retorno do Cliente", hint: "Etapa 6 — registra o retorno do cliente e, se aprovado, a pendência de código de produto", modulo: "orcamento" },
+  { key: "FINALIZADO", label: "Retorno do Cliente", hint: "Etapa 6 — registra o retorno do cliente", modulo: "orcamento" },
+  { key: "CADASTRO_PRODUTO", label: "Cadastro de Produto", hint: "Etapa 7 — lança o Nº de Cadastro de Produto de produto novo aprovado pelo cliente", modulo: "orcamento" },
   { key: "LEGADO", label: "Arquivo legado", hint: "Cadastrar, editar e excluir registros antigos", modulo: "orcamento" },
   { key: "HISTORICO", label: "Histórico", hint: "Excluir registros do histórico", modulo: "orcamento" },
   { key: "COR_LABORATORIO", label: "Laboratório", hint: "Testes, fórmulas e ajustes de cor", modulo: "laboratorio" },

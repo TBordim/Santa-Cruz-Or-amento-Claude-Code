@@ -92,8 +92,8 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
 
   // Produto novo não exige mais Código interno nesta etapa — gerar um código pra cada produto
   // que só vira orçamento (nunca produção) inflava o cadastro à toa. Agora o código só é
-  // pedido depois que o cliente aprova de verdade, como pendência na etapa Retorno do Cliente
-  // (ver salvarCodigoProduto). Repetição continua exigindo aqui: o produto já existe, o código
+  // pedido depois que o cliente aprova de verdade, na etapa 7 (Cadastro de Produto — ver
+  // registrarDesfecho e salvarCadastroProduto). Repetição continua exigindo aqui: o produto já existe, o código
   // já deveria ter vindo da Solicitação (é por ele que a Diretoria casa com o histórico).
   const ehRepeticao = !!doc.classificacao?.startsWith("REPETICAO");
   const codInternoForm = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
@@ -391,54 +391,75 @@ export async function marcarFinalizado(formData: FormData) {
 export async function registrarDesfecho(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   await exigirEdicao(id);
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   const sessao = await sessaoAtual();
+  const desfecho = String(formData.get("desfecho") ?? "AGUARDANDO") as "AGUARDANDO" | "POSITIVO" | "NEGATIVO" | "SEM_RETORNO";
+
+  // Produto novo que o cliente aprovou e ainda não tem Nº de Cadastro de Produto vai pra etapa
+  // 7 esperar o número. Os demais (negativo, sem retorno, ou positivo que já tem o número)
+  // ficam em Retorno do Cliente, que com desfecho registrado já sai do Painel pro Histórico.
+  // Pedido do Thiago em 25/09/2026.
+  const precisaCadastro = desfecho === "POSITIVO" && !doc.codInterno;
+
   await prisma.orcamento.update({
     where: { id },
     data: {
-      desfecho: String(formData.get("desfecho") ?? "AGUARDANDO") as "AGUARDANDO" | "POSITIVO" | "NEGATIVO" | "SEM_RETORNO",
+      desfecho,
       desfechoMotivo: String(formData.get("motivo") ?? "").trim(),
       desfechoPor: sessao?.nome ?? "",
       desfechoEm: new Date(),
+      ...(precisaCadastro ? { etapa: "CADASTRO_PRODUTO" as const } : {}),
     },
   });
-  revalidatePath(`/painel/${id}`);
   revalidatePath("/historico");
+  // Desfecho registrado (qualquer um que não seja "aguardando") tira o card da etapa atual:
+  // vai pra etapa 7 ou pro Histórico. Nos dois casos a gaveta fecha, como em toda mudança de
+  // etapa. "Aguardando" continua aberto: nada mudou de lugar.
+  if (desfecho !== "AGUARDANDO") redirect("/painel");
+  revalidatePath(`/painel/${id}`);
 }
 
-// Pendência de Código de Produto Interno — só existe pra orçamento com desfecho POSITIVO
-// (cliente aprovou, virou pedido de verdade) e ainda sem código, porque produto novo não gera
-// mais código na Engenharia (ver avancarOrcamento acima). Enquanto não for preenchido, o card
-// continua aparecendo no Painel (ver PainelBoard) e fica de fora do Histórico (ver
-// historico/page.tsx) — reprovado/sem retorno não passa por aqui, vai direto pro Histórico
-// porque o código deixou de ser necessário se não vai virar produção.
-//
-// Permissão própria (Engenharia), não a da etapa (Retorno do Cliente): quem registra o
-// retorno do cliente normalmente não é quem cadastra código de produto — são times diferentes.
-export async function salvarCodigoProduto(_prev: FormState, formData: FormData): Promise<FormState> {
+// ---------- Etapa 7 — Cadastro de Produto ----------
+
+// Lança o Nº de Cadastro de Produto (codInterno) do produto novo aprovado pelo cliente e devolve
+// o card pra Retorno do Cliente, que com desfecho positivo e número preenchido já vai pro
+// Histórico. Permissão pela área da própria etapa (CADASTRO_PRODUTO), igual às outras.
+export async function salvarCadastroProduto(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
-  if (!(await podeEditar("ENGENHARIA"))) return { erro: "Sem permissão da Engenharia para gerar código de produto." };
+  try {
+    await exigirEdicao(id);
+  } catch {
+    return { erro: "Sem permissão para lançar o Nº de Cadastro de Produto." };
+  }
 
   const codInterno = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
-  if (!codInterno) return { erro: "Informe o Código de Produto Interno." };
-  if (!codigoInternoValido(codInterno)) return { erro: "Código de Produto Interno deve ter o formato 0.000.000 (7 dígitos)." };
+  if (!codInterno) return { erro: "Informe o Nº de Cadastro de Produto." };
+  if (!codigoInternoValido(codInterno)) return { erro: "Nº de Cadastro de Produto deve ter o formato 0.000.000 (7 dígitos)." };
 
-  await prisma.orcamento.update({ where: { id }, data: { codInterno } });
-  revalidatePath(`/painel/${id}`);
-  revalidatePath("/painel");
+  await prisma.orcamento.update({ where: { id }, data: { codInterno, etapa: "FINALIZADO" } });
   revalidatePath("/historico");
-  return undefined;
+  redirect("/painel");
 }
 
 // ---------- Ações gerais do card ----------
 
 export async function voltarEtapa(formData: FormData) {
   const id = String(formData.get("id") ?? "");
-  const ordem = ["ABERTO", "ENGENHARIA", "ORCAMENTO", "DIRETORIA", "ENVIO_OFERTA", "FINALIZADO"] as const;
+  const ordem = ["ABERTO", "ENGENHARIA", "ORCAMENTO", "DIRETORIA", "ENVIO_OFERTA", "FINALIZADO", "CADASTRO_PRODUTO"] as const;
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   await exigirEdicao(id);
   const idx = ordem.indexOf(doc.etapa as (typeof ordem)[number]);
   if (idx <= 0) return;
-  await prisma.orcamento.update({ where: { id }, data: { etapa: ordem[idx - 1] } });
+  await prisma.orcamento.update({
+    where: { id },
+    data: {
+      etapa: ordem[idx - 1],
+      // Voltar da etapa 7 pra 6 é desfazer o desfecho positivo que mandou o card pra lá — sem
+      // zerar, o card voltaria pra Retorno do Cliente com desfecho já registrado e sumiria do
+      // Painel direto pro Histórico, sem o número de cadastro e sem ninguém ver.
+      ...(doc.etapa === "CADASTRO_PRODUTO" ? { desfecho: "AGUARDANDO" as const } : {}),
+    },
+  });
   // Toda mudança de etapa fecha a gaveta e volta pro quadro — pra frente ou pra trás, sem
   // exceção — pra quem estava operando escolher manualmente o próximo card, nunca ficar com
   // algo aberto sozinho. Pedido do Thiago em 25/09/2026.

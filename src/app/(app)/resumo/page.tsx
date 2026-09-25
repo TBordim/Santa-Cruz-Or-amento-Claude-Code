@@ -47,7 +47,8 @@ export default async function ResumoPage() {
   const aprovadosManual = decididosManual.filter((d) => d.statusDiretoria === "APROVADO").length;
   const revisoes = decididosManual.filter((d) => d.statusDiretoria === "REVISAO").length;
 
-  const finalizados = await prisma.orcamento.findMany({ where: { origem: "NOVO", etapa: "FINALIZADO" } });
+  // Inclui a etapa 7: um produto novo aprovado que ainda espera o Nº de Cadastro já é um ganho.
+  const finalizados = await prisma.orcamento.findMany({ where: { origem: "NOVO", etapa: { in: ["FINALIZADO", "CADASTRO_PRODUTO"] } } });
   const ganhos = finalizados.filter((d) => d.desfecho === "POSITIVO").length;
   const perdidos = finalizados.filter((d) => d.desfecho === "NEGATIVO").length;
   const semRetorno = finalizados.filter((d) => d.desfecho === "SEM_RETORNO").length;

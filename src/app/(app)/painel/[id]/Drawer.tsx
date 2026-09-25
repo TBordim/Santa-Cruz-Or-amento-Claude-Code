@@ -15,6 +15,7 @@ import { FormOrcamento } from "./FormOrcamento";
 import { PainelDiretoria } from "./PainelDiretoria";
 import { FormEnvioOferta } from "./FormEnvioOferta";
 import { FormFinalizado } from "./FormFinalizado";
+import { FormCadastroProduto } from "./FormCadastroProduto";
 import { EtapasAnteriores } from "./EtapasAnteriores";
 
 export async function Drawer({ id }: { id: string }) {
@@ -53,7 +54,10 @@ export async function Drawer({ id }: { id: string }) {
       corpo = <FormEnvioOferta doc={doc} />;
       break;
     case "FINALIZADO":
-      corpo = <FormFinalizado doc={doc} podeGerarCodigo={await podeEditar("ENGENHARIA")} />;
+      corpo = <FormFinalizado doc={doc} />;
+      break;
+    case "CADASTRO_PRODUTO":
+      corpo = <FormCadastroProduto doc={doc} podeCadastrar={await podeEditar("CADASTRO_PRODUTO")} />;
       break;
     default:
       corpo = <p>Etapa desconhecida.</p>;

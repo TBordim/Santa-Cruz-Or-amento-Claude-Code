@@ -71,6 +71,9 @@ enum EtapaOrcamento {
   DIRETORIA
   ENVIO_OFERTA
   FINALIZADO
+  // Etapa 7: produto novo com desfecho positivo ainda sem Nº de Cadastro de Produto (codInterno)
+  // espera aqui até o número ser lançado; aí volta pra FINALIZADO e segue pro Histórico.
+  CADASTRO_PRODUTO
 }
 
 enum StatusDiretoria {

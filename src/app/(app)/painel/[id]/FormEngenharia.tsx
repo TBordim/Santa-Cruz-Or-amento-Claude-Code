@@ -47,7 +47,7 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
             <Field label="Nº de Pré Cadastro" hint="Obrigatório para liberar para a etapa seguinte.">
               <Input name="preCadastro" defaultValue={doc.preCadastro ?? ""} form="form-engenharia" />
             </Field>
-            <Field label="Código interno (Santa Cruz)" hint={ehRepeticao ? "Veio da Solicitação — ajuste se necessário." : "Produto novo não gera código aqui — só se o cliente aprovar o orçamento (fica pendente na etapa Retorno do Cliente). Preencha só se já souber."}>
+            <Field label="Código interno (Santa Cruz)" hint={ehRepeticao ? "Veio da Solicitação — ajuste se necessário." : "Produto novo não gera código aqui — só se o cliente aprovar o orçamento (etapa 7, Cadastro de Produto). Preencha só se já souber."}>
               <CodigoInternoInput name="codInterno" defaultValue={doc.codInterno ?? ""} form="form-engenharia" />
             </Field>
           </Row2>

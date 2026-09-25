@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, ReqTecnicos, PrecificacaoTier } from "@/lib/orcamentos/types";
-import { ETAPAS, classificacaoLabel, fmtMoney, fmtDateTime } from "@/lib/orcamentos/constantes";
+import { ETAPAS, classificacaoLabel, fmtMoney, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { fmtPct } from "@/lib/orcamentos/motor";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
@@ -59,8 +59,9 @@ const STATUS_FAIXA: Record<string, string> = {
 
 export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
   const idx = ETAPAS.findIndex((e) => e.key === doc.etapa);
-  // Todas as etapas antes da atual, exceto "Retorno do Cliente" (nunca é anterior de ninguém).
-  const anteriores = ETAPAS.slice(0, Math.max(idx, 0)).filter((e) => e.key !== "FINALIZADO");
+  // Todas as etapas antes da atual. "Retorno do Cliente" só aparece como anterior pra etapa 7
+  // (Cadastro de Produto), a única que vem depois dela.
+  const anteriores = ETAPAS.slice(0, Math.max(idx, 0));
   if (!anteriores.length) return null;
 
   const c = doc.reqCliente as ReqCliente | null;
@@ -250,6 +251,24 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
             linhas: [
               { label: "Nº de Orçamento", value: doc.numeroOrcamento },
               { label: "Oferta enviada em", value: doc.finalizadoEm && fmtDateTime(doc.finalizadoEm) },
+            ],
+          },
+        ]}
+      />
+    ),
+
+    FINALIZADO: (
+      <Corpo
+        anexos={null}
+        grupos={[
+          {
+            linhas: [
+              { label: "Desfecho", value: doc.desfecho && desfechoInfo(doc.desfecho).label },
+              { label: "Motivo", value: doc.desfechoMotivo },
+              {
+                label: "Registrado por",
+                value: doc.desfechoPor && `${doc.desfechoPor}${doc.desfechoEm ? ` · ${fmtDateTime(doc.desfechoEm)}` : ""}`,
+              },
             ],
           },
         ]}

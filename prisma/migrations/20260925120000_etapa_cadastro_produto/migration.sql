@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "EtapaOrcamento" ADD VALUE 'CADASTRO_PRODUTO';
