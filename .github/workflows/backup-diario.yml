@@ -41,6 +41,11 @@ jobs:
           # upgrade de versão major no futuro (raro, é avisado com antecedência), troque o "18"
           # abaixo pelo número novo.
           sudo apt-get install -y --no-install-recommends postgresql-client-18
+          # A máquina do GitHub já vem com a versão 16 instalada em /usr/bin/pg_dump, e essa
+          # continua "ganhando" o comando mesmo depois de instalar a 18 — o Debian/Ubuntu não
+          # troca esse atalho sozinho neste caso. Em vez de depender dele, aponta as próximas
+          # etapas direto para o binário da versão certa (/usr/lib/postgresql/18/bin).
+          echo "/usr/lib/postgresql/18/bin" | sudo tee -a "$GITHUB_PATH"
 
       - name: Confirma que os dois segredos foram configurados
         run: |
