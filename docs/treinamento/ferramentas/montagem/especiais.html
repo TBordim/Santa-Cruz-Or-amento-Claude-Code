@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; background: #F4EEE3; font-family: "Segoe UI", Arial, sans-serif; }
+  .abs { position: absolute; }
+  /* tela do app (mesmo layout das cenas de gravação: 1088x612 em x 178, y 12) */
+  #janela { left: 176px; top: 10px; width: 1088px; height: 612px; overflow: hidden; border: 2px solid #E3D3BD; background: #fff; }
+  #janela img { position: absolute; transform-origin: 0 0; }
+  #santinhoP { left: 6px; width: 165px; height: 165px; }
+  #alerta { width: 54px; height: 48px; }
+  /* legenda na faixa de baixo (cenas de tela) ou grande (cenas do Santinho) */
+  #legP { left: 176px; right: 16px; bottom: 8px; text-align: center; }
+  #legP span, #legG span { display: inline-block; padding: 6px 14px; background: rgba(20,12,6,.81); color: #fff; font: 700 24px/1.3 "Segoe UI", Arial, sans-serif; white-space: pre-line; }
+  #legG { left: 0; right: 0; bottom: 42px; text-align: center; }
+  #legG span { max-width: 900px; padding: 10px 22px; border-radius: 10px; font: 600 30px/1.3 "Segoe UI", Arial, sans-serif; }
+  #fundo { inset: -30px; background: url(fundo.png) center/cover; filter: blur(9px) saturate(.9); }
+  #veu { inset: 0; background: rgba(244,238,227,.45); }
+  #santinhoG { width: 560px; height: 560px; margin: -280px 0 0 -280px; }
+  .tit { font: 700 34px "Fredoka", sans-serif; color: #4A2208; }
+  .tit small { display: block; font: 600 16px "Segoe UI", Arial, sans-serif; color: #9A430A; letter-spacing: 3px; margin-bottom: 2px; }
+  .cartao { width: 520px; border-radius: 16px; background: #FFFDF8; border: 2px solid #F4A15A; box-shadow: 0 6px 18px rgba(74,34,8,.10);
+    display: flex; align-items: center; gap: 16px; padding: 14px 18px; box-sizing: border-box; }
+  .num { width: 46px; height: 46px; border-radius: 50%; flex: none; display: grid; place-items: center; font: 700 24px "Fredoka", sans-serif; color: #fff;
+    background: linear-gradient(180deg, #FFA646, #F47216); border: 3px solid #4A2208; }
+  .cartao b { display: block; font: 700 22px "Segoe UI", Arial, sans-serif; color: #3A1905; }
+  .cartao span { font: 500 16px "Segoe UI", Arial, sans-serif; color: #6B4A33; }
+  .erro { overflow: hidden; border-radius: 12px; border: 3px solid #9B3C31; background: #fff; box-shadow: 0 10px 24px rgba(74,34,8,.18); }
+  .erro img { position: absolute; transform-origin: 0 0; }
+  .rot { font: 700 18px "Segoe UI", Arial, sans-serif; color: #fff; background: #9B3C31; padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
+  .confete { width: 12px; height: 18px; border-radius: 3px; }
+  #cta { border-radius: 18px; background: linear-gradient(180deg, #FFA646, #F47216); border: 4px solid #4A2208; padding: 16px 30px; box-shadow: 0 8px 0 #9A430A;
+    font: 700 34px "Fredoka", sans-serif; color: #fff; -webkit-text-stroke: 1px #4A2208; white-space: nowrap; }
+  #preto { inset: 0; background: #F4EEE3; }
+</style>
+</head>
+<body>
+<div id="palco"></div>
+<script>
+  const D = JSON.parse(new URLSearchParams(location.search).get("d"));
+  const OFF = 0.3, FIM = D.dur;
+  const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const ease = x => { x = cl(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+  const out = x => 1 - Math.pow(1 - cl(x), 3);
+  const palco = document.getElementById("palco");
+  const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); const e = t.content.firstChild; palco.appendChild(e); return e; };
+  const $ = id => document.getElementById(id);
+  const g = D.gatilhos || {}; const T = k => OFF + g[k];
+  let legenda;
+  function legendaEm(t) {
+    let txt = "";
+    for (const b of D.blocos) if (t >= OFF + b.ini && t < OFF + b.fim) txt = b.txt.replaceAll("\\N", "\n");
+    legenda.textContent = txt; legenda.parentElement.style.opacity = txt ? 1 : 0;
+  }
+  const boia = t => Math.sin((t + 20) * 2.4);
+
+  // ---------------------------------------------------------------- cena 8: zoom na bancada
+  if (D.modo === "zoom") {
+    el(`<div id="janela" class="abs"><img id="shot" src="${D.img}"></div>`);
+    el(`<img id="santinhoP" class="abs" src="santinho.svg">`);
+    el(`<div id="legP" class="abs"><span></span></div>`); legenda = $("legP").firstElementChild;
+    // quadros-chave: [tempo, x, y, largura] no quadro original 1280x720 (altura = largura·9/16)
+    const K = D.keys.map(([t, x, y, w]) => [t, x, y, w]);
+    window.render = t => {
+      let i = 0; while (i < K.length - 2 && t >= K[i + 1][0]) i++;
+      const [t0, ...k0] = K[i], [t1, ...k1] = K[i + 1];
+      const e = ease((t - t0) / Math.max(0.001, t1 - t0));
+      const k = k0.map((v, j) => v + (k1[j] - v) * e);
+      const s = 1088 / k[2];
+      const im = $("shot"); im.style.width = 1280 * s + "px"; im.style.left = -k[0] * s + "px"; im.style.top = -k[1] * s + "px";
+      $("santinhoP").style.top = (720 - 165 - 12 + 4 * boia(t)) + "px";
+      legendaEm(t);
+    };
+  }
+
+  // ---------------------------------------------------------------- cena 13: erros comuns
+  if (D.modo === "erros") {
+    el(`<div id="fundo" class="abs"></div>`); el(`<div id="veu" class="abs"></div>`);
+    el(`<img id="santinhoG" class="abs" src="santinho.svg">`);
+    el(`<svg id="alerta" class="abs" viewBox="0 0 54 48"><path d="M27 3 L51 45 H3 Z" fill="#FFC53D" stroke="#4A2208" stroke-width="4" stroke-linejoin="round"/><rect x="24.5" y="16" width="5" height="16" rx="2.5" fill="#4A2208"/><circle cx="27" cy="38" r="3" fill="#4A2208"/></svg>`);
+    el(`<div id="titE" class="abs tit" style="left:640px;top:70px"><small>ATENÇÃO</small>Erros comuns</div>`);
+    const ERR = [["LAB alvo incompleto", "erro-11a.png", [280, 326, 700]], ["Soma diferente de 100%", "erro-11b.png", [280, 293, 760]],
+                 ["Mesma tinta em duas linhas", "erro-11c.png", [280, 293, 760]], ["Código incompleto na Produção", "erro-11d.png", [220, 17, 760]]];
+    const gat = ["preencher", "formula", "mesma", "producao"];
+    const cards = ERR.map(([r, img, c], i) => {
+      const e = el(`<div class="abs erro"><img src="${img}"></div>`);
+      const lb = el(`<div class="abs rot">${i + 1} · ${r}</div>`);
+      return { e, lb, c, img: e.firstChild };
+    });
+    el(`<div id="legG" class="abs"><span></span></div>`); legenda = $("legG").firstElementChild;
+    const tGrade = OFF + D.tGrade;   // "Em todos esses casos…": as quatro juntas
+    window.render = t => {
+      // Santinho: começa no centro-esquerda e encolhe pra esquerda quando os erros entram
+      const sai = out((t - (T("preencher") - 0.4)) / 0.6);
+      const sx = 400 - 250 * sai, sy = 350 + 60 * sai, ss = (0.88 - 0.42 * sai);
+      const tremor = t < T("preencher") ? Math.sin(t * 28) * 3 * cl((t - 0.2) / 0.3) * (1 - cl((t - 1.6) / 0.4)) : 0;
+      $("santinhoG").style.left = sx + "px"; $("santinhoG").style.top = sy + "px";
+      $("santinhoG").style.transform = `translate(${tremor}px, ${7 * boia(t)}px) rotate(${2.5 * Math.sin((t + 20) * 1.7)}deg) scale(${ss})`;
+      const pa = out((t - 0.25) / 0.35);
+      $("alerta").style.left = (sx + 110 * ss) + "px"; $("alerta").style.top = (sy - 290 * ss - 30) + "px";
+      $("alerta").style.transform = `scale(${pa * (1 + 0.08 * Math.sin(t * 6)) * (0.6 + 0.4 * (1 - sai))}) rotate(${6 * Math.sin(t * 5)}deg)`;
+      $("titE").style.opacity = out(t / 0.5) * (1 - out((t - (T("preencher") - 0.5)) / 0.4));
+      const grade = out((t - tGrade) / 0.7);
+      cards.forEach(({ e, lb, c, img }, i) => {
+        const ti = T(gat[i]) - 0.2, tf = i < 3 ? T(gat[i + 1]) - 0.2 : tGrade;
+        const ent = out((t - ti) / 0.45), saida = i < 3 ? ease((t - tf) / 0.4) : 0;
+        // sozinho: grande à direita; na grade: 2x2 menor
+        const W1 = 820, H1 = W1 * 9 / 16, x1 = 380, y1 = 110;
+        const W2 = 470, H2 = W2 * 9 / 16, x2 = 250 + (i % 2) * 500, y2 = 60 + Math.floor(i / 2) * 290;
+        const W = W1 + (W2 - W1) * grade, H = H1 + (H2 - H1) * grade, x = x1 + (x2 - x1) * grade, y = y1 + (y2 - y1) * grade;
+        const vis = grade > 0 ? 1 : ent * (1 - saida);
+        e.style.width = W + "px"; e.style.height = H + "px"; e.style.left = (x + 40 * (1 - ent) * (1 - grade)) + "px"; e.style.top = y + "px";
+        e.style.opacity = vis; lb.style.opacity = vis;
+        lb.style.left = x + "px"; lb.style.top = (y - 34) + "px";
+        const s = W / c[2]; img.style.width = 1280 * s + "px"; img.style.left = -c[0] * s + "px"; img.style.top = -c[1] * s + "px";
+      });
+      legendaEm(t);
+    };
+  }
+
+  // ---------------------------------------------------------------- cena 14: recapitulação
+  if (D.modo === "recap") {
+    el(`<div id="fundo" class="abs"></div>`); el(`<div id="veu" class="abs"></div>`);
+    el(`<img id="santinhoG" class="abs" src="santinho.svg" style="left:390px;top:350px">`);
+    el(`<div id="titR" class="abs tit" style="left:680px;top:92px"><small>RECAPITULANDO</small>Três pontos pra lembrar</div>`);
+    const C = [["Cadastre a cor", "com o LAB alvo completo (os três valores)", "um"],
+               ["Registre cada rodada", "com a melhor puxada — o ΔE e a seta guiam o ajuste", "dois"],
+               ["Aprove a rodada certa", "e a Produção calcula o lote", "tres"]];
+    const cs = C.map(([a, b, k], i) => ({ e: el(`<div class="abs cartao" style="left:680px;top:${190 + i * 118}px"><div class="num">${i + 1}</div><div><b>${a}</b><span>${b}</span></div></div>`), k }));
+    el(`<div id="legG" class="abs"><span></span></div>`); legenda = $("legG").firstElementChild;
+    window.render = t => {
+      $("santinhoG").style.transform = `translateY(${7 * boia(t)}px) rotate(${2.5 * Math.sin((t + 20) * 1.7)}deg) scale(.88)`;
+      $("titR").style.opacity = out(t / 0.5);
+      cs.forEach(({ e, k }) => { const x = out((t - (T(k) - 0.15)) / 0.45); e.style.opacity = x; e.style.transform = `translateX(${40 * (1 - x)}px) scale(${0.95 + 0.05 * x})`; });
+      legendaEm(t);
+    };
+  }
+
+  // ---------------------------------------------------------------- cena 15: encerramento
+  if (D.modo === "final") {
+    el(`<div id="fundo" class="abs"></div>`); el(`<div id="veu" class="abs"></div>`);
+    const conf = []; const cores = ["#FFA646", "#F47216", "#4A2208", "#FFC27A", "#DA5E0C", "#FFFFFF"];
+    for (let i = 0; i < 70; i++) conf.push({ e: el(`<div class="abs confete" style="background:${cores[i % 6]}"></div>`), x: (i * 97.3) % 1280, v: 180 + (i * 37) % 160, d: (i * 0.137) % 1.6, r: (i * 53) % 360, w: 1 + (i % 5) * 0.4 });
+    el(`<img id="santinhoG" class="abs" src="santinho.svg" style="left:640px;top:330px">`);
+    el(`<div id="cta" class="abs">Quiz do Laboratório ➜</div>`);
+    el(`<div id="legG" class="abs"><span></span></div>`); legenda = $("legG").firstElementChild;
+    el(`<div id="preto" class="abs"></div>`);
+    const tFala = OFF + D.fala;
+    const fim = el(`<div class="abs" style="left:0;right:0;top:300px;text-align:center"><div style="font:600 18px 'Segoe UI';letter-spacing:5px;color:#9A430A">PROGRAMA DE TREINAMENTO</div><div class="tit" style="font-size:44px;margin-top:6px">santa cruz · Laboratório</div></div>`);
+    window.render = t => {
+      const pulo = Math.abs(Math.sin(t * 3.2)) * 26 * cl((t - 0.2) / 0.3);
+      const sai = out((t - (T("quiz") - 0.3)) / 0.6);
+      $("santinhoG").style.left = (640 - 260 * sai) + "px";
+      $("santinhoG").style.transform = `translateY(${-pulo}px) rotate(${4 * Math.sin(t * 3.2)}deg) scale(${0.95 - 0.12 * sai})`;
+      conf.forEach(c => { const tt = t - c.d; const y = -30 + c.v * tt; c.e.style.left = (c.x + 30 * Math.sin(tt * 2 + c.r)) + "px"; c.e.style.top = y + "px";
+        c.e.style.transform = `rotate(${c.r + tt * 240 * c.w}deg)`; c.e.style.opacity = tt > 0 && y < 760 ? 1 : 0; });
+      const cta = out((t - (T("quiz") - 0.1)) / 0.5);
+      $("cta").style.left = "700px"; $("cta").style.top = "300px";
+      $("cta").style.opacity = cta; $("cta").style.transform = `scale(${0.7 + 0.3 * cta + 0.03 * Math.sin(t * 5) * cta})`;
+      legendaEm(t);
+      const f = out((t - (tFala + 0.4)) / 0.6);
+      $("preto").style.opacity = f; fim.style.opacity = out((t - (tFala + 0.9)) / 0.6);
+    };
+  }
+  window.FIM = FIM;
+  document.fonts.load('700 34px "Fredoka"');
+  window.render(0);
+</script>
+</body>
+</html>
