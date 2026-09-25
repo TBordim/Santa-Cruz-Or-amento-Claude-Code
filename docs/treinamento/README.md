@@ -26,6 +26,17 @@ Não há vídeo de Administração.
 
   As outras expressões (neutro, explicando, apontando, alerta, comemorando) ainda precisam ser
   desenhadas a partir desta base.
+- **Nome na tela:** quando o Santinho aparece, o nome "Santinho" surge em cima dele, com as
+  letras pulando uma a uma. O estilo segue o do personagem:
+  - fonte Fredoka 700 (arredondada, gratuita);
+  - degradê laranja `#FFC27A → #FFA646 → #F47216 → #DA5E0C`;
+  - contorno marrom `#4A2208` e sombra 3D `#9A430A`;
+  - **o "t" é uma cruz** com o mesmo estilo, em referência à Santa Cruz.
+
+  O nome some ao fim da primeira frase da fala.
+- **Som da abertura:** `gravacoes/laboratorio/som-abertura.wav`, sintetizado, sem direitos de
+  terceiros. Tem um acorde com "plim-plim" na vinheta, vento girando no tornado e um sininho
+  quando o Santinho aparece. A voz entra em 5,4 s.
 - **Voz:** masculina, calorosa, português do Brasil.
 - **Personalidade:** simpático e bem-humorado, mas sempre trata a equipe como adultos
   competentes. O humor é pontual, nunca em toda frase. As piadas são do mundo gráfico (papel,
