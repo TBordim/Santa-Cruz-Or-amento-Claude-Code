@@ -210,7 +210,11 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
 
       {podeRegistrar && (
         <div className="mt-6">
+          {/* key = número da próxima rodada: salvar uma rodada troca o número e recria o quadro do
+              zero — vem com "Ajuste nosso" e a fórmula da rodada recém-salva. Sem isso, o Select
+              não controlado mantinha a origem escolhida antes (ex.: "Fórmula do fornecedor"). */}
           <NovaRodadaForm
+            key={(cor.rodadas.at(-1)?.numero ?? 0) + 1}
             corId={cor.id}
             bases={bases}
             proximoNumero={(cor.rodadas.at(-1)?.numero ?? 0) + 1}
