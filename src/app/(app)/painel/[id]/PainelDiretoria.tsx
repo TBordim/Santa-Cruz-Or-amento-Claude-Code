@@ -117,7 +117,9 @@ function TierCard({
   total: number;
   anteriorAoVivo: OrcamentoAnteriorRef | null;
 }) {
-  const titulo = total > 1 ? `Quantidade: ${tier.quantidade}` : "Precificação";
+  // Um SOPP por faixa, não um só pro card — cada quantidade é uma ordem de produção separada,
+  // por isso o número aparece já no título de cada uma, pra facilitar o rastreamento.
+  const titulo = total > 1 ? `Quantidade: ${tier.quantidade}${tier.numeroSequencial ? ` — SOPP ${tier.numeroSequencial}` : ""}` : "Precificação";
   const pendente = tier.statusDiretoria === "pendente";
 
   // Cada campo resolve seu próprio "anterior", independente dos outros — na ordem: busca ao

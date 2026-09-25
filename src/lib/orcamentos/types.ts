@@ -54,6 +54,10 @@ export type StatusDiretoriaTier = "auto_aprovado" | "pendente" | "aprovado" | "r
 
 export type PrecificacaoTier = {
   quantidade: string;
+  // Um SOPP por faixa/quantidade, não um só pro card inteiro — cada quantidade orçada é uma
+  // ordem de produção separada, e precisa dar pra rastrear cada uma pelo próprio número.
+  // Pedido do Thiago em 25/09/2026.
+  numeroSequencial: string;
   precoProjetado: number;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;

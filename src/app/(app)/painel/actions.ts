@@ -127,6 +127,7 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
 function lerFaixas(formData: FormData, quantidades: string[]): FaixaInput[] {
   return quantidades.map((quantidade, i) => ({
     quantidade,
+    numeroSequencial: String(formData.get(`numeroSequencial_${i}`) ?? "").trim(),
     precoProjetado: parseValorBR(String(formData.get(`precoProjetado_${i}`) ?? "")),
     custoPrimarioPct: (() => {
       const v = parseValorBR(String(formData.get(`custoPrimarioPct_${i}`) ?? ""));
@@ -141,6 +142,13 @@ function lerFaixas(formData: FormData, quantidades: string[]): FaixaInput[] {
   }));
 }
 
+// Resumo dos SOPPs de todas as faixas pra exibir no título do card/coluna do Painel (um campo
+// só, sempre foi assim visualmente) — cada faixa continua com o próprio número gravado, este
+// resumo é só pra exibição rápida, nunca editado direto.
+function resumoSopp(rascunho: { numeroSequencial: string }[]): string {
+  return rascunho.map((r) => r.numeroSequencial).filter(Boolean).join(", ");
+}
+
 export async function salvarOrcamento(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
@@ -153,6 +161,7 @@ export async function salvarOrcamento(_prev: FormState, formData: FormData): Pro
   const rascunho = faixas.map((f, i) => ({
     ...(existentes[i] ?? {}),
     quantidade: f.quantidade,
+    numeroSequencial: f.numeroSequencial || existentes[i]?.numeroSequencial || "",
     precoProjetado: Number.isNaN(f.precoProjetado) ? (existentes[i]?.precoProjetado ?? null) : f.precoProjetado,
     custoPrimarioPct: f.custoPrimarioPct ?? existentes[i]?.custoPrimarioPct ?? null,
     margemP2Pct: f.margemP2Pct ?? existentes[i]?.margemP2Pct ?? null,
@@ -164,7 +173,7 @@ export async function salvarOrcamento(_prev: FormState, formData: FormData): Pro
     where: { id },
     data: {
       precificacao: rascunho,
-      numeroSequencial: String(formData.get("numeroSequencial") ?? "").trim(),
+      numeroSequencial: resumoSopp(rascunho),
       comissaoEspecial: formData.get("comissaoEspecial") === "on",
       comissaoObs: String(formData.get("comissaoObs") ?? "").trim(),
       acabamento: String(formData.get("acabamento") ?? "").trim(),
@@ -209,13 +218,15 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   if (!quantidades.length) {
     return { erro: "Não há nenhuma quantidade lançada — volte para a Solicitação e adicione ao menos uma." };
   }
-  const numeroSequencial = String(formData.get("numeroSequencial") ?? "").trim();
-  if (!numeroSequencial) return { erro: "Informe o Nº de SOPP antes de enviar para a Diretoria." };
   if (doc.aguardandoCompras) return { erro: "Registre o retorno de Compras antes de enviar para a Diretoria." };
 
   const faixas = lerFaixas(formData, quantidades);
   if (faixas.some((f) => Number.isNaN(f.precoProjetado))) {
     return { erro: 'Preencha o "Preço projetado" de todas as faixas de quantidade.' };
+  }
+  // Um SOPP por faixa, não um só pro card — cada quantidade é uma ordem de produção separada.
+  if (faixas.some((f) => !f.numeroSequencial)) {
+    return { erro: "Informe o Nº de SOPP de todas as faixas de quantidade antes de enviar para a Diretoria." };
   }
 
   const acabamento = String(formData.get("acabamento") ?? "").trim();
@@ -232,7 +243,7 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
     where: { id },
     data: {
       precificacao,
-      numeroSequencial,
+      numeroSequencial: resumoSopp(precificacao),
       orcamentoAnteriorId: anterior?.id ?? null,
       precoAnterior: anterior?.precoFinal ?? null,
       comissaoEspecial,
