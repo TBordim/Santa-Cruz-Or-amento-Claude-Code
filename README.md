@@ -37,3 +37,7 @@ usuário), a tela de login vira um formulário de criação do administrador.
 - **Auth.js v5** (Credentials provider, sessão JWT)
 - **bcryptjs** para o hash do PIN
 - Deploy: **Vercel**, banco: **Neon** (Postgres serverless)
+
+## Backup
+
+Ver [BACKUP.md](./BACKUP.md) — cópia diária automática do banco para um segundo provedor.

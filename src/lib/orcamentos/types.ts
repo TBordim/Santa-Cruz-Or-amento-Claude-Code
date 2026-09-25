@@ -54,6 +54,10 @@ export type StatusDiretoriaTier = "auto_aprovado" | "pendente" | "aprovado" | "r
 
 export type PrecificacaoTier = {
   quantidade: string;
+  // Um SOPP por faixa/quantidade, não um só pro card inteiro — cada quantidade orçada é uma
+  // ordem de produção separada, e precisa dar pra rastrear cada uma pelo próprio número.
+  // Pedido do Thiago em 25/09/2026.
+  numeroSequencial: string;
   precoProjetado: number;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
@@ -83,6 +87,13 @@ export type PrecificacaoTier = {
   comentarioDiretoria?: string;
   rascunhoPrecoFinal?: number | null;
   rascunhoComentario?: string;
+
+  // Ajuste manual de preço feito DEPOIS da faixa já decidida (aprovada automática ou
+  // manualmente) — a Diretoria pode ter motivo pra mudar o preço mesmo com tudo certo (ex.:
+  // negociação com o cliente). Não apaga decididoPor/decididoEm original — os dois convivem,
+  // um mostra quem decidiu primeiro, o outro quem ajustou por último.
+  precoAjustadoPor?: string;
+  precoAjustadoEm?: number; // epoch ms
 };
 
 // Leitura automática por IA do Arquivo legado — fica deste tipo pronto, mas a Fase 2 não

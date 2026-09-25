@@ -14,7 +14,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useSalvoToast } from "@/hooks/use-salvo-toast";
 import { CodigoInternoInput } from "@/components/orcamento/CodigoInternoInput";
-import { ResumoSolicitacao } from "@/components/orcamento/ResumoSolicitacao";
 
 export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
   const [state, salvarAction, salvando] = useActionState(salvarRequisitos, undefined);
@@ -40,10 +39,6 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
         <DiretrizBlock>Preencha os requisitos técnicos (formato suporte, anexos previstos) antes de enviar para o Orçamento.</DiretrizBlock>
       </div>
 
-      <div className="mt-4">
-        <ResumoSolicitacao doc={{ ...doc, reqCliente: c }} />
-      </div>
-
       <form id="form-engenharia" className="mt-4">
         <input type="hidden" name="id" value={doc.id} form="form-engenharia" />
 
@@ -52,7 +47,7 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
             <Field label="Nº de Pré Cadastro" hint="Obrigatório para liberar para a etapa seguinte.">
               <Input name="preCadastro" defaultValue={doc.preCadastro ?? ""} form="form-engenharia" />
             </Field>
-            <Field label="Código interno (Santa Cruz)" hint={ehRepeticao ? "Veio da Solicitação — ajuste se necessário." : "Produto novo não gera código aqui — só se o cliente aprovar o orçamento (fica pendente na etapa Retorno do Cliente). Preencha só se já souber."}>
+            <Field label="Código interno (Santa Cruz)" hint={ehRepeticao ? "Veio da Solicitação — ajuste se necessário." : "Produto novo não gera código aqui — só se o cliente aprovar o orçamento (etapa 7, Cadastro de Produto). Preencha só se já souber."}>
               <CodigoInternoInput name="codInterno" defaultValue={doc.codInterno ?? ""} form="form-engenharia" />
             </Field>
           </Row2>
@@ -112,7 +107,6 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
       </form>
 
       <div className="mt-2 flex flex-col gap-4">
-        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
         <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} />
       </div>
 

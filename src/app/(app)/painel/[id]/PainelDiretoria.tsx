@@ -1,13 +1,12 @@
 "use client";
 
-import { decidirDiretoriaFaixa, salvarRascunhoDiretoria } from "../actions";
+import { decidirDiretoriaFaixa, salvarRascunhoDiretoria, liberarDiretoriaResolvida, ajustarPrecoFinalDiretoria } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import type { OrcamentoAnteriorRef } from "@/lib/orcamentos/tiers";
 import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQuantidade } from "@/lib/orcamentos/motor";
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
-import { fmtMoney } from "@/lib/orcamentos/constantes";
-import { AnexoUpload } from "@/components/anexos/AnexoUpload";
+import { fmtMoney, fmtDateTime } from "@/lib/orcamentos/constantes";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -118,7 +117,9 @@ function TierCard({
   total: number;
   anteriorAoVivo: OrcamentoAnteriorRef | null;
 }) {
-  const titulo = total > 1 ? `Quantidade: ${tier.quantidade}` : "Precificação";
+  // Um SOPP por faixa, não um só pro card — cada quantidade é uma ordem de produção separada,
+  // por isso o número aparece já no título de cada uma, pra facilitar o rastreamento.
+  const titulo = total > 1 ? `Quantidade: ${tier.quantidade}${tier.numeroSequencial ? ` — SOPP ${tier.numeroSequencial}` : ""}` : "Precificação";
   const pendente = tier.statusDiretoria === "pendente";
 
   // Cada campo resolve seu próprio "anterior", independente dos outros — na ordem: busca ao
@@ -163,13 +164,30 @@ function TierCard({
           </div>
         </form>
       ) : (
-        <ResumoBox
-          rows={[
-            { label: "Status", value: tier.statusDiretoria === "auto_aprovado" ? "Auto-aprovado" : tier.statusDiretoria },
-            { label: "Preço final", value: fmtMoneyOrDash(tier.precoFinal) },
-            ...(tier.decididoPor ? [{ label: "Decidido por", value: tier.decididoPor }] : []),
-          ]}
-        />
+        <>
+          <ResumoBox
+            rows={[
+              { label: "Status", value: tier.statusDiretoria === "auto_aprovado" ? "Auto-aprovado" : tier.statusDiretoria },
+              ...(tier.decididoPor ? [{ label: "Decidido por", value: tier.decididoPor }] : []),
+              ...(tier.precoAjustadoPor
+                ? [{ label: "Preço ajustado por", value: `${tier.precoAjustadoPor}${tier.precoAjustadoEm ? ` · ${fmtDateTime(new Date(tier.precoAjustadoEm))}` : ""}` }]
+                : []),
+            ]}
+          />
+          {/* Preço continua editável mesmo depois de decidido — pode ter motivo pra mudar
+              (renegociação com o cliente, por exemplo) mesmo com a faixa já aprovada. Não reabre
+              a decisão em si (aprovar/pedir revisão), só o número. */}
+          <form action={ajustarPrecoFinalDiretoria} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="id" value={doc.id} />
+            <input type="hidden" name="idx" value={idx} />
+            <div className="min-w-[160px] flex-1">
+              <Field label="Preço final">
+                <Input name="precoFinal" defaultValue={paraCampoBR(tier.precoFinal)} />
+              </Field>
+            </div>
+            <Button type="submit" variant="outline">Salvar novo preço</Button>
+          </form>
+        </>
       )}
     </FormSection>
   );
@@ -183,6 +201,10 @@ export function PainelDiretoria({
   anteriorAoVivo: OrcamentoAnteriorRef | null;
 }) {
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
+  // Card que voltou pra Diretoria (via "Voltar etapa" a partir do Envio de Oferta) já com tudo
+  // decidido — nenhuma faixa pendente sobra pra abrir o formulário de decisão, então sem este
+  // botão não haveria nenhum jeito de avançar de novo. Ver liberarDiretoriaResolvida em actions.ts.
+  const tudoResolvido = tiers.length > 0 && tiers.every((t) => t.statusDiretoria !== "pendente");
 
   return (
     <>
@@ -203,10 +225,13 @@ export function PainelDiretoria({
         <TierCard key={i} doc={doc} tier={t} idx={i} total={tiers.length} anteriorAoVivo={anteriorAoVivo} />
       ))}
 
-      <div className="mt-2 flex flex-col gap-4">
-        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
-        <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
-      </div>
+      {tudoResolvido && (
+        <form action={liberarDiretoriaResolvida} className="mt-2 rounded-lg border border-good/30 bg-good-soft p-3">
+          <input type="hidden" name="id" value={doc.id} />
+          <div className="mb-2 text-sm text-foreground">Todas as faixas já foram decididas — falta só liberar para o Envio de Oferta.</div>
+          <Button type="submit">Liberar para Envio de Oferta</Button>
+        </form>
+      )}
     </>
   );
 }

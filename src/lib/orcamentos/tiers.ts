@@ -8,6 +8,7 @@ function chave(s: string | null | undefined): string {
 
 export type FaixaInput = {
   quantidade: string;
+  numeroSequencial: string;
   precoProjetado: number;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
@@ -82,6 +83,7 @@ export function montarPrecificacao(input: MontarPrecificacaoInput): Precificacao
 
     const tier: PrecificacaoTier = {
       quantidade: f.quantidade,
+      numeroSequencial: f.numeroSequencial,
       precoProjetado: f.precoProjetado,
       custoPrimarioPct: f.custoPrimarioPct,
       margemP2Pct: f.margemP2Pct,
