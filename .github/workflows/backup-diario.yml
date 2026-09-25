@@ -35,7 +35,12 @@ jobs:
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -y
-          sudo apt-get install -y --no-install-recommends postgresql-client
+          # O nome genérico "postgresql-client" (sem número) continua apontando pro pacote do
+          # próprio Ubuntu (16) mesmo com o repositório novo adicionado — é o Ubuntu quem "dono"
+          # desse nome. Precisa pedir a versão certa pelo nome específico. Se o Neon fizer outro
+          # upgrade de versão major no futuro (raro, é avisado com antecedência), troque o "18"
+          # abaixo pelo número novo.
+          sudo apt-get install -y --no-install-recommends postgresql-client-18
 
       - name: Confirma que os dois segredos foram configurados
         run: |
