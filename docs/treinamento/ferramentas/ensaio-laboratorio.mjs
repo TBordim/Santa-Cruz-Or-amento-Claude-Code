@@ -2,7 +2,7 @@
 import { chromium } from "playwright-core";
 import os from "node:os";
 
-const BASE = "http://localhost:3100";
+const BASE = "https://santa-cruz-or-amento-claude-code-git-demo-tbordim.vercel.app";
 const SHOTS = new URL("./shots/", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1");
 const exe = `${os.homedir()}/AppData/Local/ms-playwright/chromium-1243/chrome-win64/chrome.exe`;
 
