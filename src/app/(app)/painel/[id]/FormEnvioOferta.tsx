@@ -4,7 +4,6 @@ import { marcarFinalizado, salvarNumeroOrcamento } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtMoney } from "@/lib/orcamentos/constantes";
-import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { FormSection, Field, ResumoBox, DiretrizBlock } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -55,10 +54,6 @@ export function FormEnvioOferta({ doc }: { doc: OrcamentoComAnexos }) {
         <Button type="submit">Marcar oferta como enviada</Button>
       </form>
 
-      <div className="mt-4 flex flex-col gap-4">
-        <AnexoUpload orcamentoId={doc.id} tipo="ARTE" anexos={doc.anexos.filter((a) => a.tipo === "ARTE")} somenteLeitura />
-        <AnexoUpload orcamentoId={doc.id} tipo="ENGENHARIA" anexos={doc.anexos.filter((a) => a.tipo === "ENGENHARIA")} somenteLeitura />
-      </div>
     </>
   );
 }

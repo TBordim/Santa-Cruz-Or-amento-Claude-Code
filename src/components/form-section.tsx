@@ -49,13 +49,13 @@ export function AcoesBar({ children }: { children: React.ReactNode }) {
 
 // Caixa de resumo somente leitura no topo da gaveta (Cliente/Produto/etc.) — substitui o
 // .compare-box.numeros-box legado.
-export function ResumoBox({ rows }: { rows: { label: string; value: React.ReactNode }[] }) {
+export function ResumoBox({ rows, quebrar = false }: { rows: { label: string; value: React.ReactNode }[]; quebrar?: boolean }) {
   return (
     <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 p-3">
       {rows.map((r, i) => (
         <div key={i} className="flex items-baseline justify-between gap-3 text-sm md:items-center">
           <span className="shrink-0 text-muted-foreground">{r.label}</span>
-          <span className="min-w-0 break-words text-right font-medium text-foreground md:truncate">{r.value}</span>
+          <span className={`min-w-0 break-words text-right font-medium text-foreground ${quebrar ? "" : "md:truncate"}`}>{r.value}</span>
         </div>
       ))}
     </div>
