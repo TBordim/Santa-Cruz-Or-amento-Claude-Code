@@ -144,12 +144,15 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
         )}
       </div>
 
-      {labAlvo && (
+      {labExibido && (
         <div className="mb-6">
+          {/* Cor importada sem alvo registrado (só o LAB final da planilha) ainda ganha o desenho —
+              usa o final como referência/mira, só muda o rótulo pra não parecer um alvo de verdade. */}
           <EixoLabDiagram
-            alvo={labAlvo}
+            alvo={labExibido}
             atual={ultimaComPuxada?.puxadaLab ?? null}
             rotuloAtual={`Rodada ${ultimaComPuxada?.rodada.numero ?? ""}`}
+            rotuloReferencia={labAlvo ? "Alvo" : "Final (planilha)"}
           />
         </div>
       )}
