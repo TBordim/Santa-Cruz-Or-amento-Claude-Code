@@ -7,6 +7,17 @@ import { prepararAnexo } from "@/lib/anexos/compressao";
 import { adicionarAnexo, excluirAnexo } from "./actions";
 import { FormSection } from "@/components/form-section";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type AnexoItem = { id: string; nome: string; url: string; mime: string; tamanho: number };
 
@@ -90,9 +101,25 @@ export function AnexoUpload({
                   {aberto === a.id ? "Fechar" : "Ver"}
                 </Button>
                 {!somenteLeitura && (
-                  <Button type="button" variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive" onClick={() => onExcluir(a.id)} disabled={pending}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button type="button" variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive" disabled={pending}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir o anexo &quot;{a.nome}&quot;?</AlertDialogTitle>
+                        <AlertDialogDescription>Essa ação é definitiva e não pode ser desfeita — o arquivo é removido do armazenamento.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" disabled={pending} onClick={() => onExcluir(a.id)}>
+                          {pending ? "Excluindo…" : "Sim, excluir"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
               </div>
               {aberto === a.id &&
