@@ -20,7 +20,19 @@ function paraXY(a: number, b: number) {
 // azul↔amarelo no vertical) — mesma referência visual que o colorista já usa mentalmente ao
 // decidir "pra que lado mexer" numa correção manual. Server Component puro (só SVG, sem
 // interatividade), plota o alvo e a última puxada e desenha a seta de correção entre os dois.
-export function EixoLabDiagram({ alvo, atual, rotuloAtual }: { alvo: Lab; atual: Lab | null; rotuloAtual: string }) {
+export function EixoLabDiagram({
+  alvo,
+  atual,
+  rotuloAtual,
+  rotuloReferencia = "Alvo",
+}: {
+  alvo: Lab;
+  atual: Lab | null;
+  rotuloAtual: string;
+  // Cor importada da planilha antiga não tem alvo registrado — o desenho usa o LAB final como
+  // referência (mira), e o rótulo muda pra deixar claro que não é um alvo de verdade.
+  rotuloReferencia?: string;
+}) {
   const pAlvo = paraXY(alvo.a, alvo.b);
   const pAtual = atual ? paraXY(atual.a, atual.b) : null;
   const distancia = pAtual ? Math.hypot(pAlvo.x - pAtual.x, pAlvo.y - pAtual.y) : 0;
@@ -78,7 +90,9 @@ export function EixoLabDiagram({ alvo, atual, rotuloAtual }: { alvo: Lab; atual:
       <div className="flex flex-col gap-2 text-xs">
         <div className="flex items-center gap-2">
           <span className="inline-block h-3 w-3 shrink-0 rounded-full border-2 border-foreground" />
-          <span className="text-muted-foreground">Alvo — a* {num(alvo.a)} · b* {num(alvo.b)}</span>
+          <span className="text-muted-foreground">
+            {rotuloReferencia} — a* {num(alvo.a)} · b* {num(alvo.b)}
+          </span>
         </div>
         {atual ? (
           <div className="flex items-center gap-2">
@@ -101,7 +115,7 @@ export function EixoLabDiagram({ alvo, atual, rotuloAtual }: { alvo: Lab; atual:
             <span
               className="absolute left-0 right-0 h-0.5 bg-foreground"
               style={{ bottom: `${Math.max(0, Math.min(100, alvo.l))}%` }}
-              title={`Alvo L* ${num(alvo.l)}`}
+              title={`${rotuloReferencia} L* ${num(alvo.l)}`}
             />
             {atual && (
               <span
@@ -112,7 +126,7 @@ export function EixoLabDiagram({ alvo, atual, rotuloAtual }: { alvo: Lab; atual:
             )}
           </div>
           <span className="text-muted-foreground">
-            L* — alvo {num(alvo.l)}
+            L* — {rotuloReferencia.toLowerCase()} {num(alvo.l)}
             {atual && <> · {rotuloAtual.toLowerCase()} {num(atual.l)}</>}
           </span>
         </div>
