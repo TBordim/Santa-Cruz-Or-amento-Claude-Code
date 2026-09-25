@@ -1,9 +1,8 @@
 # Mapa do módulo Laboratório
 
-**Versão 3 (25/09/2026).** Inclui as mudanças do Thiago e as correções decididas depois da
-versão 2. Tudo isso **ainda está sem commit**, na pasta `sistema-orcamentos`, branch
-`feat/modulo-laboratorio-cor` (base `9f1615a`). Se o código mudar antes do commit, este mapa
-precisa ser conferido de novo.
+**Versão 4 (25/09/2026).** Feita a partir da branch `feat/modulo-laboratorio-cor`, commit
+`32975b7`, já no GitHub. Em relação à versão 3, o eixo LAB passou a aparecer também nas cores
+importadas da planilha (commit `670eefb`).
 
 Arquivos lidos:
 - `src/app/(app)/laboratorio/**`;
@@ -88,7 +87,10 @@ A tela **Bases** existe só para administrador e **fica fora do vídeo**.
   1. Título com o código, e cliente · referência.
   2. Quadro do **LAB alvo** com a amostra; quadro com **Substrato**, **Acabamento** e **Status**;
      e o botão **"Editar dados"**.
-  3. **Eixo LAB,** que só aparece se a cor tiver LAB alvo:
+  3. **Eixo LAB.** Aparece se a cor tiver LAB alvo **ou**, nas cores importadas da planilha
+     antiga, o LAB final. Nesse segundo caso, a mira se chama **"Final (planilha)"** em vez de
+     "Alvo", para não parecer um alvo de verdade. Uma cor sem alvo e sem LAB final (ex.: cadastrada
+     sem LAB alvo) não tem eixo. No desenho:
      - O **plano a\*/b\*** tem os nomes nas pontas, **cada um escrito na própria cor**: Vermelho,
        Verde, Amarelo e Azul.
      - O **alvo** é uma mira (aro com cruz). A **última puxada** é uma bolinha com a cor
