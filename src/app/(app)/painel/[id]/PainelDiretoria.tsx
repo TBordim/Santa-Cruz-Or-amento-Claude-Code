@@ -1,12 +1,12 @@
 "use client";
 
-import { decidirDiretoriaFaixa, salvarRascunhoDiretoria, liberarDiretoriaResolvida } from "../actions";
+import { decidirDiretoriaFaixa, salvarRascunhoDiretoria, liberarDiretoriaResolvida, ajustarPrecoFinalDiretoria } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import type { OrcamentoAnteriorRef } from "@/lib/orcamentos/tiers";
 import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQuantidade } from "@/lib/orcamentos/motor";
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
-import { fmtMoney } from "@/lib/orcamentos/constantes";
+import { fmtMoney, fmtDateTime } from "@/lib/orcamentos/constantes";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -162,13 +162,30 @@ function TierCard({
           </div>
         </form>
       ) : (
-        <ResumoBox
-          rows={[
-            { label: "Status", value: tier.statusDiretoria === "auto_aprovado" ? "Auto-aprovado" : tier.statusDiretoria },
-            { label: "Preço final", value: fmtMoneyOrDash(tier.precoFinal) },
-            ...(tier.decididoPor ? [{ label: "Decidido por", value: tier.decididoPor }] : []),
-          ]}
-        />
+        <>
+          <ResumoBox
+            rows={[
+              { label: "Status", value: tier.statusDiretoria === "auto_aprovado" ? "Auto-aprovado" : tier.statusDiretoria },
+              ...(tier.decididoPor ? [{ label: "Decidido por", value: tier.decididoPor }] : []),
+              ...(tier.precoAjustadoPor
+                ? [{ label: "Preço ajustado por", value: `${tier.precoAjustadoPor}${tier.precoAjustadoEm ? ` · ${fmtDateTime(new Date(tier.precoAjustadoEm))}` : ""}` }]
+                : []),
+            ]}
+          />
+          {/* Preço continua editável mesmo depois de decidido — pode ter motivo pra mudar
+              (renegociação com o cliente, por exemplo) mesmo com a faixa já aprovada. Não reabre
+              a decisão em si (aprovar/pedir revisão), só o número. */}
+          <form action={ajustarPrecoFinalDiretoria} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="id" value={doc.id} />
+            <input type="hidden" name="idx" value={idx} />
+            <div className="min-w-[160px] flex-1">
+              <Field label="Preço final">
+                <Input name="precoFinal" defaultValue={paraCampoBR(tier.precoFinal)} />
+              </Field>
+            </div>
+            <Button type="submit" variant="outline">Salvar novo preço</Button>
+          </form>
+        </>
       )}
     </FormSection>
   );

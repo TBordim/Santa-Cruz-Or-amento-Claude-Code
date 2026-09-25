@@ -302,6 +302,30 @@ export async function decidirDiretoriaFaixa(formData: FormData) {
   revalidatePath(`/painel/${id}`);
 }
 
+// Ajusta o preço final de uma faixa JÁ decidida (aprovada automática ou manualmente) — a
+// Diretoria pode ter motivo pra mudar o preço mesmo com tudo certo (ex.: negociação com o
+// cliente depois do card já ter voltado da Diretoria e retornado). Não reabre a decisão
+// (aprovar/solicitar revisão) nem mexe em decididoPor/decididoEm original — só troca o número
+// e registra separadamente quem ajustou por último. Pedido do Thiago em 25/09/2026.
+export async function ajustarPrecoFinalDiretoria(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const idx = parseInt(String(formData.get("idx") ?? "0"), 10);
+  const { nomeAtor } = await exigirEdicao(id);
+
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  const precificacao = ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => ({ ...t }));
+  const tier = precificacao[idx];
+  if (!tier || tier.statusDiretoria === "pendente") return; // essa faixa ainda não foi decidida — usa o formulário normal, não este
+
+  const precoFinal = parseValorBR(String(formData.get("precoFinal") ?? ""));
+  if (Number.isNaN(precoFinal)) return;
+
+  precificacao[idx] = { ...tier, precoFinal, precoAjustadoPor: nomeAtor, precoAjustadoEm: Date.now() };
+  await prisma.orcamento.update({ where: { id }, data: { precificacao } });
+  revalidatePath(`/painel/${id}`);
+  revalidatePath("/painel");
+}
+
 // Cobre o card que chega na Diretoria já com todas as faixas resolvidas (auto_aprovado ou
 // aprovado) sem passar pelo fim normal de decidirDiretoriaFaixa acima — acontece quando alguém
 // usa "Voltar etapa" a partir do Envio de Oferta (ou de uma etapa depois) de volta pra

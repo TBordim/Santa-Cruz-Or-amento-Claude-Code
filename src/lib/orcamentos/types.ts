@@ -83,6 +83,13 @@ export type PrecificacaoTier = {
   comentarioDiretoria?: string;
   rascunhoPrecoFinal?: number | null;
   rascunhoComentario?: string;
+
+  // Ajuste manual de preço feito DEPOIS da faixa já decidida (aprovada automática ou
+  // manualmente) — a Diretoria pode ter motivo pra mudar o preço mesmo com tudo certo (ex.:
+  // negociação com o cliente). Não apaga decididoPor/decididoEm original — os dois convivem,
+  // um mostra quem decidiu primeiro, o outro quem ajustou por último.
+  precoAjustadoPor?: string;
+  precoAjustadoEm?: number; // epoch ms
 };
 
 // Leitura automática por IA do Arquivo legado — fica deste tipo pronto, mas a Fase 2 não
