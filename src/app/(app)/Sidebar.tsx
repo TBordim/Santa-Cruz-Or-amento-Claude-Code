@@ -17,6 +17,7 @@ import {
   Palette,
   LayoutGrid,
   Scale,
+  FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -82,6 +83,7 @@ function SidebarContent({
     { href: "/laboratorio", label: "Início", icon: LayoutGrid, color: "#5C3D75" },
     { href: "/laboratorio/cor", label: "Cor", icon: Palette, color: "#7A3B69" },
     { href: "/laboratorio/producao", label: "Produção", icon: Scale, color: "#3D6B6B" },
+    ...(admin ? [{ href: "/laboratorio/bases", label: "Bases", icon: FlaskConical, color: "#8C5A21" }] : []),
   ];
 
   const items: NavItem[] = !logado

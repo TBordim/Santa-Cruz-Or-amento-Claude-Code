@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
 import { registrarPuxada } from "./actions";
+import { useFormActionSemReset } from "@/hooks/use-form-action";
+import { num } from "@/lib/cor/formato";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,10 @@ type Lab = { l: number; a: number; b: number };
 // Resultado da puxada (Quick Peek) da rodada: só o melhor LAB — o mais próximo do alvo. Se já
 // existe, o formulário vem preenchido e "Corrigir" sobrescreve (não acumula leituras).
 export function NovaPuxadaForm({ rodadaId, corId, atual }: { rodadaId: string; corId: string; atual: Lab | null }) {
-  const [erro, formAction, pending] = useActionState(registrarPuxada, undefined);
+  const [erro, onSubmit, pending] = useFormActionSemReset(registrarPuxada, undefined);
 
   return (
-    <form action={formAction} className="mt-3 flex flex-wrap items-end gap-2 border-t border-dashed border-border pt-3">
+    <form onSubmit={onSubmit} className="mt-3 flex flex-wrap items-end gap-2 border-t border-dashed border-border pt-3">
       <input type="hidden" name="rodadaId" value={rodadaId} />
       <input type="hidden" name="corId" value={corId} />
       <div className="w-full text-xs font-medium text-muted-foreground">
@@ -22,15 +23,15 @@ export function NovaPuxadaForm({ rodadaId, corId, atual }: { rodadaId: string; c
       </div>
       <div className="flex flex-col gap-1">
         <Label className="text-xs">L*</Label>
-        <Input name="l" inputMode="decimal" className="w-20" defaultValue={atual?.l} required />
+        <Input name="l" inputMode="decimal" className="w-20" defaultValue={atual ? num(atual.l) : undefined} required />
       </div>
       <div className="flex flex-col gap-1">
         <Label className="text-xs">a*</Label>
-        <Input name="a" inputMode="decimal" className="w-20" defaultValue={atual?.a} required />
+        <Input name="a" inputMode="decimal" className="w-20" defaultValue={atual ? num(atual.a) : undefined} required />
       </div>
       <div className="flex flex-col gap-1">
         <Label className="text-xs">b*</Label>
-        <Input name="b" inputMode="decimal" className="w-20" defaultValue={atual?.b} required />
+        <Input name="b" inputMode="decimal" className="w-20" defaultValue={atual ? num(atual.b) : undefined} required />
       </div>
       <Button type="submit" size="sm" disabled={pending}>
         {atual ? "Corrigir puxada" : "Registrar puxada"}

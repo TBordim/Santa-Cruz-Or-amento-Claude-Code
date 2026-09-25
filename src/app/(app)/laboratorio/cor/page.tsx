@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { NovaCorForm } from "./NovaCorForm";
 import { labToCssColor } from "@/lib/cor/lab-to-rgb";
 import { deltaE2000 } from "@/lib/cor/deltae";
+import { num } from "@/lib/cor/formato";
+import { proximoCodigoCor } from "@/lib/cor/codigo";
 
 const STATUS_LABEL: Record<string, string> = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -20,6 +22,9 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 type Lab = { l: number; a: number; b: number };
+
+// Tolerância de aprovação da Santa Cruz: ΔE2000 menor que 1,00 (mesmo valor de cor/[id]/page.tsx).
+const TOLERANCIA_DE = 1;
 
 // O globals.css dá padding largo a todo th/td (fora de @layer, então vence utilitário comum); aqui
 // o "!" compacta as colunas pra a lista caber no painel sem rolagem lateral.
@@ -42,9 +47,9 @@ function CelulaLab({ lab }: { lab: Lab | null }) {
         title="Apoio visual — não substitui a cabine de luz D50"
       />
       <span className="flex flex-wrap gap-x-1 font-mono text-[11px] leading-tight text-muted-foreground">
-        <span className="whitespace-nowrap">{lab.l} /</span>
-        <span className="whitespace-nowrap">{lab.a} /</span>
-        <span className="whitespace-nowrap">{lab.b}</span>
+        <span className="whitespace-nowrap">{num(lab.l)} /</span>
+        <span className="whitespace-nowrap">{num(lab.a)} /</span>
+        <span className="whitespace-nowrap">{num(lab.b)}</span>
       </span>
     </span>
   );
@@ -85,7 +90,7 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
         description="Formulação de tinta — cada cor tem uma bancada própria: LAB alvo, fórmulas testadas e leituras."
       />
 
-      {podeRegistrar && <NovaCorForm />}
+      {podeRegistrar && <NovaCorForm proximoCodigo={await proximoCodigoCor()} />}
 
       <div className="mt-6">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
@@ -161,8 +166,11 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                       <TableCell className={`${TD} whitespace-normal!`}>
                         <CelulaLab lab={aprovado} />
                       </TableCell>
-                      <TableCell className={`${TD} ${SO_MD} text-right font-mono text-xs`} title="Menor ΔE2000 entre as puxadas e o alvo">
-                        {melhorDe != null ? melhorDe.toFixed(2) : "—"}
+                      <TableCell
+                        className={`${TD} ${SO_MD} text-right font-mono text-xs ${melhorDe != null && melhorDe >= TOLERANCIA_DE ? "font-semibold text-destructive" : ""}`}
+                        title="Menor ΔE2000 entre as puxadas e o alvo"
+                      >
+                        {melhorDe != null ? num(melhorDe, 2) : "—"}
                       </TableCell>
                       <TableCell className={`${TD} ${SO_SM}`}>
                         <Badge variant="secondary">{STATUS_LABEL[c.status] ?? c.status}</Badge>

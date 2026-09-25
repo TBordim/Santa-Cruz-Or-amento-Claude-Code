@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { criarRodada } from "./actions";
+import { useFormActionSemReset } from "@/hooks/use-form-action";
+import { num } from "@/lib/cor/formato";
+import { somaFecha100 } from "@/lib/cor/composicao";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,10 +34,10 @@ export function NovaRodadaForm({
   proximoNumero: number;
   composicaoAnterior: { baseId: string; percentual: number }[];
 }) {
-  const [erro, formAction, pending] = useActionState(criarRodada, undefined);
+  const [erro, onSubmit, pending] = useFormActionSemReset(criarRodada, undefined);
   const [linhas, setLinhas] = useState<Linha[]>(
     composicaoAnterior.length > 0
-      ? composicaoAnterior.map((c, i) => ({ key: i, baseId: c.baseId, percentual: String(c.percentual) }))
+      ? composicaoAnterior.map((c, i) => ({ key: i, baseId: c.baseId, percentual: num(c.percentual) }))
       : [{ key: 0, baseId: "", percentual: "" }],
   );
 
@@ -54,7 +57,7 @@ export function NovaRodadaForm({
         )}
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <input type="hidden" name="corId" value={corId} />
           <input type="hidden" name="numero" value={proximoNumero} />
 
@@ -120,7 +123,7 @@ export function NovaRodadaForm({
                 <Plus className="h-3.5 w-3.5" /> Adicionar tinta
               </Button>
               <span className="font-mono text-xs text-muted-foreground">
-                total: {total.toFixed(2)}%{Math.abs(total - 100) > 0.5 ? " ⚠" : ""}
+                total: {num(total, 2)}%{somaFecha100(total) ? "" : " ⚠"}
               </span>
             </div>
           </div>

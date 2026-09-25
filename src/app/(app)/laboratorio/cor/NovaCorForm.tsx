@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
 import { criarCor } from "./actions";
+import { useFormActionSemReset } from "@/hooks/use-form-action";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +14,10 @@ const TIPOS_REFERENCIA = [
   { value: "PLOTTER_PANTONE_DIGITAL", label: "Tarja do plotter (Pantone Digital)" },
 ];
 
-export function NovaCorForm() {
-  const [erro, formAction, pending] = useActionState(criarCor, undefined);
+// O código não é digitado: o sistema gera o próximo STA na hora de criar. `proximoCodigo` é só a
+// previsão mostrada no campo travado — se outra pessoa criar uma cor antes, o número real avança.
+export function NovaCorForm({ proximoCodigo }: { proximoCodigo: string }) {
+  const [erro, onSubmit, pending] = useFormActionSemReset(criarCor, undefined);
 
   return (
     <Card className="max-w-2xl">
@@ -23,11 +25,12 @@ export function NovaCorForm() {
         <CardTitle className="text-base">Nova cor</CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="codigo">Código</Label>
-              <Input id="codigo" name="codigo" required placeholder="Ex.: STA0193" />
+              <Input id="codigo" value={proximoCodigo} disabled readOnly aria-describedby="codigo-dica" />
+              <span id="codigo-dica" className="text-[11px] text-muted-foreground">Gerado automaticamente ao criar.</span>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cliente">Cliente</Label>
