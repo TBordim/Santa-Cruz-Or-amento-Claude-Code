@@ -118,9 +118,15 @@ no banco da demo.
 
 - **Clientes inventados:** Doces Serra Azul, Café Vale do Sol, Farmacêutica Boa Saúde,
   Cosméticos Lírio do Campo, Pet Feliz Rações.
-- **Cores com código fora da faixa real** (`STA9001` em diante), para nunca serem confundidas
-  com uma cor de verdade. Só nos status que o app consegue produzir: "Em desenvolvimento" e
-  "Aprovado" (ver seção 6 do mapa).
+- **Quatro cores, STA0001 a STA0004,** com status que o app consegue produzir:
+  - STA0001 Pet Feliz Rações (Em desenvolvimento);
+  - STA0002 Café Vale do Sol (Aprovado);
+  - STA0003 Farmacêutica Boa Saúde (Aprovado);
+  - STA0004 Cosméticos Lírio do Campo (Em desenvolvimento).
+
+  O código agora é gerado pelo sistema, então a cor criada ao vivo no vídeo sai como **STA0005**.
+  Como o banco da demo é separado, não há risco de confundir essas cores com as reais. *(Antes
+  o plano era usar STA9001 em diante; mudou com o código automático.)*
 - **Rodadas** com fórmulas de bases IRO somando 100%, LAB alvo, puxadas com o ΔE caindo a cada
   rodada (ex.: 3,42 → 1,35 → 0,71) e uma rodada aprovada, que a tela Produção vai usar.
 - *Removido depois do mapa da Fase 1:* interações com fornecedor e leituras de produção. Elas

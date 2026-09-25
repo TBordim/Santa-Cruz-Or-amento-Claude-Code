@@ -38,9 +38,12 @@ Não há vídeo de Administração.
 
 ## Regras de todos os vídeos
 
-- **Vinheta institucional de 5 s** antes da abertura, igual em todos: logo da Santa Cruz,
-  "Programa de Treinamento" e o nome do módulo. É opcional uma tela de texto curta dizendo que o
-  uso do app é padrão da empresa.
+- **Abertura padrão (cerca de 8 s), igual em todos os vídeos:**
+  1. Tela de texto opcional: o uso do app é padrão da empresa.
+  2. Vinheta: logotipo completo da Santa Cruz, "Programa de Treinamento" e o nome do módulo.
+  3. Transformação: o logotipo gira como um **pequeno tornado laranja** e se condensa no
+     Santinho, que aterrissa acenando e começa a apresentação. Anima-se uma vez e reaproveita-se,
+     trocando só o nome do módulo.
 - **Nenhuma pessoa real aparece**, nem em imagem nem em voz. O único apresentador é o Santinho.
 - **Só dados fictícios**, gravados no ambiente de demonstração (`00-ambiente-demo.md`).
 - **Tudo o que é dito sobre o sistema vem do código.** Dúvidas ficam marcadas `[CONFIRMAR]`.

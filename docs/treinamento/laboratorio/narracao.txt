@@ -1,0 +1,29 @@
+Olá! Eu sou o Santinho, e hoje a gente vai colocar esse módulo no papel! Em poucos minutos, você vai cadastrar uma cor, registrar fórmulas e puxadas, aprovar a rodada certa e calcular a tinta de um lote na Produção.
+
+O módulo Laboratório é a bancada digital de desenvolvimento de cor. Quem é do Laboratório ou da Engenharia registra tudo: a cor, as fórmulas testadas e as leituras. Quem produz entra para consultar a fórmula aprovada e calcular o lote. Tudo num lugar só, com histórico.
+
+Depois de entrar com seu nome e seu pin, o aplicativo abre no Orçamento. Para chegar aqui, use o campo Módulo, no topo do menu, e escolha Laboratório. No Início, você tem dois atalhos: Cor e Produção.
+
+Em Cor fica a lista de todas as cores. Ela não segue a ordem dos números: é como a pilha de provas na mesa, a última mexida fica por cima. Para achar uma cor, use a busca. Vale código, cliente ou referência.
+
+Para cadastrar, use o quadro Nova cor. O código você não digita: o sistema gera o próximo número sozinho. Preencha o cliente, a referência e o tipo. E o mais importante: o Lab alvo. São três valores, éle, á e bê. Ou você preenche os três, ou deixa os três em branco. Depois, é só clicar em Criar cor.
+
+Pronto: essa é a bancada da cor, com tudo sobre ela numa tela só. Vamos registrar a primeira fórmula. Escolha a origem, aqui Fórmula do fornecedor, e adicione as tintas com o percentual de cada uma. A soma precisa fechar em cem por cento exatos. Enquanto não fecha, aparece um alerta ao lado do total. Clique em Salvar rodada.
+
+Hora da puxada no Quick Peek. Aqui você registra só o melhor Lab, o mais perto do alvo. Digite éle, á e bê, e clique em Registrar puxada. Digitou errado? É só corrigir: o valor novo substitui o antigo.
+
+Agora a bancada mostra o resultado. O delta é dessa rodada ficou em dois vírgula cinquenta e nove, em vermelho, porque a meta é abaixo de um. No eixo Lab, a mira é o alvo e a bolinha é a sua puxada. A seta mostra o caminho: aqui, menos vermelho e menos amarelo. E a régua ao lado mostra que a tinta ficou um pouco escura. A seta dá a direção; quanto mudar, é com você.
+
+Vamos ajustar. O quadro Novo ajuste já vem com a fórmula da rodada anterior: mude só o que precisa. Aqui, um pouco menos de laranja e de vermelho, e mais branco. Salve, faça a puxada e registre. Olha só: zero vírgula cinquenta e nove. Dentro da tolerância!
+
+Chegou na cor? Clique em Aprovar esta rodada. Atenção: o botão não pede confirmação, e a cor passa na hora para Aprovado. Um delta é acima de um até pode ser aprovado, mas fica em vermelho, para todo mundo ver.
+
+Errou algum dado? Editar dados corrige o cadastro, menos o código, que é fixo. O lápis corrige a fórmula de uma rodada, e a lixeira exclui. Cuidado: excluir a rodada aprovada devolve a cor para Em desenvolvimento, e ela sai da Produção.
+
+Agora, a Produção. No menu, clique em Produção, digite o código completo da cor e busque. Informe quantos quilos vai produzir, por exemplo vinte e cinco, e o aplicativo calcula na hora quanto de cada tinta usar. Só aparecem cores aprovadas.
+
+Opa, cuidado aqui, que esse erro borra a impressão! Os deslizes mais comuns: preencher só parte do Lab alvo, fórmula que não fecha em cem por cento, a mesma tinta em duas linhas e, na Produção, digitar só parte do código. Em todos esses casos, o aplicativo avisa. Leia a mensagem e corrija.
+
+Recapitulando: um, cadastre a cor com o Lab alvo completo. Dois, registre cada rodada com a melhor puxada, e use o delta é e a seta para ajustar. Três, aprove a rodada certa, e a Produção calcula o lote.
+
+Pronto, tudo impresso e aprovado. Agora é com você! Responda o quiz a seguir e mostre que já domina o Laboratório.

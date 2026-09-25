@@ -1,0 +1,104 @@
+{
+  "modulo": "laboratorio",
+  "titulo": "Quiz do Laboratório",
+  "versao": 1,
+  "notaMinima": 70,
+  "perguntas": [
+    {
+      "id": "lab-01",
+      "pergunta": "Você vai cadastrar uma cor nova. O que acontece com o código dela?",
+      "alternativas": [
+        "Você digita o próximo número livre, no padrão STA + 4 dígitos.",
+        "O sistema gera o próximo número sozinho, e ele não muda depois.",
+        "Você copia o código do produto do cliente.",
+        "O código é gerado só depois que a cor for aprovada."
+      ],
+      "correta": 1,
+      "explicacao": "O código é gerado pelo sistema ao clicar em Criar cor (o maior STA existente + 1) e fica travado, inclusive em Editar dados."
+    },
+    {
+      "id": "lab-02",
+      "pergunta": "No cadastro, você só tem o L* do alvo; o a* e o b* ainda não foram medidos. O que fazer?",
+      "alternativas": [
+        "Preencher o L* e deixar a* e b* em branco.",
+        "Preencher a* e b* com zero.",
+        "Deixar os três campos em branco e completar depois, em Editar dados.",
+        "Digitar os três valores no mesmo campo, separados por vírgula."
+      ],
+      "correta": 2,
+      "explicacao": "O LAB alvo é tudo ou nada: ou os três valores, ou nenhum. Com só um ou dois preenchidos, o app recusa. Dá para completar depois em Editar dados."
+    },
+    {
+      "id": "lab-03",
+      "pergunta": "Sua fórmula soma 99,50% e você clica em Salvar rodada. O que acontece?",
+      "alternativas": [
+        "O app recusa: a soma precisa fechar em 100,00% exatos.",
+        "O app salva, porque a diferença é menor que 1%.",
+        "O app completa o que falta na tinta de maior percentual.",
+        "O app salva e marca a rodada em vermelho."
+      ],
+      "correta": 0,
+      "explicacao": "A soma precisa fechar em 100,00% exatos. Enquanto não fecha, aparece ⚠ ao lado do total, e o app mostra a mensagem com o valor atual da soma."
+    },
+    {
+      "id": "lab-04",
+      "pergunta": "Na puxada do Quick Peek, qual leitura você registra na rodada?",
+      "alternativas": [
+        "Todas as leituras das faixas, uma por uma.",
+        "A média de todas as leituras.",
+        "A primeira leitura feita.",
+        "Só o melhor LAB: o mais perto do alvo."
+      ],
+      "correta": 3,
+      "explicacao": "Cada rodada guarda uma puxada só: o melhor LAB encontrado. Se digitar errado, Corrigir puxada substitui o valor anterior."
+    },
+    {
+      "id": "lab-05",
+      "pergunta": "O que a seta do eixo LAB mostra?",
+      "alternativas": [
+        "Quantos gramas de cada tinta mudar.",
+        "A direção do ajuste, da sua puxada até o alvo.",
+        "Qual fornecedor tem a tinta certa.",
+        "Se a rodada já pode ser aprovada."
+      ],
+      "correta": 1,
+      "explicacao": "A seta vai da última puxada até o alvo e mostra para que lado ajustar (ex.: menos vermelho, menos amarelo). Quanto mudar de cada tinta é decisão de quem formula."
+    },
+    {
+      "id": "lab-06",
+      "pergunta": "Uma rodada ficou com ΔE 1,20. O que o app permite?",
+      "alternativas": [
+        "Nada: o botão Aprovar só aparece com ΔE abaixo de 1,00.",
+        "Aprovar só com o PIN do administrador.",
+        "Aprovar, mas o ΔE aparece em vermelho, porque está acima da meta de 1,00.",
+        "Aprovar, e o app arredonda o ΔE para 1,00."
+      ],
+      "correta": 2,
+      "explicacao": "A meta é ΔE abaixo de 1,00. Acima disso a rodada ainda pode ser aprovada, mas o valor fica em vermelho na rodada, no resumo e na lista de cores."
+    },
+    {
+      "id": "lab-07",
+      "pergunta": "O que acontece se você excluir a rodada que estava aprovada?",
+      "alternativas": [
+        "A cor volta para Em desenvolvimento e sai da Produção.",
+        "A rodada anterior vira a aprovada automaticamente.",
+        "Nada: a rodada aprovada não pode ser excluída.",
+        "A cor inteira é excluída junto."
+      ],
+      "correta": 0,
+      "explicacao": "Excluir a rodada aprovada devolve a cor para Em desenvolvimento, e ela deixa de aparecer na Produção até outra rodada ser aprovada. A exclusão não tem volta."
+    },
+    {
+      "id": "lab-08",
+      "pergunta": "Na Produção, como encontrar a cor STA0005?",
+      "alternativas": [
+        "Digitando só 0005.",
+        "Rolando a lista de cores pela ordem dos números.",
+        "Digitando o nome do cliente.",
+        "Digitando o código completo; maiúsculas ou minúsculas tanto faz."
+      ],
+      "correta": 3,
+      "explicacao": "A Produção busca pelo código completo (sta0005 ou STA0005 funcionam; 0005 não). E só calcula lotes de cores que têm uma rodada aprovada."
+    }
+  ]
+}
