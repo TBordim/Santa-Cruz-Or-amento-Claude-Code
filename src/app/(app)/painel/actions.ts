@@ -302,6 +302,29 @@ export async function decidirDiretoriaFaixa(formData: FormData) {
   revalidatePath(`/painel/${id}`);
 }
 
+// Cobre o card que chega na Diretoria já com todas as faixas resolvidas (auto_aprovado ou
+// aprovado) sem passar pelo fim normal de decidirDiretoriaFaixa acima — acontece quando alguém
+// usa "Voltar etapa" a partir do Envio de Oferta (ou de uma etapa depois) de volta pra
+// Diretoria: essa ação só move a etapa pra trás, não mexe na precificação, então o card volta
+// com tudo já decidido e nenhuma faixa pendente sobra pra abrir o formulário de decisão — sem
+// este botão o card ficava preso, sem nenhum jeito de avançar de novo. Achado em teste real
+// pelo Thiago em 25/09/2026.
+export async function liberarDiretoriaResolvida(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  await exigirEdicao(id);
+
+  const precificacao = (doc.precificacao as PrecificacaoTier[] | null) ?? [];
+  if (!precificacao.length || precificacao.some((t) => t.statusDiretoria === "pendente")) return;
+
+  const todosAuto = precificacao.every((t) => t.statusDiretoria === "auto_aprovado");
+  await prisma.orcamento.update({
+    where: { id },
+    data: { etapa: "ENVIO_OFERTA", statusDiretoria: todosAuto ? "AUTO_APROVADO" : "APROVADO" },
+  });
+  redirect("/painel");
+}
+
 // ---------- Etapa 5 — Envio de Oferta ----------
 
 export async function salvarNumeroOrcamento(formData: FormData) {

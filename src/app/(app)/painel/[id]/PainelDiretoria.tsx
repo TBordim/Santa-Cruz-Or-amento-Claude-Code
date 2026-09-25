@@ -1,6 +1,6 @@
 "use client";
 
-import { decidirDiretoriaFaixa, salvarRascunhoDiretoria } from "../actions";
+import { decidirDiretoriaFaixa, salvarRascunhoDiretoria, liberarDiretoriaResolvida } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import type { OrcamentoAnteriorRef } from "@/lib/orcamentos/tiers";
@@ -182,6 +182,10 @@ export function PainelDiretoria({
   anteriorAoVivo: OrcamentoAnteriorRef | null;
 }) {
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
+  // Card que voltou pra Diretoria (via "Voltar etapa" a partir do Envio de Oferta) já com tudo
+  // decidido — nenhuma faixa pendente sobra pra abrir o formulário de decisão, então sem este
+  // botão não haveria nenhum jeito de avançar de novo. Ver liberarDiretoriaResolvida em actions.ts.
+  const tudoResolvido = tiers.length > 0 && tiers.every((t) => t.statusDiretoria !== "pendente");
 
   return (
     <>
@@ -202,6 +206,13 @@ export function PainelDiretoria({
         <TierCard key={i} doc={doc} tier={t} idx={i} total={tiers.length} anteriorAoVivo={anteriorAoVivo} />
       ))}
 
+      {tudoResolvido && (
+        <form action={liberarDiretoriaResolvida} className="mt-2 rounded-lg border border-good/30 bg-good-soft p-3">
+          <input type="hidden" name="id" value={doc.id} />
+          <div className="mb-2 text-sm text-foreground">Todas as faixas já foram decididas — falta só liberar para o Envio de Oferta.</div>
+          <Button type="submit">Liberar para Envio de Oferta</Button>
+        </form>
+      )}
     </>
   );
 }
