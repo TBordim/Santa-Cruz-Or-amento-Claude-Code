@@ -38,7 +38,33 @@ sozinha. Esse catálogo é informação pública do fornecedor, não dado de cli
 - **Conclusão:** o risco 1 está **confirmado para o futuro**. O próximo push de qualquer branch
   com migração nova altera o banco de produção.
 
-## Andamento (25/09/2026)
+## ✅ Demo pronta (25/09/2026)
+
+**Endereço:** https://santa-cruz-or-amento-claude-code-git-demo-tbordim.vercel.app
+
+- Login: **Ana Laboratório**, PIN **1111**. Também existem Bruno Engenharia (2222), Carla
+  Produção (3333) e Demo Admin (9999).
+- O ensaio completo do vídeo do Laboratório foi rodado **no endereço publicado**: 23 de 23
+  verificações certas. Depois o seed foi rodado de novo, para a demo voltar ao início.
+- **Para regravar do zero** (Claude ou quem estiver no computador), na pasta `wt-demo`:
+  `npx dotenv -e .env.demo -- npx tsx prisma/seed-demo.ts`
+
+### Como a demo funciona de verdade (descoberto em 25/09)
+
+- A integração do Neon cria **uma branch de banco para cada branch de preview**
+  (`preview/<branch>`), copiada da produção, e troca o servidor do `DATABASE_URL` pelo dela.
+  **Os previews não tocam no banco de produção.** O risco 1 abaixo não se aplica desde que a
+  integração foi reinstalada, em 24/09.
+- A demo usa o banco **`santacruz_demo` da branch Neon `preview/demo`**. É para esse banco que
+  as variáveis da branch `demo` apontam, com o servidor trocado pelo Neon.
+- O `neondb` da branch `preview/demo` é **uma cópia dos dados reais** feita pelo Neon. A demo não
+  usa esse banco, e ninguém deve gravar nele nem mostrá-lo.
+- O `santacruz_demo` criado na branch **principal** do Neon, a da produção, está vazio e sem
+  uso. Pode ser apagado.
+- **Detalhe técnico:** um "Redeploy" herda as variáveis do deploy antigo. Para pegar variáveis
+  novas, é preciso fazer um deploy novo a partir do Git.
+
+## Andamento (25/09/2026, histórico)
 
 **Pronto:**
 - A branch `demo` foi criada a partir do Laboratório, com a `main` incorporada. Ela está só no
