@@ -43,7 +43,7 @@ Não há vídeo de Administração.
   tinta, vinco, dobra, bobina, prova de cor) e nunca ridicularizam o usuário.
 - **Expressões:** neutro, feliz, explicando, apontando, alerta (erros comuns), comemorando.
 - **Bordões:**
-  - Abertura: "Olá! Eu sou o Santinho, e hoje a gente vai colocar esse módulo no papel!"
+  - Abertura: "Olá! Eu sou o Santinho, e hoje a gente vai colocar esse módulo no registro!"
   - Alerta: "Opa, cuidado aqui, que esse erro borra a impressão!"
   - Encerramento: "Pronto, tudo impresso e aprovado. Agora é com você!"
 

@@ -1,7 +1,7 @@
 1
 00:00:12,300 --> 00:00:19,603
 Olá! Eu sou o Santinho, e hoje a gente
-vai colocar esse módulo no papel!
+vai colocar esse módulo no registro!
 
 2
 00:00:19,653 --> 00:00:25,983

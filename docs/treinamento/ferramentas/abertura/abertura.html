@@ -57,7 +57,7 @@
   const INICIO_FALA = 5.4, DUR_FALA = Number(new URLSearchParams(location.search).get("fala") || 11.36);
   const FIM = INICIO_FALA + DUR_FALA + 1.2;
   // Legenda da cena 1 (mesmos blocos do legendas.srt), com o tempo redistribuído pela duração real da voz.
-  const BLOCOS = ["Olá! Eu sou o Santinho, e hoje a gente\nvai colocar esse módulo no papel!",
+  const BLOCOS = ["Olá! Eu sou o Santinho, e hoje a gente\nvai colocar esse módulo no registro!",
                   "Em poucos minutos, você vai cadastrar uma\ncor, registrar fórmulas e puxadas, aprovar",
                   "a rodada certa e calcular a\ntinta de um lote na Produção."];
   const pal = BLOCOS.map(b => b.split(/\s+/).length), tot = pal.reduce((a, b) => a + b, 0);

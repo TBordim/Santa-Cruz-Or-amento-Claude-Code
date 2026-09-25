@@ -1,4 +1,4 @@
-Olá! Eu sou o Santinho, e hoje a gente vai colocar esse módulo no papel! Em poucos minutos, você vai cadastrar uma cor, registrar fórmulas e puxadas, aprovar a rodada certa e calcular a tinta de um lote na Produção.
+Olá! Eu sou o Santinho, e hoje a gente vai colocar esse módulo no registro! Em poucos minutos, você vai cadastrar uma cor, registrar fórmulas e puxadas, aprovar a rodada certa e calcular a tinta de um lote na Produção.
 
 O módulo Laboratório é a bancada digital de desenvolvimento de cor. Quem é do Laboratório ou da Engenharia registra tudo: a cor, as fórmulas testadas e as leituras. Quem produz entra para consultar a fórmula aprovada e calcular o lote. Tudo num lugar só, com histórico.
 
