@@ -116,7 +116,7 @@ Legenda:
 **Ponto de partida:** bancada com a puxada da Rodada 1 registrada.
 
 1. 🔴 Role até o topo da página, devagar.
-2. ⏸ 3 s no **eixo LAB**: a mira do alvo, a bolinha da puxada e a seta vermelha.
+2. ⏸ 3 s no **eixo LAB**: a mira do alvo, a bolinha da puxada e a seta vermelha. **Grave com zoom no eixo** (ou amplie na edição): perto do alvo, a seta é pequena.
 3. ⏸ 2 s na **régua de L\***, à direita do desenho.
 4. Role até **"Evolução do ΔE2000 por rodada"**. ⏸ 3 s em **"R1: 2,59"** em vermelho.
 5. ⏹ Pare.

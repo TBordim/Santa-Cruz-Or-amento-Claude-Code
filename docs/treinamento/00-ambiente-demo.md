@@ -38,6 +38,34 @@ sozinha. Esse catálogo é informação pública do fornecedor, não dado de cli
 - **Conclusão:** o risco 1 está **confirmado para o futuro**. O próximo push de qualquer branch
   com migração nova altera o banco de produção.
 
+## Andamento (25/09/2026)
+
+**Pronto:**
+- A branch `demo` foi criada a partir do Laboratório, com a `main` incorporada. Ela está só no
+  computador do Thiago, na pasta `wt-demo`.
+- `prisma/seed-demo.ts`:
+  - recria 4 usuários e as cores STA0001–STA0004;
+  - a trava de segurança recusou o banco local de sempre;
+  - o seed foi rodado duas vezes seguidas, com o mesmo resultado.
+- **Teste completo do roteiro** num Postgres local separado: 23 verificações, todas certas. Entre
+  elas: o código STA0005, o ΔE 2,59 → 0,59, o "Ajuste nosso", as mensagens de erro e o cálculo
+  11,000 / 7,125 / 6,875 kg.
+- `wt-demo/.env.demo` foi criado (fora do Git), à espera da connection string do banco da demo.
+
+**Falta, na ordem:**
+1. **Neon (Thiago):** criar o banco `santacruz_demo` e copiar a connection string para o
+   `wt-demo/.env.demo`. **Nunca colar no chat.**
+2. **Vercel (Thiago):** criar `DATABASE_URL` e `AUTH_SECRET` para **Preview**, branch `demo`.
+   Se a Vercel recusar o `DATABASE_URL` por conflito com a variável da integração do Neon, a
+   alternativa é tirar o Preview da conexão do Neon (Storage) e depois criar a variável.
+3. **Push da branch `demo` (Thiago):** `git push -u origin demo`. O build da Vercel aplica as
+   migrações no banco da demo.
+4. **Seed (Claude):** `npx dotenv -e .env.demo -- npx tsx prisma/seed-demo.ts`, rodado na pasta
+   `wt-demo`.
+5. **Conferir:** abrir o endereço do preview da branch `demo`. A lista de nomes do login precisa
+   mostrar **só** Ana Laboratório, Bruno Engenharia, Carla Produção e Demo Admin. Se aparecer
+   qualquer nome real, **pare**: o preview está no banco de produção.
+
 ## Passo a passo
 
 ### A. Verificações na Vercel (feito, ver acima)
