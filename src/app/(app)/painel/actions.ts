@@ -292,11 +292,12 @@ export async function decidirDiretoriaFaixa(formData: FormData) {
   }
   await prisma.orcamento.update({ where: { id }, data });
   revalidatePath("/diretoria");
-  // Só fecha a gaveta quando a decisão realmente avança de etapa (todas as faixas resolvidas) —
-  // continuando na Diretoria (outras faixas ainda pendentes) ou voltando pro Orçamento
-  // (revisão), a gaveta permanece aberta na mesma etapa, já que a pessoa provavelmente ainda
-  // está trabalhando nesse card.
-  if (resultado.proximo.tipo === "avanca_envio_oferta") {
+  // Toda mudança de etapa fecha a gaveta e volta pro quadro — avançando pro Envio de Oferta OU
+  // voltando pro Orçamento (revisão), sem exceção, pra quem estava operando escolher
+  // manualmente o próximo card. Só continua aberta quando a etapa não mudou de verdade (outra
+  // faixa deste mesmo card ainda pendente na Diretoria) — aí sim a pessoa está com trabalho
+  // pendente neste card específico. Pedido do Thiago em 25/09/2026.
+  if (resultado.proximo.tipo !== "continua_diretoria") {
     redirect("/painel");
   }
   revalidatePath(`/painel/${id}`);
@@ -427,7 +428,10 @@ export async function voltarEtapa(formData: FormData) {
   const idx = ordem.indexOf(doc.etapa as (typeof ordem)[number]);
   if (idx <= 0) return;
   await prisma.orcamento.update({ where: { id }, data: { etapa: ordem[idx - 1] } });
-  revalidatePath(`/painel/${id}`);
+  // Toda mudança de etapa fecha a gaveta e volta pro quadro — pra frente ou pra trás, sem
+  // exceção — pra quem estava operando escolher manualmente o próximo card, nunca ficar com
+  // algo aberto sozinho. Pedido do Thiago em 25/09/2026.
+  redirect("/painel");
 }
 
 export async function excluirCard(formData: FormData) {
