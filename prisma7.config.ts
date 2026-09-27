@@ -9,7 +9,12 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Só o CLI do Prisma (migrate deploy no build) usa esta URL — o app em execução conecta pelo
+    // DATABASE_URL em src/lib/db.ts. Migração vai pela conexão DIRETA do Neon (sem pooler): o
+    // migrate segura uma "advisory lock" de sessão, e através do pooler essa trava pode ficar
+    // presa numa conexão reaproveitada, travando os builds seguintes (erro P1002 no deploy de
+    // 27/09/2026). Local não tem DATABASE_URL_UNPOOLED e segue usando o DATABASE_URL de sempre.
+    url: process.env["DATABASE_URL_UNPOOLED"] || process.env["DATABASE_URL"],
     shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"],
   },
 });
