@@ -24,45 +24,64 @@ type Sugestao = {
 // salva de verdade quando o formulário abaixo é enviado.
 export function PrimeiraFormula({ corId, bases, sugestoes }: { corId: string; bases: Base[]; sugestoes: Sugestao[] }) {
   const [escolhida, setEscolhida] = useState<string | null>(null);
-  const composicaoEscolhida = sugestoes.find((s) => s.corId === escolhida)?.composicao ?? [];
+  const sugestaoEscolhida = sugestoes.find((s) => s.corId === escolhida);
+  const composicaoEscolhida = sugestaoEscolhida?.composicao ?? [];
 
   return (
     <div className="flex flex-col gap-4">
-      {sugestoes.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="mb-1 text-sm font-semibold text-foreground">Como começar</div>
-          <p className="mb-3 text-sm text-muted-foreground">
-            Fórmulas já aprovadas com LAB parecido — escolha uma pra preencher a rodada 1, ou ignore e comece do zero.
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="mb-1 text-sm font-semibold text-foreground">Como começar</div>
+        {sugestoes.length === 0 ? (
+          // Ausência explicada em vez de simplesmente sumir — sem isso parecia que a sugestão
+          // tinha quebrado, quando na verdade é só "nada parecido no histórico ainda".
+          <p className="text-sm text-muted-foreground">
+            Nenhuma fórmula aprovada com LAB parecido (ΔE2000 &lt; 2,5) no histórico ainda. Comece pela fórmula do fornecedor
+            ou do seu próprio julgamento no formulário abaixo.
           </p>
-          <div className="flex flex-col gap-2">
-            {sugestoes.map((s) => (
-              <div key={s.corId} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-2.5">
-                <span
-                  className="h-6 w-6 shrink-0 rounded-full border border-border"
-                  style={{ background: labToCssColor(s.lab) }}
-                  title="Apoio visual — não substitui a cabine de luz D50"
-                />
-                <div className="min-w-0 flex-1 text-sm">
-                  <span className="font-medium">{s.codigo}</span>
-                  {s.cliente && <span className="text-muted-foreground"> · {s.cliente}</span>}
-                  <span className="ml-2 font-mono text-xs text-muted-foreground">ΔE {num(s.de, 2)}</span>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Fórmulas já aprovadas com LAB parecido — escolha uma pra preencher a rodada 1, ou ignore e comece do zero.
+            </p>
+            <div className="flex flex-col gap-2">
+              {sugestoes.map((s) => (
+                <div key={s.corId} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-2.5">
+                  <span
+                    className="h-6 w-6 shrink-0 rounded-full border border-border"
+                    style={{ background: labToCssColor(s.lab) }}
+                    title="Apoio visual — não substitui a cabine de luz D50"
+                  />
+                  <div className="min-w-0 flex-1 text-sm">
+                    <span className="font-medium">{s.codigo}</span>
+                    {s.cliente && <span className="text-muted-foreground"> · {s.cliente}</span>}
+                    <span className="ml-2 font-mono text-xs text-muted-foreground">ΔE {num(s.de, 2)}</span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={escolhida === s.corId ? "default" : "outline"}
+                    onClick={() => setEscolhida(s.corId)}
+                  >
+                    {escolhida === s.corId ? "Selecionada" : "Usar esta fórmula"}
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={escolhida === s.corId ? "default" : "outline"}
-                  onClick={() => setEscolhida(s.corId)}
-                >
-                  {escolhida === s.corId ? "Selecionada" : "Usar esta fórmula"}
+              ))}
+              {escolhida && (
+                <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => setEscolhida(null)}>
+                  Começar do zero
                 </Button>
-              </div>
-            ))}
-            {escolhida && (
-              <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => setEscolhida(null)}>
-                Começar do zero
-              </Button>
-            )}
-          </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Salvaguarda: se a rodada aprovada dessa cor não tiver composição registrada (não deveria
+          acontecer, mas silenciosamente virar um form em branco parece um bug sem explicação) —
+          avisa em vez de deixar a pessoa achar que a sugestão quebrou sem motivo. */}
+      {escolhida && sugestaoEscolhida && composicaoEscolhida.length === 0 && (
+        <div className="anexo-erro">
+          A fórmula aprovada de {sugestaoEscolhida.codigo} não tem composição registrada — não deu pra preencher.
         </div>
       )}
 

@@ -15,7 +15,6 @@ import { Plus, Trash2 } from "lucide-react";
 const ORIGENS = [
   { value: "FORNECEDOR", label: "Fórmula do fornecedor" },
   { value: "AJUSTE_MANUAL", label: "Ajuste nosso" },
-  { value: "SUGESTAO_SISTEMA", label: "Sugestão do sistema (histórico parecido)" },
 ];
 
 type Base = { id: string; codigo: string; nome: string };
@@ -51,6 +50,11 @@ export function NovaRodadaForm({
 
   const total = linhas.reduce((s, l) => s + (Number(l.percentual.replace(",", ".")) || 0), 0);
 
+  // "Sugestão do sistema" só entra na lista quando já chegou de uma sugestão real escolhida (ver
+  // PrimeiraFormula.tsx) — sozinha, escolhida à mão, ela não preenche nada, então não faz sentido
+  // deixá-la como opção solta no menu (confundia: parecia uma ação, era só um rótulo vazio).
+  const origens = origemPadrao === "SUGESTAO_SISTEMA" ? [...ORIGENS, { value: "SUGESTAO_SISTEMA", label: "Sugestão do sistema (histórico parecido)" }] : ORIGENS;
+
   return (
     <Card>
       <CardHeader>
@@ -73,7 +77,7 @@ export function NovaRodadaForm({
                 <SelectValue placeholder="Escolha…" />
               </SelectTrigger>
               <SelectContent>
-                {ORIGENS.map((o) => (
+                {origens.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {o.label}
                   </SelectItem>
