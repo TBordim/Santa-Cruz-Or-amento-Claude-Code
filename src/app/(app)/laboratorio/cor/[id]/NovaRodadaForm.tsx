@@ -15,6 +15,7 @@ import { Plus, Trash2 } from "lucide-react";
 const ORIGENS = [
   { value: "FORNECEDOR", label: "Fórmula do fornecedor" },
   { value: "AJUSTE_MANUAL", label: "Ajuste nosso" },
+  { value: "SUGESTAO_SISTEMA", label: "Sugestão do sistema (histórico parecido)" },
 ];
 
 type Base = { id: string; codigo: string; nome: string };
@@ -28,11 +29,15 @@ export function NovaRodadaForm({
   bases,
   proximoNumero,
   composicaoAnterior,
+  origemPadrao,
 }: {
   corId: string;
   bases: Base[];
   proximoNumero: number;
   composicaoAnterior: { baseId: string; percentual: number }[];
+  // Preenchido quando a composição veio de uma sugestão (histórico parecido) em vez da rodada
+  // anterior — deixa a origem já certa, sem o colorista precisar lembrar de trocar.
+  origemPadrao?: string;
 }) {
   const [erro, onSubmit, pending] = useFormActionSemReset(criarRodada, undefined);
   const [linhas, setLinhas] = useState<Linha[]>(
@@ -63,7 +68,7 @@ export function NovaRodadaForm({
 
           <div className="flex flex-col gap-1.5 sm:max-w-xs">
             <Label htmlFor="origem">Origem da fórmula</Label>
-            <Select name="origem" defaultValue={proximoNumero === 1 ? undefined : "AJUSTE_MANUAL"} required>
+            <Select name="origem" defaultValue={origemPadrao ?? (proximoNumero === 1 ? undefined : "AJUSTE_MANUAL")} required>
               <SelectTrigger id="origem" className="w-full">
                 <SelectValue placeholder="Escolha…" />
               </SelectTrigger>

@@ -7,9 +7,15 @@ import { deltaE2000 } from "@/lib/cor/deltae";
 import { labToCssColor } from "@/lib/cor/lab-to-rgb";
 import { num } from "@/lib/cor/formato";
 import { NovaRodadaForm } from "./NovaRodadaForm";
+import { PrimeiraFormula } from "./PrimeiraFormula";
 import { RodadaCard } from "./RodadaCard";
 import { EditarCorForm } from "./EditarCorForm";
 import { EixoLabDiagram } from "./EixoLabDiagram";
+
+// ΔE2000 máximo pra uma cor do histórico entrar como sugestão de ponto de partida — mais frouxo
+// que a tolerância de aprovação (1,00): aqui é só "parecido o bastante pra economizar o primeiro
+// chute", a fórmula ainda passa pelo ciclo normal de ajuste.
+const TOLERANCIA_SUGESTAO_HISTORICO = 2.5;
 
 const STATUS_LABEL: Record<string, string> = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -85,6 +91,54 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
   // Última puxada registrada (a mais recente com leitura), pra desenhar a seta de ajuste no plano
   // a*/b* — é a referência que o colorista tem na mão na hora de montar a próxima rodada.
   const ultimaComPuxada = rodadasSerializadas.filter((x) => x.puxadaLab).at(-1);
+
+  // Sugestão de ponto de partida (histórico): só faz sentido antes da 1ª rodada e com um LAB de
+  // referência pra comparar — sem alvo real ainda usa o próprio LAB final (cor importada), mesma
+  // lógica do labExibido acima.
+  const sugestoesHistorico =
+    cor.rodadas.length === 0 && labExibido
+      ? await (async () => {
+          const candidatos = await prisma.cor.findMany({
+            where: { id: { not: cor.id }, rodadas: { some: { aprovada: true } } },
+            select: {
+              id: true,
+              codigo: true,
+              cliente: true,
+              rodadas: {
+                where: { aprovada: true },
+                take: 1,
+                select: {
+                  composicoes: {
+                    select: { baseId: true, percentual: true, base: { select: { codigo: true } } },
+                    orderBy: { percentual: "desc" },
+                  },
+                  leituras: { select: { contexto: true, l: true, a: true, b: true } },
+                },
+              },
+            },
+          });
+          return candidatos
+            .map((c) => {
+              const rodadaAprovada = c.rodadas[0];
+              const leituraAprovada =
+                rodadaAprovada?.leituras.find((l) => l.contexto === "PUXADA") ??
+                rodadaAprovada?.leituras.find((l) => l.contexto === "FINAL");
+              if (!rodadaAprovada || !leituraAprovada) return null;
+              const lab = { l: Number(leituraAprovada.l), a: Number(leituraAprovada.a), b: Number(leituraAprovada.b) };
+              return {
+                corId: c.id,
+                codigo: c.codigo,
+                cliente: c.cliente,
+                de: deltaE2000(labExibido, lab),
+                lab,
+                composicao: rodadaAprovada.composicoes.map((cp) => ({ baseId: cp.baseId, percentual: Number(cp.percentual) })),
+              };
+            })
+            .filter((x): x is NonNullable<typeof x> => x != null && x.de <= TOLERANCIA_SUGESTAO_HISTORICO)
+            .sort((a, b) => a.de - b.de)
+            .slice(0, 3);
+        })()
+      : [];
 
   return (
     <>
@@ -213,16 +267,20 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
 
       {podeRegistrar && (
         <div className="mt-6">
-          {/* key = número da próxima rodada: salvar uma rodada troca o número e recria o quadro do
-              zero — vem com "Ajuste nosso" e a fórmula da rodada recém-salva. Sem isso, o Select
-              não controlado mantinha a origem escolhida antes (ex.: "Fórmula do fornecedor"). */}
-          <NovaRodadaForm
-            key={(cor.rodadas.at(-1)?.numero ?? 0) + 1}
-            corId={cor.id}
-            bases={bases}
-            proximoNumero={(cor.rodadas.at(-1)?.numero ?? 0) + 1}
-            composicaoAnterior={ultimaComposicao}
-          />
+          {cor.rodadas.length === 0 ? (
+            <PrimeiraFormula corId={cor.id} bases={bases} sugestoes={sugestoesHistorico} />
+          ) : (
+            // key = número da próxima rodada: salvar uma rodada troca o número e recria o quadro do
+            // zero — vem com "Ajuste nosso" e a fórmula da rodada recém-salva. Sem isso, o Select
+            // não controlado mantinha a origem escolhida antes (ex.: "Fórmula do fornecedor").
+            <NovaRodadaForm
+              key={(cor.rodadas.at(-1)?.numero ?? 0) + 1}
+              corId={cor.id}
+              bases={bases}
+              proximoNumero={(cor.rodadas.at(-1)?.numero ?? 0) + 1}
+              composicaoAnterior={ultimaComposicao}
+            />
+          )}
         </div>
       )}
     </>
