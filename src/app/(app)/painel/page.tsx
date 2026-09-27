@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { sessaoAtual } from "@/lib/permissions";
+import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { PageHeader } from "@/components/page-header";
 import { PainelBoard } from "./PainelBoard";
 
@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function PainelPage() {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
+  await exigirModulo("orcamento");
 
   return (
     <>

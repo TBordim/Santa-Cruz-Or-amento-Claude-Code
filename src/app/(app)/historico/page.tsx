@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { sessaoAtual } from "@/lib/permissions";
+import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { valorTotalOrcamento } from "@/lib/orcamentos/legado";
 import { DESFECHOS, PERIODOS, fmtMoney, fmtDate, fmtDateTime, desfechoInfo, dataLimite } from "@/lib/orcamentos/constantes";
@@ -30,6 +30,7 @@ const PILL_STYLE: Record<string, string> = {
 export default async function HistoricoPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
+  await exigirModulo("orcamento");
 
   const sp = await searchParams;
   const aba = sp.aba ?? "todos";

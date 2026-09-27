@@ -1,7 +1,9 @@
 import { cache } from "react";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import type { AreaKey } from "@/lib/areas";
+import { modulosAcessiveis, type ModuloKey } from "@/lib/modulos";
 
 // Equivalente a sessaoAtual()/ehAdmin()/podeEditar() do santa-cruz-orcamentos.html (linhas
 // 709-722), mas de verdade no servidor — o middleware só confirma que existe uma sessão
@@ -51,4 +53,14 @@ export async function podeEditar(area: AreaKey): Promise<boolean> {
   if (!s) return area === "NOVO"; // representante sem login (chega na Fase 2)
   if (s.admin) return true;
   return s.areas.includes(area);
+}
+
+// Trava de entrada de módulo, no servidor (não basta esconder o botão: o endereço digitado direto
+// também precisa barrar). Sem login vai pro /login; sem acesso ao módulo volta pra página de
+// entrada, onde o módulo aparece bloqueado. Ver modulosAcessiveis em modulos.ts.
+export async function exigirModulo(modulo: ModuloKey): Promise<SessaoAtual> {
+  const s = await sessaoAtual();
+  if (!s) redirect("/login");
+  if (!modulosAcessiveis(s.admin, s.areas).includes(modulo)) redirect("/");
+  return s;
 }

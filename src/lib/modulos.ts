@@ -3,18 +3,25 @@
 // seus próprios itens de navegação, trocados por um seletor no topo da sidebar
 // (ver ModuloSwitcher). Adicionar um módulo novo deveria ser só uma entrada aqui + uma pasta
 // de rotas nova — não mexer na lógica da sidebar.
-export type ModuloKey = "orcamento" | "laboratorio";
+import { AREAS } from "./areas";
+
+export type ModuloKey = "orcamento" | "laboratorio" | "administracao";
 
 export type Modulo = {
   key: ModuloKey;
   label: string;
+  // Uma linha que aparece no cartão do módulo na página de entrada ("/").
+  descricao: string;
   // Também usado pra decidir "em qual módulo eu estou" a partir do pathname (ver moduloAtual).
   basePath: string;
 };
 
 export const MODULOS: Modulo[] = [
-  { key: "orcamento", label: "Orçamento", basePath: "/painel" },
-  { key: "laboratorio", label: "Laboratório", basePath: "/laboratorio" },
+  { key: "orcamento", label: "Orçamento", descricao: "Solicitações, precificação e aprovação de orçamentos.", basePath: "/painel" },
+  { key: "laboratorio", label: "Laboratório", descricao: "Formulação, ajuste e aprovação de cores.", basePath: "/laboratorio" },
+  // Serve todos os módulos (usuários e perfis valem pro sistema inteiro), por isso é um módulo
+  // próprio e não um item dentro do Orçamento. Só administrador entra.
+  { key: "administracao", label: "Administração", descricao: "Usuários, perfis de acesso e configurações do sistema.", basePath: "/administracao" },
 ];
 
 // "Orçamento" é o módulo de sempre, sem prefixo de rota próprio (compatibilidade com as rotas
@@ -23,4 +30,14 @@ export const MODULOS: Modulo[] = [
 export function moduloAtual(pathname: string): ModuloKey {
   const porPrefixo = MODULOS.find((m) => m.key !== "orcamento" && pathname.startsWith(m.basePath));
   return porPrefixo?.key ?? "orcamento";
+}
+
+// Módulos em que a pessoa pode entrar: todos pra administrador; pros demais, os módulos em que o
+// perfil tem ao menos uma área marcada (a área "Consulta" de cada módulo existe pra quem só
+// precisa ver). Administração é só pra administrador. Todos os módulos continuam aparecendo na
+// página de entrada — os que não estão aqui aparecem bloqueados. Decisão do Thiago em 27/09/2026.
+export function modulosAcessiveis(admin: boolean, areas: readonly string[]): ModuloKey[] {
+  if (admin) return MODULOS.map((m) => m.key);
+  const doPerfil = new Set(AREAS.filter((a) => areas.includes(a.key)).map((a) => a.modulo));
+  return MODULOS.filter((m) => m.key !== "administracao" && doPerfil.has(m.key)).map((m) => m.key);
 }

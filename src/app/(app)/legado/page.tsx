@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { sessaoAtual } from "@/lib/permissions";
+import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { legadosDoCliente } from "@/lib/orcamentos/legado";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function LegadoPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
+  await exigirModulo("orcamento");
 
   const { q } = await searchParams;
   const legados = q ? await legadosDoCliente(q) : await prisma.orcamento.findMany({ where: { origem: "LEGADO" }, orderBy: { criadoEm: "desc" } });

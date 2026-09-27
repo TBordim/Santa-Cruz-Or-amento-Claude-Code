@@ -24,12 +24,14 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/
 import { ThemeToggle } from "@/components/theme-toggle";
 import { sair } from "./actions";
 import { ModuloSwitcher } from "./ModuloSwitcher";
-import { MODULOS, moduloAtual } from "@/lib/modulos";
+import { moduloAtual, type ModuloKey } from "@/lib/modulos";
 
 type Props = {
   nome: string | null;
   perfilNome: string | null;
   admin: boolean;
+  // Módulos que o perfil abre (ver modulosAcessiveis) — os outros aparecem desabilitados no seletor.
+  modulos: ModuloKey[];
 };
 
 type NavItem = {
@@ -58,6 +60,7 @@ function SidebarContent({
   nome,
   perfilNome,
   admin,
+  modulos,
   mobile = false,
   onNavigate,
 }: Props & { mobile?: boolean; onNavigate?: () => void }) {
@@ -67,8 +70,8 @@ function SidebarContent({
   const modulo = moduloAtual(pathname);
 
   // Cada módulo tem sua própria navegação — trocar de módulo (ModuloSwitcher, acima) troca essa
-  // lista inteira, não só adiciona um item. "Administração" fica sempre no módulo Orçamento por
-  // enquanto (é onde o cadastro de usuários/perfis já vive).
+  // lista inteira, não só adiciona um item. Administração é um módulo próprio desde 27/09/2026
+  // (usuários e perfis valem pro sistema todo, não só pro Orçamento).
   const itemsOrcamento: NavItem[] = [
     { href: "/painel", label: "Painel", icon: KanbanSquare, color: "#26405C" },
     { href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" },
@@ -76,7 +79,6 @@ function SidebarContent({
     { href: "/historico", label: "Histórico", icon: History, color: "#5B6270" },
     { href: "/legado", label: "Arquivo legado", icon: Archive, color: "#8C3B21" },
     { href: "/resumo", label: "Resumo semanal", icon: BarChart3, color: "#2C6E8C" },
-    ...(admin ? [{ href: "/administracao", label: "Administração", icon: Settings2, color: "#233248" }] : []),
   ];
 
   const itemsLaboratorio: NavItem[] = [
@@ -86,29 +88,44 @@ function SidebarContent({
     ...(admin ? [{ href: "/laboratorio/bases", label: "Bases", icon: FlaskConical, color: "#8C5A21" }] : []),
   ];
 
+  const itemsAdministracao: NavItem[] = [
+    { href: "/administracao", label: "Usuários e perfis", icon: Settings2, color: "#233248" },
+  ];
+
   const items: NavItem[] = !logado
     ? [{ href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" }]
     : modulo === "laboratorio"
       ? itemsLaboratorio
-      : itemsOrcamento;
+      : modulo === "administracao"
+        ? itemsAdministracao
+        : itemsOrcamento;
 
   return (
     <>
       <div className="flex flex-col gap-1 border-b border-dashed border-border pb-3.5 px-1.5 max-md:pr-9">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] border border-border bg-gradient-to-br from-secondary to-card p-1 shadow-[0_0_0_3px_var(--accent)]">
-            {/* eslint-disable-next-line @next/next/no-img-element -- logo pequeno e fixo; o
-                otimizador do next/image rejeita este PNG específico ("not a valid image") */}
-            <img src="/logo-santa-cruz.png" alt="Santa Cruz" width={28} height={28} />
-          </span>
-          <h1 className="min-w-0 flex-1 truncate font-serif text-lg font-semibold tracking-tight text-foreground">App Sta Cruz</h1>
+          {/* Logo + nome levam de volta à página de entrada (escolha de módulo) — a um clique de
+              qualquer tela. Sem login, levam ao formulário público de Novo orçamento. */}
+          <Link
+            href={logado ? "/" : "/novo"}
+            onClick={onNavigate}
+            title={logado ? "Página de entrada" : undefined}
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg no-underline"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] border border-border bg-gradient-to-br from-secondary to-card p-1 shadow-[0_0_0_3px_var(--accent)]">
+              {/* eslint-disable-next-line @next/next/no-img-element -- logo pequeno e fixo; o
+                  otimizador do next/image rejeita este PNG específico ("not a valid image") */}
+              <img src="/logo-santa-cruz.png" alt="Santa Cruz" width={28} height={28} />
+            </span>
+            <h1 className="min-w-0 flex-1 truncate font-serif text-lg font-semibold tracking-tight text-foreground">App Sta Cruz</h1>
+          </Link>
           {!mobile && <ThemeToggle />}
         </div>
         <div className="font-mono text-[10px] tracking-widest text-muted-foreground">SANTA CRUZ IND. GRÁFICA</div>
         {logado && (
           <div className="mt-2 flex items-center gap-1.5">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Módulo</span>
-            <ModuloSwitcher className="text-sm! font-sans! font-semibold!" />
+            <ModuloSwitcher acessiveis={modulos} className="text-sm! font-sans! font-semibold!" />
           </div>
         )}
       </div>
@@ -201,22 +218,20 @@ export function Sidebar(props: Props) {
 
 export function MobileNav(props: Props) {
   const [aberto, setAberto] = useState(false);
-  const pathname = usePathname();
   const logado = !!props.nome;
-  const modulo = MODULOS.find((m) => m.key === moduloAtual(pathname));
 
   return (
     <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-sidebar/95 px-3 backdrop-blur md:hidden">
       <Button type="button" variant="ghost" size="icon-lg" aria-label="Abrir menu" onClick={() => setAberto(true)}>
         <Menu className="size-5" />
       </Button>
-      <Link href={logado ? (modulo?.basePath ?? "/painel") : "/novo"} className="shrink-0 no-underline" aria-label="Início">
+      <Link href={logado ? "/" : "/novo"} className="shrink-0 no-underline" aria-label="Página de entrada">
         {/* eslint-disable-next-line @next/next/no-img-element -- mesmo motivo do logo da Sidebar */}
         <img src="/logo-santa-cruz.png" alt="" width={26} height={26} />
       </Link>
       <div className="min-w-0 flex-1">
         <span className="block truncate font-serif text-base font-semibold leading-tight text-foreground">App Sta Cruz</span>
-        {logado && <ModuloSwitcher className="text-xs! font-sans! font-medium! text-muted-foreground!" />}
+        {logado && <ModuloSwitcher acessiveis={props.modulos} className="text-xs! font-sans! font-medium! text-muted-foreground!" />}
       </div>
       {logado && (
         <Button

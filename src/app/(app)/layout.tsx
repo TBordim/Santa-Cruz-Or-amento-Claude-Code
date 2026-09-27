@@ -1,4 +1,5 @@
 import { sessaoAtual } from "@/lib/permissions";
+import { modulosAcessiveis } from "@/lib/modulos";
 import { Sidebar, MobileNav } from "./Sidebar";
 import { CommandPalette } from "@/components/command-palette";
 
@@ -8,6 +9,7 @@ import { CommandPalette } from "@/components/command-palette";
 // `if (!sessao) redirect("/login")` no topo — mesmo padrão já usado em administracao/page.tsx.
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const sessao = await sessaoAtual();
+  const modulos = sessao ? modulosAcessiveis(sessao.admin, sessao.areas) : [];
 
   return (
     <div className="relative flex min-h-screen flex-col md:flex-row">
@@ -15,11 +17,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         nome={sessao?.nome ?? null}
         perfilNome={sessao?.perfilNome ?? null}
         admin={sessao?.admin ?? false}
+        modulos={modulos}
       />
       <Sidebar
         nome={sessao?.nome ?? null}
         perfilNome={sessao?.perfilNome ?? null}
         admin={sessao?.admin ?? false}
+        modulos={modulos}
       />
       <main className="min-w-0 flex-1 px-4 pb-16 pt-5 sm:px-6 md:px-9 md:pt-7">{children}</main>
       {sessao && <CommandPalette admin={sessao.admin ?? false} />}

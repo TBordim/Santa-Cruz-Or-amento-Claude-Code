@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { sessaoAtual } from "@/lib/permissions";
+import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { fmtMoney, fmtDateTime } from "@/lib/orcamentos/constantes";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function DiretoriaPage() {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
+  await exigirModulo("orcamento");
 
   const decididos = await prisma.orcamento.findMany({
     where: { origem: "NOVO", statusDiretoria: { in: ["APROVADO", "AUTO_APROVADO"] } },

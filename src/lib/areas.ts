@@ -17,11 +17,15 @@ export type AreaKey =
   | "CADASTRO_PRODUTO"
   | "LEGADO"
   | "HISTORICO"
+  // "Consulta" de cada módulo: só dá entrada no módulo, pra ver, sem editar nada. Desde
+  // 27/09/2026 a pessoa só entra num módulo se o perfil tiver alguma área dele (ver
+  // modulosAcessiveis em modulos.ts) — antes consultar era livre pra qualquer um logado.
+  | "CONSULTA_ORCAMENTO"
   // Módulo Laboratório, área Cor (formulação de tinta). Só Laboratório e Engenharia
-  // registram/editam — Produção é só consulta, e consulta já é livre pra qualquer um logado
-  // (mesma regra do resto do painel), então não precisa de chave própria aqui.
+  // registram/editam; Produção, que só consulta, recebe a "Consulta" do Laboratório.
   | "COR_LABORATORIO"
-  | "COR_ENGENHARIA";
+  | "COR_ENGENHARIA"
+  | "CONSULTA_LABORATORIO";
 
 export type Area = {
   key: AreaKey;
@@ -41,8 +45,10 @@ export const AREAS: Area[] = [
   { key: "CADASTRO_PRODUTO", label: "Cadastro de Produto", hint: "Etapa 7 — lança o Nº de Cadastro de Produto de produto novo aprovado pelo cliente", modulo: "orcamento" },
   { key: "LEGADO", label: "Arquivo legado", hint: "Cadastrar, editar e excluir registros antigos", modulo: "orcamento" },
   { key: "HISTORICO", label: "Histórico", hint: "Excluir registros do histórico", modulo: "orcamento" },
+  { key: "CONSULTA_ORCAMENTO", label: "Consulta", hint: "Só ver o módulo Orçamento, sem editar nada", modulo: "orcamento" },
   { key: "COR_LABORATORIO", label: "Laboratório", hint: "Testes, fórmulas e ajustes de cor", modulo: "laboratorio" },
   { key: "COR_ENGENHARIA", label: "Engenharia de cor", hint: "Registro e gestão das fórmulas de cor", modulo: "laboratorio" },
+  { key: "CONSULTA_LABORATORIO", label: "Consulta", hint: "Só ver o módulo Laboratório, sem editar nada", modulo: "laboratorio" },
 ];
 
 export const AREA_KEYS: AreaKey[] = AREAS.map((a) => a.key);
