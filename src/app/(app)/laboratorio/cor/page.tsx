@@ -118,7 +118,9 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
               <TableHeader>
                 <TableRow>
                   <TableHead className={TH}>Código</TableHead>
-                  <TableHead className={TH}>Cliente</TableHead>
+                  <TableHead className={TH}>
+                    Cliente<span className="hidden sm:inline"> / referência</span>
+                  </TableHead>
                   <TableHead className={`${TH} ${SO_XL}`}>Cód. do produto</TableHead>
                   <TableHead className={`${TH} ${SO_MD}`}>LAB alvo</TableHead>
                   <TableHead className={TH}>LAB aprovado</TableHead>
@@ -156,6 +158,11 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                       </TableCell>
                       <TableCell className={`${TD} max-w-24 whitespace-normal! sm:max-w-36 lg:max-w-48`}>
                         <div className="truncate" title={c.cliente ?? undefined}>{c.cliente ?? "—"}</div>
+                        {c.referenciaDeclarada && (
+                          <div className="truncate text-[11px] text-muted-foreground" title={c.referenciaDeclarada}>
+                            {c.referenciaDeclarada}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className={`${TD} ${SO_XL} max-w-32 whitespace-normal! truncate`} title={c.codigoProduto ?? undefined}>
                         {c.codigoProduto ?? "—"}
