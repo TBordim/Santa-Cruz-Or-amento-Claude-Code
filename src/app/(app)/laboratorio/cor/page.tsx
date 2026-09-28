@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { NovaCorForm } from "./NovaCorForm";
+import { ExcluirCorButton } from "./ExcluirCorButton";
 import { labToCssColor } from "@/lib/cor/lab-to-rgb";
 import { deltaE2000 } from "@/lib/cor/deltae";
 import { num } from "@/lib/cor/formato";
@@ -144,11 +145,14 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                   return (
                     <TableRow key={c.id}>
                       <TableCell className={TD}>
-                        {/* prefetch off: com centenas de linhas, o prefetch automático dispara uma renderização
-                            de servidor (com consultas ao banco) por cor visível de uma vez e esgota as conexões. */}
-                        <Link href={`/laboratorio/cor/${c.id}`} prefetch={false} className="font-medium hover:underline">
-                          {c.codigo}
-                        </Link>
+                        <div className="flex items-center gap-1">
+                          {/* prefetch off: com centenas de linhas, o prefetch automático dispara uma renderização
+                              de servidor (com consultas ao banco) por cor visível de uma vez e esgota as conexões. */}
+                          <Link href={`/laboratorio/cor/${c.id}`} prefetch={false} className="font-medium hover:underline">
+                            {c.codigo}
+                          </Link>
+                          {sessao.admin && <ExcluirCorButton id={c.id} codigo={c.codigo} />}
+                        </div>
                         <div className="text-[11px] text-muted-foreground">
                           {c.rodadas.length} {c.rodadas.length === 1 ? "rodada" : "rodadas"}
                         </div>
