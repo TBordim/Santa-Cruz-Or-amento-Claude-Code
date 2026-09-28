@@ -34,6 +34,9 @@ const TD = "px-2! py-2! sm:px-2.5!";
 // própria coluna (SO_SM) e vai pra baixo do código. Tudo continua na bancada da cor.
 const SO_MD = "hidden lg:table-cell";
 const SO_SM = "hidden sm:table-cell";
+// Cód. do produto é a coluna mais nova e a menos crítica pra caber logo em 1024px (LAB alvo/ΔE já
+// disputavam esse espaço) — só a partir de telas bem largas, pra não voltar a rolagem lateral.
+const SO_XL = "hidden xl:table-cell";
 
 // Amostra + valores; a amostra é só apoio visual (tela ≠ cabine de luz D50). Os valores podem
 // quebrar de linha em telas estreitas em vez de forçar rolagem lateral.
@@ -115,9 +118,8 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
               <TableHeader>
                 <TableRow>
                   <TableHead className={TH}>Código</TableHead>
-                  <TableHead className={TH}>
-                    Cliente<span className="hidden sm:inline"> / referência</span>
-                  </TableHead>
+                  <TableHead className={TH}>Cliente</TableHead>
+                  <TableHead className={`${TH} ${SO_XL}`}>Cód. do produto</TableHead>
                   <TableHead className={`${TH} ${SO_MD}`}>LAB alvo</TableHead>
                   <TableHead className={TH}>LAB aprovado</TableHead>
                   <TableHead className={`${TH} ${SO_MD} text-right`}>ΔE</TableHead>
@@ -154,11 +156,9 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                       </TableCell>
                       <TableCell className={`${TD} max-w-24 whitespace-normal! sm:max-w-36 lg:max-w-48`}>
                         <div className="truncate" title={c.cliente ?? undefined}>{c.cliente ?? "—"}</div>
-                        {c.referenciaDeclarada && (
-                          <div className="truncate text-[11px] text-muted-foreground" title={c.referenciaDeclarada}>
-                            {c.referenciaDeclarada}
-                          </div>
-                        )}
+                      </TableCell>
+                      <TableCell className={`${TD} ${SO_XL} max-w-32 whitespace-normal! truncate`} title={c.codigoProduto ?? undefined}>
+                        {c.codigoProduto ?? "—"}
                       </TableCell>
                       <TableCell className={`${TD} ${SO_MD} whitespace-normal!`}>
                         <CelulaLab lab={alvo} />
