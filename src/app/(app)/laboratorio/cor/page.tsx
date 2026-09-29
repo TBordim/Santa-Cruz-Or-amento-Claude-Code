@@ -59,6 +59,17 @@ function CelulaLab({ lab }: { lab: Lab | null }) {
   );
 }
 
+// Lista na ordem do código, como na planilha do laboratório — mais fácil de achar uma cor. Compara
+// o NÚMERO (STA009, digitado com 3 dígitos, fica entre STA0008 e STA0010, e não depois de STA0089
+// como numa ordem de texto). Códigos fora do padrão STA (91801663…) vêm de uma base antiga e ficam
+// sempre no fim da lista.
+function ordemCodigo(a: string, b: string): number {
+  const staA = /^STA/i.test(a);
+  const staB = /^STA/i.test(b);
+  if (staA !== staB) return staA ? -1 : 1;
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" });
+}
+
 // Lista em tabela de propósito — não em cards, dinâmica diferente do painel de orçamentos
 // (decisão explícita: bancada única por cor, não visualização por cards).
 export default async function CorPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
@@ -77,7 +88,7 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
     where: busca
       ? { OR: [contem("codigo"), contem("cliente"), contem("codigoProduto"), contem("referenciaDeclarada")] }
       : undefined,
-    orderBy: [{ atualizadaEm: "desc" }, { codigo: "asc" }],
+    orderBy: { codigo: "asc" },
     take: 1000,
     include: {
       rodadas: {
@@ -86,6 +97,7 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
       },
     },
   });
+  cores.sort((x, y) => ordemCodigo(x.codigo, y.codigo));
 
   return (
     <>
