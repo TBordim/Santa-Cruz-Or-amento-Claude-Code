@@ -50,10 +50,15 @@ export function NovaRodadaForm({
 
   const total = linhas.reduce((s, l) => s + (Number(l.percentual.replace(",", ".")) || 0), 0);
 
-  // "Sugestão do sistema" só entra na lista quando já chegou de uma sugestão real escolhida (ver
-  // PrimeiraFormula.tsx) — sozinha, escolhida à mão, ela não preenche nada, então não faz sentido
-  // deixá-la como opção solta no menu (confundia: parecia uma ação, era só um rótulo vazio).
-  const origens = origemPadrao === "SUGESTAO_SISTEMA" ? [...ORIGENS, { value: "SUGESTAO_SISTEMA", label: "Sugestão do sistema (histórico parecido)" }] : ORIGENS;
+  // "Sugestão do sistema"/"Sugestão Pantone" só entram na lista quando já chegaram de uma sugestão
+  // real escolhida (ver PrimeiraFormula.tsx) — sozinhas, escolhidas à mão, elas não preenchem nada,
+  // então não fazem sentido como opção solta no menu (confundia: parecia uma ação, era só um rótulo vazio).
+  const origens =
+    origemPadrao === "SUGESTAO_SISTEMA"
+      ? [...ORIGENS, { value: "SUGESTAO_SISTEMA", label: "Sugestão do sistema (histórico parecido)" }]
+      : origemPadrao === "SUGESTAO_PANTONE"
+        ? [...ORIGENS, { value: "SUGESTAO_PANTONE", label: "Sugestão do sistema (Pantone convertido)" }]
+        : ORIGENS;
 
   return (
     <Card>

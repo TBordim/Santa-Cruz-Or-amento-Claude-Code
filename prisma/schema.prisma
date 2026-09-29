@@ -276,6 +276,27 @@ model Base {
   @@map("cor_bases")
 }
 
+// ---------- catálogo Pantone (Formula Guide físico, transcrito pela Santa Cruz) ----------
+// Usado só como REFERÊNCIA pra sugerir o ponto de partida (Sugestão 1, ver src/lib/cor/pantone.ts) —
+// a composição aqui é em bases PANTONE (Yellow, Warm Red, Rubine...), não em bases IRO; a conversão
+// pra IRO acontece em código, via a tabela de equivalência confirmada pelo fornecedor (2026-09-30).
+model PantoneCor {
+  id     String  @id @default(cuid())
+  codigo String  @unique // normalizado: upper-case, sem espaço, "194C", "2350C"...
+
+  labL Decimal? @db.Decimal(6, 2)
+  labA Decimal? @db.Decimal(6, 2)
+  labB Decimal? @db.Decimal(6, 2)
+
+  composicao     Json    // { "WarmRed": 55.6, "Rubine": 33.3, "Black": 11.1, ... } — nomes Pantone
+  somaPercentual Decimal @db.Decimal(6, 2) // cache da soma; deveria fechar ~100 quando não parcial
+  parcial        Boolean @default(false)   // fórmula incompleta na transcrição — ver PDF fonte
+
+  criadoEm DateTime @default(now())
+
+  @@map("cor_pantone_catalogo")
+}
+
 // ---------- registro central de uma cor ----------
 
 enum TipoReferencia {
@@ -327,7 +348,8 @@ model Cor {
 
 enum OrigemRodada {
   FORNECEDOR
-  SUGESTAO_SISTEMA // reservado pra Fase 2/3 — não usado ainda
+  SUGESTAO_SISTEMA // rodada 1 pré-preenchida a partir de outra Cor aprovada com LAB parecido (ΔE2000 < 2,5)
+  SUGESTAO_PANTONE // rodada 1 pré-preenchida a partir do Pantone mais próximo, convertido p/ bases IRO
   AJUSTE_MANUAL
   IMPORTADO // fórmula final vinda da planilha antiga — só a final sobreviveu, origem real desconhecida
 }

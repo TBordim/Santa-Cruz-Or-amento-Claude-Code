@@ -6,16 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { deltaE2000 } from "@/lib/cor/deltae";
 import { labToCssColor } from "@/lib/cor/lab-to-rgb";
 import { num } from "@/lib/cor/formato";
+import { converterComposicaoParaIro } from "@/lib/cor/pantone";
 import { NovaRodadaForm } from "./NovaRodadaForm";
 import { PrimeiraFormula } from "./PrimeiraFormula";
 import { RodadaCard } from "./RodadaCard";
 import { EditarCorForm } from "./EditarCorForm";
 import { EixoLabDiagram } from "./EixoLabDiagram";
 
-// ΔE2000 máximo pra uma cor do histórico entrar como sugestão de ponto de partida — mais frouxo
-// que a tolerância de aprovação (1,00): aqui é só "parecido o bastante pra economizar o primeiro
-// chute", a fórmula ainda passa pelo ciclo normal de ajuste.
-const TOLERANCIA_SUGESTAO_HISTORICO = 2.5;
+// ΔE2000 máximo pra uma cor do histórico (ou um Pantone convertido) entrar como sugestão de ponto
+// de partida — mais frouxo que a tolerância de aprovação (1,00): aqui é só "parecido o bastante pra
+// economizar o primeiro chute", a fórmula ainda passa pelo ciclo normal de ajuste.
+const TOLERANCIA_SUGESTAO_PONTO_PARTIDA = 2.5;
 
 const STATUS_LABEL: Record<string, string> = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -134,11 +135,45 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
                 composicao: rodadaAprovada.composicoes.map((cp) => ({ baseId: cp.baseId, percentual: Number(cp.percentual) })),
               };
             })
-            .filter((x): x is NonNullable<typeof x> => x != null && x.de <= TOLERANCIA_SUGESTAO_HISTORICO)
+            .filter((x): x is NonNullable<typeof x> => x != null && x.de <= TOLERANCIA_SUGESTAO_PONTO_PARTIDA)
             .sort((a, b) => a.de - b.de)
             .slice(0, 3);
         })()
       : [];
+
+  // Sugestão de ponto de partida (Pantone): pega o Pantone mais próximo do LAB de referência QUE
+  // seja conversível pra IRO com a equivalência confirmada (não é todo Pantone que é — Purple e o
+  // combo Reflex Blue ainda não têm conversão, ver converterComposicaoParaIro). Caminha do mais
+  // próximo pro mais longe até achar um conversível dentro da tolerância; se nenhum servir, null.
+  const sugestaoPantone =
+    cor.rodadas.length === 0 && labExibido
+      ? await (async () => {
+          const candidatos = await prisma.pantoneCor.findMany({
+            where: { parcial: false, labL: { not: null }, labA: { not: null }, labB: { not: null } },
+            select: { codigo: true, labL: true, labA: true, labB: true, composicao: true, somaPercentual: true },
+          });
+          const mapaBase = new Map(bases.map((b) => [b.codigo, b.id]));
+          const ordenados = candidatos
+            .filter((p) => Math.abs(Number(p.somaPercentual) - 100) <= 0.5)
+            .map((p) => {
+              const lab = { l: Number(p.labL), a: Number(p.labA), b: Number(p.labB) };
+              return { codigo: p.codigo, lab, composicao: p.composicao as Record<string, number>, de: deltaE2000(labExibido, lab) };
+            })
+            .sort((a, b) => a.de - b.de);
+
+          for (const p of ordenados) {
+            if (p.de > TOLERANCIA_SUGESTAO_PONTO_PARTIDA) break; // ordenado por ΔE — nenhum próximo serve mais
+            const conv = converterComposicaoParaIro(p.composicao);
+            if (!conv.ok) continue;
+            const composicao = conv.composicao
+              .map((c) => ({ baseId: mapaBase.get(c.baseCodigo), percentual: c.percentual }))
+              .filter((c): c is { baseId: string; percentual: number } => c.baseId != null);
+            if (composicao.length !== conv.composicao.length) continue; // base IRO fora do catálogo ativo
+            return { codigoPantone: p.codigo, de: p.de, lab: p.lab, composicao };
+          }
+          return null;
+        })()
+      : null;
 
   return (
     <>
@@ -268,7 +303,7 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
       {podeRegistrar && (
         <div className="mt-6">
           {cor.rodadas.length === 0 ? (
-            <PrimeiraFormula corId={cor.id} bases={bases} sugestoes={sugestoesHistorico} />
+            <PrimeiraFormula corId={cor.id} bases={bases} sugestoes={sugestoesHistorico} sugestaoPantone={sugestaoPantone} />
           ) : (
             // key = número da próxima rodada: salvar uma rodada troca o número e recria o quadro do
             // zero — vem com "Ajuste nosso" e a fórmula da rodada recém-salva. Sem isso, o Select
