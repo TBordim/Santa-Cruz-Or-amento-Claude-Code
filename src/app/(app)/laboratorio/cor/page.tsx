@@ -7,12 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NovaCorForm } from "./NovaCorForm";
 import { ExcluirCorButton } from "./ExcluirCorButton";
 import { labToCssColor } from "@/lib/cor/lab-to-rgb";
 import { deltaE2000 } from "@/lib/cor/deltae";
 import { num } from "@/lib/cor/formato";
 import { proximoCodigoCor } from "@/lib/cor/codigo";
+import type { StatusCor } from "@/generated/prisma/client";
 
 const STATUS_LABEL: Record<string, string> = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -72,22 +74,26 @@ function ordemCodigo(a: string, b: string): number {
 
 // Lista em tabela de propósito — não em cards, dinâmica diferente do painel de orçamentos
 // (decisão explícita: bancada única por cor, não visualização por cards).
-export default async function CorPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function CorPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
 
   const podeRegistrar = (await podeEditar("COR_LABORATORIO")) || (await podeEditar("COR_ENGENHARIA"));
 
-  const { q } = await searchParams;
+  const { q, status } = await searchParams;
   const busca = q?.trim();
+  // "todos" é o valor do Select quando nenhum status foi escolhido — Radix Select não aceita value="".
+  const statusFiltro = status && status !== "todos" && status in STATUS_LABEL ? status : undefined;
+  const filtroAtivo = Boolean(busca) || Boolean(statusFiltro);
   const contem = (campo: string) => ({ [campo]: { contains: busca, mode: "insensitive" as const } });
 
   // Traz as leituras de cada rodada: dão o LAB aprovado (puxada ou, no histórico importado, o final da
   // planilha) e alimentam a coluna "Melhor ΔE".
   const cores = await prisma.cor.findMany({
-    where: busca
-      ? { OR: [contem("codigo"), contem("cliente"), contem("codigoProduto"), contem("referenciaDeclarada")] }
-      : undefined,
+    where: {
+      ...(busca ? { OR: [contem("codigo"), contem("cliente"), contem("codigoProduto"), contem("referenciaDeclarada")] } : {}),
+      ...(statusFiltro ? { status: statusFiltro as StatusCor } : {}),
+    },
     orderBy: { codigo: "desc" },
     take: 1000,
     include: {
@@ -111,12 +117,25 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
       <div className="mt-6">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <h3 className="text-sm font-semibold text-foreground">
-            Cores cadastradas <span className="font-normal text-muted-foreground">({cores.length}{busca ? " encontradas" : ""})</span>
+            Cores cadastradas <span className="font-normal text-muted-foreground">({cores.length}{filtroAtivo ? " encontradas" : ""})</span>
           </h3>
-          <form action="/laboratorio/cor" className="flex gap-2">
+          <form action="/laboratorio/cor" className="flex flex-wrap gap-2">
             <Input name="q" defaultValue={busca ?? ""} placeholder="Buscar código, cliente, referência…" className="w-72" aria-label="Buscar cor" />
+            <Select name="status" defaultValue={statusFiltro ?? "todos"}>
+              <SelectTrigger className="w-[190px]" aria-label="Filtrar por status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os status</SelectItem>
+                {Object.entries(STATUS_LABEL).map(([valor, rotulo]) => (
+                  <SelectItem key={valor} value={valor}>
+                    {rotulo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button type="submit" variant="outline">Buscar</Button>
-            {busca && (
+            {filtroAtivo && (
               <Button asChild variant="ghost">
                 <Link href="/laboratorio/cor">Limpar</Link>
               </Button>
@@ -124,7 +143,7 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
           </form>
         </div>
         {cores.length === 0 ? (
-          <div className="empty-state">{busca ? `Nenhuma cor encontrada para "${busca}".` : "Nenhuma cor cadastrada ainda."}</div>
+          <div className="empty-state">{filtroAtivo ? "Nenhuma cor encontrada com esse filtro." : "Nenhuma cor cadastrada ainda."}</div>
         ) : (
           <div className="rounded-xl border border-border">
             <Table>
