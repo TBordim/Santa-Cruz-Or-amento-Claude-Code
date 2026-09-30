@@ -8,6 +8,8 @@ function chave(s: string | null | undefined): string {
 
 export type FaixaInput = {
   quantidade: string;
+  papelIdx?: number;
+  papel?: string;
   numeroSequencial: string;
   precoProjetado: number;
   custoPrimarioPct: number | null;
@@ -16,9 +18,9 @@ export type FaixaInput = {
   numeroSetups: string;
 };
 
-// Registro de histórico casado (mesma clienteChave+código interno — orçamento "novo" aprovado
-// OU registro do Arquivo legado, os dois contam igual) — usado como base de comparação de
-// premissas e preço anterior. Ver buscarOrcamentoAnterior em legado.ts.
+// Último fornecimento casado (mesmo cliente + mesmos códigos internos — orçamento do sistema
+// que virou pedido OU registro do Arquivo legado) — usado como base de comparação de premissas e
+// preço anterior. Ver buscarOrcamentoAnterior em legado.ts.
 export type OrcamentoAnteriorRef = {
   id: string;
   precoFinal: number | null;
@@ -38,8 +40,9 @@ export type MontarPrecificacaoInput = {
   anterior: OrcamentoAnteriorRef | null;
 };
 
-// Equivalente ao corpo de cálculo de enviarParaDiretoria() — monta uma faixa por quantidade
-// pedida, rodando os dois critérios independentes (motor.ts) para cada uma.
+// Equivalente ao corpo de cálculo de enviarParaDiretoria() — monta uma faixa (SO) por
+// combinação quantidade × opção de papel, rodando os dois critérios independentes (motor.ts)
+// para cada uma. Todas comparam com o mesmo último fornecimento, qualquer que seja o papel.
 export function montarPrecificacao(input: MontarPrecificacaoInput): PrecificacaoTier[] {
   const { faixas, comissaoEspecial, acabamentoAtual, anterior } = input;
   const produtoNovo = !anterior || input.produtoNovoClassificacao;
@@ -83,6 +86,7 @@ export function montarPrecificacao(input: MontarPrecificacaoInput): Precificacao
 
     const tier: PrecificacaoTier = {
       quantidade: f.quantidade,
+      ...(f.papel !== undefined ? { papelIdx: f.papelIdx, papel: f.papel } : {}),
       numeroSequencial: f.numeroSequencial,
       precoProjetado: f.precoProjetado,
       custoPrimarioPct: f.custoPrimarioPct,

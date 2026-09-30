@@ -36,12 +36,18 @@ export function AnexoUpload({
   anexos,
   somenteLeitura,
   compacto,
+  modeloId,
+  titulo,
 }: {
   orcamentoId: string;
   tipo: "ARTE" | "ENGENHARIA";
   anexos: AnexoItem[];
   somenteLeitura?: boolean;
   compacto?: boolean;
+  // Arte de um modelo específico do orçamento (ver Orcamento.modelos). Sem ele, o anexo é do
+  // orçamento inteiro.
+  modeloId?: string;
+  titulo?: string;
 }) {
   const pathname = usePathname();
   const [erro, setErro] = useState<string | undefined>();
@@ -60,6 +66,7 @@ export function AnexoUpload({
         const fd = new FormData();
         fd.set("orcamentoId", orcamentoId);
         fd.set("tipo", tipo);
+        if (modeloId) fd.set("modeloId", modeloId);
         fd.set("caminho", pathname);
         fd.set("arquivo", preparado);
         await adicionarAnexo(fd);
@@ -80,7 +87,7 @@ export function AnexoUpload({
   }
 
   return (
-    <FormSection title={info.label}>
+    <FormSection title={titulo ?? info.label}>
       {!compacto && <p className="-mt-2 text-xs text-muted-foreground">{info.hint}</p>}
 
       {anexos.length === 0 ? (

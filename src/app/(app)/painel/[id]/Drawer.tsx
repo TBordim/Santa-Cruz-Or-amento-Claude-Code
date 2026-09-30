@@ -5,6 +5,7 @@ import { podeEditar } from "@/lib/permissions";
 import { etapaInfo } from "@/lib/orcamentos/constantes";
 import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
+import { modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { voltarEtapa } from "../actions";
 import { Button } from "@/components/ui/button";
 import { ExcluirCardButton } from "./ExcluirCardButton";
@@ -27,6 +28,7 @@ export async function Drawer({ id }: { id: string }) {
   const doc = { ...raw, precoAnterior: raw.precoAnterior ? Number(raw.precoAnterior) : null };
 
   const et = etapaInfo(doc.etapa ?? "");
+  const modelos = modelosDoDoc(doc);
 
   let corpo: React.ReactNode = null;
   switch (doc.etapa) {
@@ -46,7 +48,7 @@ export async function Drawer({ id }: { id: string }) {
       // que este card já estava na Diretoria, o valor congelado nunca vai refletir isso. Achado
       // em teste real: card enviado à Diretoria antes do outro orçamento existir ficava sem
       // comparação pra sempre, mesmo depois do outro ser finalizado.
-      const anteriorAoVivo = await buscarOrcamentoAnterior(doc.clienteChave ?? "", doc.codInterno, doc.id);
+      const anteriorAoVivo = await buscarOrcamentoAnterior(doc.clienteChave ?? "", modelos, doc.id);
       corpo = <PainelDiretoria doc={doc} anteriorAoVivo={anteriorAoVivo} />;
       break;
     }
@@ -78,13 +80,18 @@ export async function Drawer({ id }: { id: string }) {
     </>
   );
 
-  const descricao = (
-    <>
-      {doc.produtoDescricao}
-      {doc.codInterno ? ` · SC:${formatarCodigoInterno(doc.codInterno)}` : ""}
-      {doc.codigoCliente ? ` · Cliente: ${doc.codigoCliente}` : ""}
-    </>
-  );
+  const descricao =
+    modelos.length > 1 ? (
+      <>
+        {modelos.length} modelos na mesma faca: {modelos.map((m) => m.descricao).filter(Boolean).join(" / ")}
+      </>
+    ) : (
+      <>
+        {doc.produtoDescricao}
+        {doc.codInterno ? ` · SC:${formatarCodigoInterno(doc.codInterno)}` : ""}
+        {doc.codigoCliente ? ` · Cliente: ${doc.codigoCliente}` : ""}
+      </>
+    );
 
   return (
     <DrawerSheet titulo={titulo} descricao={descricao}>

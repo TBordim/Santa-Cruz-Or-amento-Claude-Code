@@ -4,6 +4,7 @@ import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { fmtMoney, fmtDateTime } from "@/lib/orcamentos/constantes";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
+import { rotuloSO } from "@/lib/orcamentos/modelos";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +61,10 @@ export default async function DiretoriaPage() {
                     {tiers.length > 1 ? (
                       tiers.map((t, i) => (
                         <div key={i} className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">{t.quantidade}</span>
+                          <span className="text-muted-foreground">
+                            {t.numeroSequencial ? `SO ${t.numeroSequencial} · ` : ""}
+                            {rotuloSO(t)}
+                          </span>
                           <span className="font-mono font-semibold">{fmtMoney(t.precoFinal)}</span>
                         </div>
                       ))

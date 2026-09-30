@@ -200,6 +200,11 @@ model Orcamento {
   // precificacao: array de faixas — ver src/lib/orcamentos/types.ts para o formato exato.
   reqCliente       Json?
   reqTecnicos      Json?
+  // Modelos (produtos) orçados juntos na mesma faca — produção conjugada. Lista de
+  // {id, descricao, codigoCliente, codInterno, classificacao}; ver Modelo em
+  // src/lib/orcamentos/types.ts. Nulo nos cards de antes de 30/09/2026: esses são lidos como um
+  // modelo só, montado dos campos de produto de cima (ver modelosDoDoc em modelos.ts).
+  modelos          Json?
   precificacao     Json?
   leituraAnterior  Json?
 
@@ -233,6 +238,9 @@ model Anexo {
   // usada para excluir o arquivo com del() quando o anexo é removido.
   url          String
   pathname     String
+  // Arte de um modelo específico (id dentro de Orcamento.modelos). Nulo = arte do orçamento
+  // inteiro (e todos os anexos de antes de 30/09/2026), exibida junto do primeiro modelo.
+  modeloId     String?
   enviadoPorId String?
   enviadoPor   Usuario?  @relation("AnexoEnviadoPor", fields: [enviadoPorId], references: [id])
   enviadoEm    DateTime  @default(now())

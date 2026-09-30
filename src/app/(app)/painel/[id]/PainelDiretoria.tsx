@@ -7,6 +7,7 @@ import type { OrcamentoAnteriorRef } from "@/lib/orcamentos/tiers";
 import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQuantidade } from "@/lib/orcamentos/motor";
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
 import { fmtMoney, fmtDateTime } from "@/lib/orcamentos/constantes";
+import { modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,7 @@ function ComparacaoAnteriorAtual({
   return (
     <div className="overflow-hidden rounded-lg border border-border">
       <div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
-        Os 4 campos que pesam na decisão de preço. Em cinza, o orçamento anterior; em destaque, <strong className="text-foreground">o valor atual</strong>.
+        Os 4 campos que pesam na decisão de preço. Em cinza, o último fornecimento (mesmo cliente, mesmos modelos, qualquer papel); em destaque, <strong className="text-foreground">o valor atual</strong>.
       </div>
       <Table>
         <TableHeader>
@@ -117,9 +118,12 @@ function TierCard({
   total: number;
   anteriorAoVivo: OrcamentoAnteriorRef | null;
 }) {
-  // Uma SO por faixa, não uma só pro card — cada quantidade é uma ordem de produção separada,
-  // por isso o número aparece já no título de cada uma, pra facilitar o rastreamento.
-  const titulo = total > 1 ? `Quantidade: ${tier.quantidade}${tier.numeroSequencial ? ` — SO ${tier.numeroSequencial}` : ""}` : "Precificação";
+  // Uma SO por quantidade × papel, não uma só pro card — o número aparece já no título de cada
+  // uma, pra facilitar o rastreamento.
+  const titulo =
+    total > 1
+      ? `Quantidade: ${tier.quantidade}${tier.papel ? ` · Papel: ${tier.papel}` : ""}${tier.numeroSequencial ? ` — SO ${tier.numeroSequencial}` : ""}`
+      : "Precificação";
   const pendente = tier.statusDiretoria === "pendente";
 
   // Cada campo resolve seu próprio "anterior", independente dos outros — na ordem: busca ao
@@ -205,6 +209,7 @@ export function PainelDiretoria({
   // decidido — nenhuma faixa pendente sobra pra abrir o formulário de decisão, então sem este
   // botão não haveria nenhum jeito de avançar de novo. Ver liberarDiretoriaResolvida em actions.ts.
   const tudoResolvido = tiers.length > 0 && tiers.every((t) => t.statusDiretoria !== "pendente");
+  const nModelos = modelosDoDoc(doc).length;
 
   return (
     <>
@@ -216,8 +221,8 @@ export function PainelDiretoria({
       <ResumoBox
         rows={[
           { label: "Cliente", value: doc.cliente },
-          { label: "Produto", value: doc.produtoDescricao },
-          { label: "Nº da SO", value: doc.numeroSequencial || "—" },
+          { label: nModelos > 1 ? `Modelos (${nModelos})` : "Produto", value: doc.produtoDescricao },
+          { label: tiers.length > 1 ? "SOs" : "Nº da SO", value: doc.numeroSequencial || "—" },
         ]}
       />
 

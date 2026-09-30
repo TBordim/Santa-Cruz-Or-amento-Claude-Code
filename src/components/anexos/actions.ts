@@ -17,6 +17,7 @@ export async function adicionarAnexo(formData: FormData) {
   const orcamentoId = String(formData.get("orcamentoId") ?? "");
   const tipo = formData.get("tipo") === "ENGENHARIA" ? "ENGENHARIA" : "ARTE";
   const caminho = String(formData.get("caminho") ?? "");
+  const modeloId = String(formData.get("modeloId") ?? "") || null;
   const arquivo = formData.get("arquivo");
   if (!(arquivo instanceof File) || !orcamentoId) throw new Error("Arquivo inválido.");
 
@@ -30,6 +31,7 @@ export async function adicionarAnexo(formData: FormData) {
     data: {
       orcamentoId,
       tipo,
+      modeloId,
       nome: arquivo.name,
       mime: arquivo.type,
       tamanho: arquivo.size,

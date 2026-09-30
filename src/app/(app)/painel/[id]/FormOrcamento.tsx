@@ -1,11 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
+import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
 import { salvarOrcamento, enviarParaDiretoria, solicitarCompras, registrarRetornoCompras } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtDateTime, resumoAcabamento } from "@/lib/orcamentos/constantes";
 import { paraCampoBR } from "@/lib/orcamentos/motor";
+import { combinacoesSO, chaveSO, opcoesDePapel, modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { FormSection, Field, Row2, ResumoBox, AcoesBar } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -52,15 +54,23 @@ function ComprasFormBox({ doc }: { doc: OrcamentoComAnexos }) {
   );
 }
 
+// Envio pelo onSubmit (useFormActionSemReset), não por <form action>/formAction: com action o
+// React limpa o formulário quando ela termina — inclusive quando volta com erro de validação —
+// e tudo que a pessoa digitou e ainda não estava salvo sumia da tela (achado no teste de
+// 30/09/2026: modelo novo e Observações apagados depois de um "Liberar" com erro).
 export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
-  const [state, salvarAction, salvando] = useActionState(salvarOrcamento, undefined);
-  const [state2, enviarAction, enviando] = useActionState(enviarParaDiretoria, undefined);
+  const [state, salvarSubmit, salvando] = useFormActionSemReset(salvarOrcamento, undefined);
+  const [state2, enviarSubmit, enviando] = useFormActionSemReset(enviarParaDiretoria, undefined);
   const erro = state?.erro ?? state2?.erro;
   useSalvoToast(salvando, state?.erro, "Precificação salva.");
 
   const c = doc.reqCliente as ReqCliente | null;
-  const quantidades = c?.quantidadesLista ?? [];
+  // Uma SO por combinação quantidade × opção de papel (ver combinacoesSO em modelos.ts).
+  const combinacoes = combinacoesSO(c);
+  const nPapeis = opcoesDePapel(c).length;
+  const modelos = modelosDoDoc(doc);
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
+  const tierPorChave = new Map(tiers.map((t) => [chaveSO(t), t]));
   // Cards de antes desta mudança (25/09/2026) tinham uma SO só, digitado como lista separada
   // por vírgula (ex.: "28730, 28731, 28732, 28733") — aproveita essa lista, posicionalmente,
   // como sugestão inicial de cada faixa que ainda não tem o próprio número gravado. Só um
@@ -72,8 +82,9 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
       <ResumoBox
         rows={[
           { label: "Cliente", value: doc.cliente },
-          { label: "Produto", value: doc.produtoDescricao },
+          { label: modelos.length > 1 ? `Modelos (${modelos.length})` : "Produto", value: doc.produtoDescricao },
           { label: "Nº de Pré Cadastro", value: doc.preCadastro || "—" },
+          ...(nPapeis > 1 ? [{ label: "Opções de papel", value: `${nPapeis} — uma SO por quantidade em cada papel` }] : []),
         ]}
       />
 
@@ -81,18 +92,25 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
         <ComprasBox doc={doc} />
       </div>
 
-      <form id="form-orcamento" className="mt-4">
+      <form id="form-orcamento" className="mt-4" onSubmit={porBotao({ salvar: salvarSubmit, enviar: enviarSubmit }, "salvar")}>
         <input type="hidden" name="id" value={doc.id} form="form-orcamento" />
 
-        {quantidades.length === 0 ? (
+        {combinacoes.length === 0 ? (
           <div className="empty-state">Nenhuma quantidade lançada na Solicitação — volte a etapa e adicione ao menos uma.</div>
         ) : (
-          quantidades.map((qtd, i) => {
-            const t = tiers[i];
+          combinacoes.map((cb, i) => {
+            const t = tierPorChave.get(chaveSO(cb));
+            const titulo =
+              combinacoes.length === 1 ? "Precificação" : `Quantidade: ${cb.quantidade}${cb.papel ? ` · Papel: ${cb.papel}` : ""}`;
             return (
-              <FormSection key={i} title={quantidades.length > 1 ? `Quantidade: ${qtd}` : "Precificação"}>
-                <Field label="Nº da SO" hint="Um número por faixa de quantidade (o &quot;Orçamento S.O. nº&quot;).">
-                  <Input name={`numeroSequencial_${i}`} required defaultValue={t?.numeroSequencial || soppLegado[i] || ""} form="form-orcamento" />
+              <FormSection key={chaveSO(cb)} title={titulo}>
+                <Field label="Nº da SO" hint="Um número por SO (o &quot;Orçamento S.O. nº&quot;): cada quantidade, em cada papel.">
+                  <Input
+                    name={`numeroSequencial_${i}`}
+                    required
+                    defaultValue={t?.numeroSequencial || (cb.papel ? "" : soppLegado[i]) || ""}
+                    form="form-orcamento"
+                  />
                 </Field>
                 <Row2 compacto>
                   <Field label="Preço projetado">
@@ -117,7 +135,7 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
           })
         )}
 
-        <FormSection title="Comum a todas as faixas">
+        <FormSection title="Comum a todas as SOs">
           {/* Prazo saiu daqui — já é lançado na Solicitação (campo "Datas de entrega"), não
               precisa de um segundo lugar pra essa informação. Pedido do Thiago em 23/09/2026.
               Nº da SO também saiu — agora é uma por faixa, ali em cima, não um só pro card
@@ -138,10 +156,10 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
 
       {erro && <div className="anexo-erro">{erro}</div>}
       <AcoesBar>
-        <Button type="submit" form="form-orcamento" formAction={salvarAction} variant="outline" disabled={salvando}>
+        <Button type="submit" form="form-orcamento" value="salvar" variant="outline" disabled={salvando}>
           Salvar sem liberar
         </Button>
-        <Button type="submit" form="form-orcamento" formAction={enviarAction} disabled={enviando || doc.aguardandoCompras}>
+        <Button type="submit" form="form-orcamento" value="enviar" disabled={enviando || doc.aguardandoCompras}>
           {enviando ? "Enviando…" : "Enviar para Diretoria"}
         </Button>
       </AcoesBar>

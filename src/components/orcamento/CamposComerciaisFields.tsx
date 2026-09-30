@@ -1,8 +1,8 @@
 import { ListaDinamica } from "./ListaDinamica";
 import { SuportesLista } from "./SuportesLista";
+import { ModelosLista } from "./ModelosLista";
 import {
   ORIGENS_PEDIDO,
-  CLASSIFICACOES,
   ANALISE_CREDITO,
   OPCOES_FSC,
   OPCOES_IMPRESSAO,
@@ -12,13 +12,12 @@ import {
   OPCOES_EMBALAGEM,
   OPCOES_MODALIDADE,
 } from "@/lib/orcamentos/constantes";
-import type { ReqCliente } from "@/lib/orcamentos/types";
+import type { Modelo, ReqCliente } from "@/lib/orcamentos/types";
 import { FormSection, Field, Row2 } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CodigoInternoInput } from "./CodigoInternoInput";
 
 function CheckGroup({ nome, opcoes, marcados }: { nome: string; opcoes: readonly string[]; marcados?: string[] }) {
   return (
@@ -36,12 +35,14 @@ function CheckGroup({ nome, opcoes, marcados }: { nome: string; opcoes: readonly
 // Equivalente a camposComerciaisFieldsHtml() (santa-cruz-orcamentos.html, linhas 3163-3282) —
 // compartilhado entre "Novo Orçamento" (sem login) e a etapa "Em Aberto" (editando um card
 // existente). `defaults` é opcional: vazio para um card novo.
+//
+// Descrição, códigos e classificação do produto ficam por modelo (ModelosLista) desde
+// 30/09/2026 — um orçamento pode ter vários modelos na mesma faca.
 export function CamposComerciaisFields({
   defaults,
 }: {
   defaults?: {
     origemPedido?: string | null;
-    classificacao?: string | null;
     classificacaoDetalhe?: string | null;
     analiseCredito?: string | null;
     fsc?: string | null;
@@ -59,19 +60,17 @@ export function CamposComerciaisFields({
     entregaLocalidade?: string | null;
     qtdEntregas?: string | null;
     entregaDatas?: string | null;
-    produtoDescricao?: string | null;
-    codigoCliente?: string | null;
-    codInterno?: string | null;
+    modelos?: Modelo[];
     obs?: string | null;
     reqCliente?: ReqCliente | null;
   };
 }) {
   const r = defaults?.reqCliente;
-  const ehRepeticao = defaults?.classificacao?.startsWith("REPETICAO");
 
   return (
     <>
       <FormSection title="Classificação">
+        {/* A classificação (novo/repetição) em si fica em cada modelo, na seção Produto. */}
         <Row2>
           <Field label="Origem do pedido">
             <Select name="origemPedido" defaultValue={defaults?.origemPedido ?? ORIGENS_PEDIDO[0]}>
@@ -81,18 +80,10 @@ export function CamposComerciaisFields({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Classificação">
-            <Select name="classificacao" defaultValue={defaults?.classificacao ?? "NOVO"}>
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CLASSIFICACOES.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <Field label="Detalhe da classificação">
+            <Input name="classificacaoDetalhe" defaultValue={defaults?.classificacaoDetalhe ?? ""} />
           </Field>
         </Row2>
-        <Field label="Detalhe da classificação">
-          <Input name="classificacaoDetalhe" defaultValue={defaults?.classificacaoDetalhe ?? ""} />
-        </Field>
         <Row2>
           <Field label="Análise de crédito">
             <Select name="analiseCredito" defaultValue={defaults?.analiseCredito ?? ANALISE_CREDITO[0]}>
@@ -156,20 +147,15 @@ export function CamposComerciaisFields({
       </FormSection>
 
       <FormSection title="Produto">
-        <Field label="Descrição do produto">
-          <Input name="produtoDescricao" required defaultValue={defaults?.produtoDescricao ?? ""} />
-        </Field>
-        <Field label="Código do cliente" hint="O código que o próprio cliente usa pro produto — só pra registro, formato livre.">
-          <Input name="codigoCliente" defaultValue={defaults?.codigoCliente ?? ""} />
-        </Field>
-        <Field label="Quantidades a orçar">
-          <ListaDinamica name="quantidades" placeholder="Ex.: 5000" botaoLabel="+ Adicionar quantidade" valoresIniciais={r?.quantidadesLista} />
-        </Field>
+        {/* `key` pelo conteúdo gravado: depois de salvar, a lista recomeça com o que voltou do
+            servidor — é lá que um modelo novo ganha o id que liga ele à própria arte. Sem isso,
+            a linha continuava sem id e ganhava OUTRO id no salvamento seguinte. */}
+        <ModelosLista key={JSON.stringify(defaults?.modelos ?? [])} valoresIniciais={defaults?.modelos} />
         <Field
-          label="Código interno (Santa Cruz)"
-          hint={ehRepeticao ? "Obrigatório — o produto já existe no sistema. Formato 0.000.000." : "Em produto novo é gerado na Engenharia. Formato 0.000.000."}
+          label="Quantidades a orçar"
+          hint="Quantidade total do conjunto (todos os modelos juntos). Cada quantidade gera uma SO — por papel, se houver mais de uma opção de papel."
         >
-          <CodigoInternoInput name="codInterno" required={ehRepeticao} defaultValue={defaults?.codInterno ?? ""} />
+          <ListaDinamica name="quantidades" placeholder="Ex.: 5000" botaoLabel="Adicionar quantidade" valoresIniciais={r?.quantidadesLista} />
         </Field>
         <Field label="Observações">
           <Textarea name="obs" rows={2} defaultValue={defaults?.obs ?? ""} />
@@ -187,7 +173,8 @@ export function CamposComerciaisFields({
           campoB="suporteGramatura"
           labelA="Descrição do material"
           labelB="Gramatura (g/m²)"
-          valoresIniciais={r?.suportes?.map((s) => ({ a: s.descricao, b: s.gramatura }))}
+          valoresIniciais={r?.suportes?.map((s, i) => ({ a: s.descricao, b: s.gramatura, uso: i === 0 ? "opcao" : (s.uso ?? "") }))}
+          comUso
         />
       </FormSection>
 

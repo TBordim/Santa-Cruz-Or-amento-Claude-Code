@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
-import { valorTotalOrcamento } from "@/lib/orcamentos/legado";
+import { valorOrcamento, soEscolhida } from "@/lib/orcamentos/modelos";
 import { DESFECHOS, PERIODOS, fmtMoney, fmtDate, fmtDateTime, desfechoInfo, dataLimite } from "@/lib/orcamentos/constantes";
 import { fmtPct } from "@/lib/orcamentos/motor";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
@@ -56,7 +56,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
 
   const stats = DESFECHOS.map((d) => {
     const itens = docs.filter((x) => x.origem === "NOVO" && (x.desfecho ?? "AGUARDANDO") === d.key);
-    const total = itens.reduce((s, x) => s + valorTotalOrcamento(x.precificacao as PrecificacaoTier[] | null), 0);
+    const total = itens.reduce((s, x) => s + valorOrcamento(x.precificacao as PrecificacaoTier[] | null), 0);
     return { ...d, count: itens.length, total };
   });
 
@@ -122,7 +122,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                 <TableHead>Cliente</TableHead>
                 <TableHead>Produto</TableHead>
                 <TableHead>Origem</TableHead>
-                <TableHead>Valor total</TableHead>
+                <TableHead>Valor</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>Desfecho</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -131,12 +131,17 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
             <TableBody>
               {filtrados.map((d) => {
                 const tiers = (d.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
-                const t0 = tiers[0];
-                const valor = valorTotalOrcamento(d.precificacao as PrecificacaoTier[] | null);
+                // SO fechada pelo cliente; sem ela, a primeira (só pra dica de custo/margem).
+                const t0 = soEscolhida(tiers) ?? tiers[0];
+                // As SOs são alternativas: vale a fechada pelo cliente, ou a de maior valor quando
+                // nenhuma foi fechada — nunca a soma (ver valorOrcamento em modelos.ts).
+                const valor = valorOrcamento(tiers);
                 const info = desfechoInfo(d.desfecho);
 
                 const linhas: DicaLinha[] = [];
                 if (d.origem === "NOVO") {
+                  if (tiers.length > 1 && soEscolhida(tiers)) linhas.push({ k: "SO fechada", v: `SO ${t0.numeroSequencial}${t0.papel ? ` · ${t0.papel}` : ""} · ${t0.quantidade}` });
+                  else if (tiers.length > 1) linhas.push({ k: "Valor", v: `maior entre ${tiers.length} SOs (nenhuma fechada)` });
                   if (t0?.custoPrimarioPct != null) linhas.push({ k: "Custo primário", v: fmtPct(t0.custoPrimarioPct) });
                   if (t0?.margemP2Pct != null) linhas.push({ k: "Margem P2", v: fmtPct(t0.margemP2Pct) });
                   if (t0?.decididoPor) linhas.push({ k: "Decidido por", v: t0.decididoPor + (t0.decididoEm ? ` · ${fmtDateTime(new Date(t0.decididoEm))}` : "") });

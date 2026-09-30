@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
-import type { ReqCliente, ReqTecnicos, PrecificacaoTier } from "@/lib/orcamentos/types";
+import type { ReqCliente, ReqTecnicos, PrecificacaoTier, SuporteTecnico } from "@/lib/orcamentos/types";
 import { ETAPAS, classificacaoLabel, fmtMoney, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { fmtPct } from "@/lib/orcamentos/motor";
+import { modelosDoDoc, anexosDoModelo, usoDoMaterial, textoMaterial, rotuloSO, soEscolhida } from "@/lib/orcamentos/modelos";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { ResumoBox } from "@/components/form-section";
 import { AcordeaoEtapas } from "@/components/orcamento/AcordeaoEtapas";
@@ -47,6 +48,21 @@ function Corpo({ grupos, anexos }: { grupos: Grupo[]; anexos: ReactNode }) {
 function Anexos({ doc, tipo }: { doc: OrcamentoComAnexos; tipo: "ARTE" | "ENGENHARIA" }) {
   const lista = doc.anexos.filter((a) => a.tipo === tipo);
   if (!lista.length) return null;
+  const modelos = modelosDoDoc(doc);
+  // Arte: uma por modelo quando o orçamento tem mais de um (ver anexosDoModelo em modelos.ts).
+  if (tipo === "ARTE" && modelos.length > 1) {
+    return (
+      <>
+        {modelos.map((m, i) => {
+          const doModelo = anexosDoModelo(lista, modelos, i);
+          if (!doModelo.length) return null;
+          return (
+            <AnexoUpload key={m.id} orcamentoId={doc.id} tipo={tipo} anexos={doModelo} titulo={`Arte — ${m.descricao || `Modelo ${i + 1}`}`} somenteLeitura compacto />
+          );
+        })}
+      </>
+    );
+  }
   return <AnexoUpload orcamentoId={doc.id} tipo={tipo} anexos={lista} somenteLeitura compacto />;
 }
 
@@ -67,6 +83,24 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
   const c = doc.reqCliente as ReqCliente | null;
   const r = doc.reqTecnicos as ReqTecnicos | null;
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
+  const modelos = modelosDoDoc(doc);
+  const materiais = c?.suportes ?? [];
+  const tituloSO = (t: PrecificacaoTier) => `SO ${t.numeroSequencial || "sem número"} — ${rotuloSO(t)}`;
+  const escolhida = soEscolhida(tiers);
+
+  // Formato suporte por material (Engenharia). Card de antes de 30/09/2026 que ninguém salvou
+  // de novo ainda tem os campos soltos, uma vez só: aparecem num grupo à parte.
+  const linhasFormato = (v: Partial<SuporteTecnico> | ReqTecnicos | null | undefined): Linha[] => [
+    { label: "Qtd. por Folha Inteira", value: v?.qtdFolha },
+    { label: "Fls. Acerto", value: v?.flsAcerto },
+    { label: "Fator — Comprimento (cm)", value: v?.fatorC },
+    { label: "Fator — Largura (cm)", value: v?.fatorL },
+    { label: "Corte", value: v?.corte },
+    { label: "Qtd./ch.", value: v?.qtdCh },
+    { label: "Formato Ideal — Comprimento (cm)", value: v?.idealC },
+    { label: "Formato Ideal — Largura (cm)", value: v?.idealL },
+  ];
+  const nMateriaisEng = Math.max(materiais.length, r?.suportes?.length ?? 0);
 
   const conteudo: Record<string, ReactNode> = {
     ABERTO: (
@@ -77,7 +111,6 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
             titulo: "Classificação",
             linhas: [
               { label: "Origem do pedido", value: doc.origemPedido },
-              { label: "Classificação", value: doc.classificacao && classificacaoLabel(doc.classificacao) },
               { label: "Detalhe da classificação", value: doc.classificacaoDetalhe },
               { label: "Análise de crédito", value: doc.analiseCredito },
               { label: "FSC", value: doc.fsc },
@@ -107,12 +140,18 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
               { label: "Datas de entrega", value: doc.entregaDatas },
             ],
           },
-          {
-            titulo: "Produto",
+          ...modelos.map((m, i) => ({
+            titulo: modelos.length > 1 ? `Modelo ${i + 1}` : "Produto",
             linhas: [
-              { label: "Descrição", value: doc.produtoDescricao },
-              { label: "Código do cliente", value: doc.codigoCliente },
-              { label: "Código interno", value: doc.codInterno && formatarCodigoInterno(doc.codInterno) },
+              { label: "Descrição", value: m.descricao },
+              { label: "Classificação", value: classificacaoLabel(m.classificacao) },
+              { label: "Código do cliente", value: m.codigoCliente },
+              { label: "Código interno", value: m.codInterno && formatarCodigoInterno(m.codInterno) },
+            ],
+          })),
+          {
+            titulo: modelos.length > 1 ? "Conjunto" : undefined,
+            linhas: [
               { label: "Quantidades a orçar", value: c?.quantidadesLista?.filter(Boolean).join(", ") },
               { label: "Observações", value: doc.obs },
             ],
@@ -123,13 +162,10 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
               { label: "Formato — Comprimento (mm)", value: c?.medidaF },
               { label: "Formato — Largura (mm)", value: c?.medidaL },
               { label: "Altura (mm)", value: c?.medidaA },
-              {
-                label: "Suporte",
-                value: c?.suportes
-                  ?.filter((s) => s.descricao || s.gramatura)
-                  .map((s) => `${s.descricao || "—"}${s.gramatura ? ` (${s.gramatura} g/m²)` : ""}`)
-                  .join("; "),
-              },
+              ...materiais.map((s, i) => ({
+                label: materiais.length > 1 ? `Material ${i + 1}` : "Suporte",
+                value: `${textoMaterial(s)}${materiais.length > 1 ? ` · ${usoDoMaterial(s, i) === "opcao" ? "opção de fornecimento" : "uso conjunto"}` : ""}`,
+              })),
             ],
           },
           {
@@ -162,28 +198,21 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
             titulo: "Cadastro",
             linhas: [
               { label: "Nº de Pré Cadastro", value: doc.preCadastro },
-              { label: "Código interno", value: doc.codInterno && formatarCodigoInterno(doc.codInterno) },
+              ...modelos.map((m, i) => ({
+                label: modelos.length > 1 ? `Código interno — ${m.descricao || `Modelo ${i + 1}`}` : "Código interno",
+                value: m.codInterno && formatarCodigoInterno(m.codInterno),
+              })),
             ],
           },
-          {
-            titulo: "Suporte — formato e código",
-            linhas: (r?.suportes ?? [])
-              .filter((s) => s.formato || s.codigo)
-              .map((s, i) => ({ label: `Material ${i + 1}`, value: [s.formato, s.codigo && `cód. ${s.codigo}`].filter(Boolean).join(" · ") })),
-          },
-          {
-            titulo: "Formato suporte",
-            linhas: [
-              { label: "Qtd. por Folha Inteira", value: r?.qtdFolha },
-              { label: "Fls. Acerto", value: r?.flsAcerto },
-              { label: "Fator — Comprimento (cm)", value: r?.fatorC },
-              { label: "Fator — Largura (cm)", value: r?.fatorL },
-              { label: "Corte", value: r?.corte },
-              { label: "Qtd./ch.", value: r?.qtdCh },
-              { label: "Formato Ideal — Comprimento (cm)", value: r?.idealC },
-              { label: "Formato Ideal — Largura (cm)", value: r?.idealL },
-            ],
-          },
+          ...Array.from({ length: nMateriaisEng }, (_, i) => {
+            const v = r?.suportes?.[i];
+            const mc = materiais[i];
+            return {
+              titulo: `Material ${i + 1}${mc ? ` — ${textoMaterial(mc)}` : ""}`,
+              linhas: [{ label: "Formato", value: v?.formato }, { label: "Código", value: v?.codigo }, ...linhasFormato(v)],
+            };
+          }),
+          { titulo: "Formato suporte", linhas: linhasFormato(r) },
           {
             titulo: "Anexos e observações",
             linhas: [
@@ -213,10 +242,9 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
             ],
           },
           ...tiers.map((t) => ({
-            titulo: `Faixa ${t.quantidade}`,
+            // Uma SO por quantidade × papel, não uma só pro card — ver PrecificacaoTier em types.ts.
+            titulo: tituloSO(t),
             linhas: [
-              // Uma SO por faixa, não uma só pro card — ver PrecificacaoTier em types.ts.
-              { label: "Nº da SO", value: t.numeroSequencial },
               { label: "Preço projetado", value: t.precoProjetado != null && fmtMoney(t.precoProjetado) },
               { label: "Custo primário", value: t.custoPrimarioPct != null && fmtPct(t.custoPrimarioPct) },
               { label: "Margem P2", value: t.margemP2Pct != null && fmtPct(t.margemP2Pct) },
@@ -232,7 +260,7 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
       <Corpo
         anexos={null}
         grupos={tiers.map((t) => ({
-          titulo: `Faixa ${t.quantidade}`,
+          titulo: tituloSO(t),
           linhas: [
             { label: "Decisão", value: STATUS_FAIXA[t.statusDiretoria] ?? t.statusDiretoria },
             { label: "Preço final", value: t.precoFinal != null && fmtMoney(t.precoFinal) },
@@ -264,6 +292,7 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
           {
             linhas: [
               { label: "Desfecho", value: doc.desfecho && desfechoInfo(doc.desfecho).label },
+              { label: "SO fechada pelo cliente", value: tiers.length > 1 && escolhida && tituloSO(escolhida) },
               { label: "Motivo", value: doc.desfechoMotivo },
               {
                 label: "Registrado por",

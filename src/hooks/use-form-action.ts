@@ -27,3 +27,12 @@ export function useFormActionSemReset<S>(action: ServerFormAction<S>, estadoInic
 
   return [erro, onSubmit, pending] as const;
 }
+
+// Form com mais de um botão de envio (ex.: "Salvar sem liberar" / "Liberar para ..."): cada botão
+// leva um `value` e o onSubmit certo é escolhido pelo botão clicado (SubmitEvent.submitter).
+export function porBotao(handlers: Record<string, (e: FormEvent<HTMLFormElement>) => void>, padrao: string) {
+  return (e: FormEvent<HTMLFormElement>) => {
+    const valor = (e.nativeEvent as SubmitEvent).submitter?.getAttribute("value") ?? padrao;
+    (handlers[valor] ?? handlers[padrao])(e);
+  };
+}

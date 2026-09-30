@@ -1,13 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormActionSemReset } from "@/hooks/use-form-action";
 import { CamposComerciaisFields } from "@/components/orcamento/CamposComerciaisFields";
 import { criarOrcamento } from "./actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+// Envio pelo onSubmit (useFormActionSemReset), não por <form action>/formAction: com action o
+// React limpa o formulário quando ela termina — inclusive quando volta com erro de validação —
+// e tudo que a pessoa digitou e ainda não estava salvo sumia da tela (achado no teste de
+// 30/09/2026: modelo novo e Observações apagados depois de um "Liberar" com erro).
 export function NovoOrcamentoForm() {
-  const [state, formAction, pending] = useActionState(criarOrcamento, undefined);
+  const [state, onSubmit, pending] = useFormActionSemReset(criarOrcamento, undefined);
 
   if (state?.sucesso) {
     return (
@@ -23,7 +27,7 @@ export function NovoOrcamentoForm() {
   return (
     <Card className="max-w-[760px]">
       <CardContent>
-        <form action={formAction} className="flex flex-col gap-0">
+        <form onSubmit={onSubmit} className="flex flex-col gap-0">
           <CamposComerciaisFields />
           {state?.erro && <div className="anexo-erro mt-4">{state.erro}</div>}
           <div className="mt-6">

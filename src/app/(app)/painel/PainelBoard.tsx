@@ -10,7 +10,7 @@ function precoExibicao(precificacao: PrecificacaoTier[] | null): string {
     const t = precificacao[0];
     return fmtMoney(t.precoFinal ?? t.precoFinalSugerido ?? t.precoProjetado);
   }
-  return precificacao.length + " faixas";
+  return precificacao.length + " SOs";
 }
 
 const PILL_STYLE: Record<string, string> = {
