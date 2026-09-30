@@ -61,7 +61,7 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
   const c = doc.reqCliente as ReqCliente | null;
   const quantidades = c?.quantidadesLista ?? [];
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
-  // Cards de antes desta mudança (25/09/2026) tinham um SOPP só, digitado como lista separada
+  // Cards de antes desta mudança (25/09/2026) tinham uma SO só, digitado como lista separada
   // por vírgula (ex.: "28730, 28731, 28732, 28733") — aproveita essa lista, posicionalmente,
   // como sugestão inicial de cada faixa que ainda não tem o próprio número gravado. Só um
   // valor pra começar; salvar grava certo, por faixa, dali em diante.
@@ -91,7 +91,7 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
             const t = tiers[i];
             return (
               <FormSection key={i} title={quantidades.length > 1 ? `Quantidade: ${qtd}` : "Precificação"}>
-                <Field label="Nº de SOPP" hint="Um número por faixa — cada quantidade é uma ordem de produção separada.">
+                <Field label="Nº da SO" hint="Um número por faixa de quantidade (o &quot;Orçamento S.O. nº&quot;).">
                   <Input name={`numeroSequencial_${i}`} required defaultValue={t?.numeroSequencial || soppLegado[i] || ""} form="form-orcamento" />
                 </Field>
                 <Row2 compacto>
@@ -120,7 +120,7 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
         <FormSection title="Comum a todas as faixas">
           {/* Prazo saiu daqui — já é lançado na Solicitação (campo "Datas de entrega"), não
               precisa de um segundo lugar pra essa informação. Pedido do Thiago em 23/09/2026.
-              Nº de SOPP também saiu — agora é um por faixa, ali em cima, não um só pro card
+              Nº da SO também saiu — agora é uma por faixa, ali em cima, não um só pro card
               inteiro. Pedido do Thiago em 25/09/2026. */}
           <Field label="Acabamento" hint="Sugerido a partir da Solicitação — ajuste se precisar.">
             <Input name="acabamento" defaultValue={doc.acabamento || resumoAcabamento(c)} form="form-orcamento" />

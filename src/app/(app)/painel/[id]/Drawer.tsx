@@ -72,7 +72,7 @@ export async function Drawer({ id }: { id: string }) {
         </span>
       </div>
       {doc.numeroSequencial && (
-        <span className="mr-1.5 font-mono text-muted-foreground">Nº {doc.numeroSequencial} —</span>
+        <span className="mr-1.5 font-mono text-muted-foreground">SO {doc.numeroSequencial} —</span>
       )}
       {doc.cliente}
     </>

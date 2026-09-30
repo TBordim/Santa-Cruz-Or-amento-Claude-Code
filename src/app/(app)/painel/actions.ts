@@ -142,7 +142,7 @@ function lerFaixas(formData: FormData, quantidades: string[]): FaixaInput[] {
   }));
 }
 
-// Resumo dos SOPPs de todas as faixas pra exibir no título do card/coluna do Painel (um campo
+// Resumo das SOs de todas as faixas pra exibir no título do card/coluna do Painel (um campo
 // só, sempre foi assim visualmente) — cada faixa continua com o próprio número gravado, este
 // resumo é só pra exibição rápida, nunca editado direto.
 function resumoSopp(rascunho: { numeroSequencial: string }[]): string {
@@ -224,9 +224,10 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   if (faixas.some((f) => Number.isNaN(f.precoProjetado))) {
     return { erro: 'Preencha o "Preço projetado" de todas as faixas de quantidade.' };
   }
-  // Um SOPP por faixa, não um só pro card — cada quantidade é uma ordem de produção separada.
+  // Uma SO ("Orçamento S.O. nº") por faixa, não uma só pro card — cada quantidade é orçada
+  // separadamente. O número da solicitação inteira é o Nº de Pré Cadastro (Engenharia).
   if (faixas.some((f) => !f.numeroSequencial)) {
-    return { erro: "Informe o Nº de SOPP de todas as faixas de quantidade antes de enviar para a Diretoria." };
+    return { erro: "Informe o Nº da SO de todas as faixas de quantidade antes de enviar para a Diretoria." };
   }
 
   const acabamento = String(formData.get("acabamento") ?? "").trim();

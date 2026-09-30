@@ -54,9 +54,10 @@ export type StatusDiretoriaTier = "auto_aprovado" | "pendente" | "aprovado" | "r
 
 export type PrecificacaoTier = {
   quantidade: string;
-  // Um SOPP por faixa/quantidade, não um só pro card inteiro — cada quantidade orçada é uma
-  // ordem de produção separada, e precisa dar pra rastrear cada uma pelo próprio número.
-  // Pedido do Thiago em 25/09/2026.
+  // Uma SO ("Orçamento S.O. nº") por faixa/quantidade, não uma só pro card inteiro — cada
+  // quantidade é orçada separadamente e precisa dar pra rastrear cada uma pelo próprio número
+  // (pedido do Thiago em 25/09/2026). O número da solicitação inteira é o Nº de Pré Cadastro.
+  // O campo continua se chamando numeroSequencial por compatibilidade com o que já está gravado.
   numeroSequencial: string;
   precoProjetado: number;
   custoPrimarioPct: number | null;

@@ -215,8 +215,8 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
           ...tiers.map((t) => ({
             titulo: `Faixa ${t.quantidade}`,
             linhas: [
-              // Um SOPP por faixa, não um só pro card — ver PrecificacaoTier em types.ts.
-              { label: "Nº de SOPP", value: t.numeroSequencial },
+              // Uma SO por faixa, não uma só pro card — ver PrecificacaoTier em types.ts.
+              { label: "Nº da SO", value: t.numeroSequencial },
               { label: "Preço projetado", value: t.precoProjetado != null && fmtMoney(t.precoProjetado) },
               { label: "Custo primário", value: t.custoPrimarioPct != null && fmtPct(t.custoPrimarioPct) },
               { label: "Margem P2", value: t.margemP2Pct != null && fmtPct(t.margemP2Pct) },

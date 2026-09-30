@@ -104,7 +104,7 @@ export async function PainelBoard() {
                     <div className="mt-0.5 flex min-w-0 items-center justify-between gap-1.5 border-t border-dashed border-line-strong pt-1.5">
                       <span className="truncate font-mono text-xs font-semibold text-muted-foreground">{precoExibicao(tiers)}</span>
                       {d.numeroSequencial && (
-                        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">Nº {d.numeroSequencial}</span>
+                        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">SO {d.numeroSequencial}</span>
                       )}
                     </div>
                   </Link>
