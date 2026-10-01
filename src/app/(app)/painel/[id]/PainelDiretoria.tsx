@@ -218,6 +218,15 @@ export function PainelDiretoria({
           Classificado como &quot;repetição sem alteração&quot;, mas as premissas mudaram — confira com atenção.
         </div>
       )}
+      {/* Condição comercial especial (comissão/desconto) lançada no Orçamento: pode pesar na
+          aprovação do preço, então aparece aqui em destaque e não só dentro da sanfona da etapa
+          3. Pedido do Thiago em 01/10/2026. */}
+      {doc.comissaoEspecial && (
+        <div className="mb-4 rounded-lg border border-warn/30 bg-warn-soft p-3 text-sm">
+          <div className="font-semibold text-warn">Condição comercial especial (comissão/desconto)</div>
+          <div className="mt-1 text-foreground">{doc.comissaoObs?.trim() || "Sem observação informada no Orçamento."}</div>
+        </div>
+      )}
       <ResumoBox
         rows={[
           { label: "Cliente", value: doc.cliente },
