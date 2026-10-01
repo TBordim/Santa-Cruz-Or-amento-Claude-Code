@@ -2,14 +2,14 @@ import type { Lab } from "./deltae";
 import { deltaE2000 } from "./deltae";
 
 // Tabela de equivalência IRO ↔ Pantone, CONFIRMADA PELO FORNECEDOR (Sun Chemical, 2026-09-30, via
-// WhatsApp) — ver memória do projeto. Única exceção: qual de IRO12/IRO18 é o Yellow mais
-// claro/escuro ainda não foi confirmado — usamos a hipótese registrada (IRO12 = Yellow 012, IRO18 =
-// Yellow "normal") até o fornecedor mandar o PDF que resolve isso. Se vier invertido, é só trocar
-// as duas linhas abaixo.
+// WhatsApp) — ver memória do projeto. IRO12 e IRO18 são a MESMA tonalidade de amarelo ("Mid shade
+// Yellow", confirmado na ficha técnica SunPak Irocart) — a diferença entre eles é só resistência
+// (IRO18 resiste melhor a solvente; IRO12 tem melhor resistência à luz), não claro/escuro. Por isso
+// não faz diferença colorimétrica qual dos dois recebe cada componente Pantone abaixo.
 export const EQUIVALENCIA_PANTONE_IRO: Record<string, string> = {
   TransWhite: "IRO48",
-  Yellow: "IRO18", // hipótese — ver comentário acima
-  Yellow012: "IRO12", // hipótese — ver comentário acima
+  Yellow: "IRO18",
+  Yellow012: "IRO12",
   WarmRed: "IRO33",
   Rubine: "IRO35",
   Black: "IRO50",
