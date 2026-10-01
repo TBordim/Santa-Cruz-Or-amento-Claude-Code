@@ -5,6 +5,7 @@
 
 import { chave } from "./chave";
 import { normalizarCodigoInterno } from "./codigo-interno";
+import { parseQuantidade } from "./motor";
 import type { ClassificacaoModelo, Modelo, PrecificacaoTier, ReqCliente, Suporte } from "./types";
 
 export const CLASSIFICACOES_MODELO: readonly ClassificacaoModelo[] = [
@@ -144,7 +145,9 @@ export function soEscolhida(tiers: PrecificacaoTier[] | null | undefined): Preci
 // real multiplicava por unidades direto (1000x o valor).
 export function valorSO(t: PrecificacaoTier): number {
   const preco = t.precoFinal ?? t.precoFinalSugerido ?? 0;
-  const unidades = parseFloat(String(t.quantidade).replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
+  // A quantidade é digitada à mão, com ou sem ponto de milhar ("2.500" ou "2500"): só os dígitos
+  // valem. Ler "2.500" como número decimal dava 2,5 unidades (total R$ 3,68 em vez de R$ 3.675).
+  const unidades = parseQuantidade(t.quantidade) ?? 0;
   return preco * (unidades / 1000);
 }
 
