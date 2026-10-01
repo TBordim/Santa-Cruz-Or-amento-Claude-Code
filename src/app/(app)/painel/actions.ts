@@ -275,7 +275,7 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   const modelos = modelosDoDoc(doc);
   const produtoNovoClassificacao = modelos.some((m) => m.classificacao === "NOVO" || m.classificacao === "REPETICAO_NOVO");
 
-  const anterior = await buscarOrcamentoAnterior(doc.clienteChave ?? "", modelos, doc.id);
+  const anterior = await buscarOrcamentoAnterior(modelos, doc.id);
 
   const precificacao = montarPrecificacao({ faixas, comissaoEspecial, acabamentoAtual: acabamento, produtoNovoClassificacao, anterior });
   const todosAuto = precificacao.every((t) => t.statusDiretoria === "auto_aprovado");

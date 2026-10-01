@@ -56,7 +56,7 @@ function ComparacaoAnteriorAtual({
   return (
     <div className="overflow-hidden rounded-lg border border-border">
       <div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
-        Os 4 campos que pesam na decisão de preço. Em cinza, o último fornecimento (mesmo cliente, mesmos modelos, qualquer papel); em destaque, <strong className="text-foreground">o valor atual</strong>.
+        Os 4 campos que pesam na decisão de preço. Em cinza, o último fornecimento (mesmo código interno, qualquer papel); em destaque, <strong className="text-foreground">o valor atual</strong>.
       </div>
       <Table>
         <TableHeader>
@@ -127,7 +127,7 @@ function TierCard({
   const pendente = tier.statusDiretoria === "pendente";
 
   // Cada campo resolve seu próprio "anterior", independente dos outros — na ordem: busca ao
-  // vivo por cliente+código interno, senão o valor congelado de quando este card chegou na
+  // vivo pelo código interno, senão o valor congelado de quando este card chegou na
   // Diretoria. O quadro sempre aparece (mesmo com tudo "sem dado anterior"), igual ao sistema
   // antigo.
   const anterior = {

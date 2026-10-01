@@ -44,11 +44,11 @@ export async function Drawer({ id }: { id: string }) {
     case "DIRETORIA": {
       // Busca o "anterior" de novo, ao vivo, em vez de confiar só no que foi calculado quando
       // o card chegou na Diretoria (tier.precoAnterior etc.) — se o caso de comparação (um
-      // Histórico ou Arquivo legado do mesmo cliente+código interno) só passou a existir DEPOIS
+      // Histórico ou Arquivo legado com o mesmo código interno) só passou a existir DEPOIS
       // que este card já estava na Diretoria, o valor congelado nunca vai refletir isso. Achado
       // em teste real: card enviado à Diretoria antes do outro orçamento existir ficava sem
       // comparação pra sempre, mesmo depois do outro ser finalizado.
-      const anteriorAoVivo = await buscarOrcamentoAnterior(doc.clienteChave ?? "", modelos, doc.id);
+      const anteriorAoVivo = await buscarOrcamentoAnterior(modelos, doc.id);
       corpo = <PainelDiretoria doc={doc} anteriorAoVivo={anteriorAoVivo} />;
       break;
     }
