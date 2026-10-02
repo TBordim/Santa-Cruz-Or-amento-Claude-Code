@@ -31,6 +31,22 @@ function tamanho(arquivo: File): string {
   return arquivo.size >= 1024 * 1024 ? `${(arquivo.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(arquivo.size / 1024))} KB`;
 }
 
+// O SDK do Blob esconde a resposta do servidor quando falha em obter o token ("Failed to retrieve the client token").
+// Pedimos o mesmo token de novo, só para mostrar o motivo real na tela.
+async function diagnosticoDoToken(): Promise<string> {
+  try {
+    const r = await fetch("/api/treinamentos/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "blob.generate-client-token", payload: { pathname: "treinamentos/videos/diagnostico.mp4", clientPayload: null, multipart: false } }),
+    });
+    const texto = (await r.text()).replace(/"clientToken":"[^"]*"/, '"clientToken":"…"');
+    return `servidor respondeu HTTP ${r.status}: ${texto.slice(0, 300)}`;
+  } catch (e) {
+    return `não consegui chamar o servidor (${e instanceof Error ? e.message : String(e)})`;
+  }
+}
+
 function nomeSeguro(nome: string): string {
   return nome
     .normalize("NFD")
@@ -175,7 +191,9 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
           router.push("/treinamentos/gerenciar");
         }
       } catch (e2) {
-        setErro(e2 instanceof Error ? `Não foi possível salvar: ${e2.message}` : "Não foi possível salvar. Tente de novo.");
+        let motivo = e2 instanceof Error ? e2.message : "erro desconhecido";
+        if (/client token/i.test(motivo)) motivo += ` (diagnóstico: ${await diagnosticoDoToken()})`;
+        setErro(`Não foi possível salvar: ${motivo}`);
       } finally {
         setEtapa(undefined);
         setProgresso(null);
