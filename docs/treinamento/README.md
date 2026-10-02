@@ -6,7 +6,7 @@ computador e no celular. Apresentado pelo mascote **Santinho**.
 ## Ordem dos vídeos
 
 1. Laboratório: `laboratorio/`
-2. Representante (Novo orçamento sem login)
+2. Representante: Novo Orçamento, em 1 minuto: `representante/` (o representante recebe só o link; desde 02/10/2026 o Novo Orçamento exige login)
 3. Etapas internas do Orçamento
 
 Não há vídeo de Administração.
