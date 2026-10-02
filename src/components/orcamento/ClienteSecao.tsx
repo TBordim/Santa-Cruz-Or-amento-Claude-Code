@@ -81,8 +81,18 @@ export function ClienteSecao({ defaults, comBusca }: { defaults?: ClienteDefault
     }
     const minha = ++sequencia.current;
     timer.current = setTimeout(async () => {
-      const lista = await buscarClientes(valor);
-      if (minha === sequencia.current) setResultados(lista);
+      try {
+        const lista = await buscarClientes(valor);
+        if (minha !== sequencia.current) return;
+        setResultados(lista);
+        setAviso(null);
+      } catch {
+        // Falha na chamada (rede, servidor, banco): sem isto a tela ficava muda.
+        if (minha === sequencia.current) {
+          setResultados(null);
+          setAviso("Não consegui buscar os clientes agora. Atualize a página (Ctrl+F5) e tente de novo.");
+        }
+      }
     }, 250);
   }
 
