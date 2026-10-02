@@ -49,6 +49,7 @@ model Usuario {
   criadoEm DateTime @default(now())
 
   orcamentosCriados Orcamento[] @relation("OrcamentoCriadoPor")
+  clientesCadastrados Cliente[] @relation("ClienteCadastradoPor")
   anexosEnviados    Anexo[]     @relation("AnexoEnviadoPor")
 
   // Módulo Cor
@@ -61,6 +62,53 @@ model Usuario {
   tentativasTreinamento TentativaTreinamento[]
 
   @@map("usuarios")
+}
+
+// ---------- clientes ----------
+
+enum OrigemCliente {
+  IMPORTADO
+  REPRESENTANTE
+}
+
+// Cadastro de clientes da Santa Cruz. Começou da planilha Clientes_Ativos (origem IMPORTADO);
+// enquanto o app não conversa com o sistema interno, cliente novo entra pelo Novo Orçamento
+// (origem REPRESENTANTE, pendenteConferencia = true até alguém do escritório conferir).
+model Cliente {
+  id           String  @id @default(cuid())
+  // 14 dígitos, sem pontuação.
+  cnpj         String  @unique
+  razaoSocial  String
+  // Razão social em maiúsculo e sem acento, só pra busca.
+  busca        String
+
+  endereco     String?
+  complemento  String?
+  bairro       String?
+  cep          String?
+  uf           String?
+  municipio    String?
+  telefone     String?
+  email        String?
+  contato      String?
+  // Parcelas em dias (ex.: [28, 35, 42] = "28/35/42 dias"); vazio = sem condição cadastrada.
+  prazosPagamento Int[] @default([])
+
+  // Endereço de entrega, só quando é diferente do de cima (nulo = entrega no mesmo endereço).
+  entrega      Json?
+
+  origem              OrigemCliente @default(IMPORTADO)
+  pendenteConferencia Boolean       @default(false)
+  ativo               Boolean       @default(true)
+  cadastradoPorId     String?
+  cadastradoPor       Usuario?      @relation("ClienteCadastradoPor", fields: [cadastradoPorId], references: [id], onDelete: SetNull)
+  criadoEm            DateTime      @default(now())
+  atualizadoEm        DateTime      @updatedAt
+
+  orcamentos Orcamento[]
+
+  @@index([busca])
+  @@map("clientes")
 }
 
 // ---------- orçamentos ----------
@@ -213,6 +261,12 @@ model Orcamento {
   modelos          Json?
   precificacao     Json?
   leituraAnterior  Json?
+
+  // Cliente do cadastro, quando o orçamento foi aberto escolhendo um. Opcional: registros antigos
+  // e do legado não têm; os campos de texto (cliente, cnpj, endereco...) continuam sendo a cópia
+  // que vale no orçamento.
+  clienteId        String?
+  clienteCadastro  Cliente?         @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
   criadoPorId      String?
   criadoPor        Usuario?         @relation("OrcamentoCriadoPor", fields: [criadoPorId], references: [id])
