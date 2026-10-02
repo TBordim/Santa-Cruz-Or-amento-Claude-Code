@@ -27,7 +27,7 @@ Estes valores precisam existir no ambiente demo (ver `gravacao.md`, "Dados e pre
 | Item | Valor |
 |---|---|
 | Usuário | **Rafael Representante**, PIN **4444**, perfil Representante (só a área Novo Orçamento) |
-| Cliente (na busca) | **Doces Serra Azul Ltda.** · CNPJ 11.222.333/0001-81. Digitando "doces" a lista mostra 2 clientes |
+| Cliente (na busca) | **Doces Serra Azul Ltda.** · CNPJ 11.222.333/0001-81. Digitando `doce` (e não "doces", porque "Docerias" não contém "doces") a lista mostra 2 clientes |
 | Qtd. de entregas | `1` |
 | Data de entrega solicitada pelo cliente | `30/11/2026` |
 | Descrição do produto | `Caixa para bolo 20 x 20 x 10 cm` |
@@ -43,7 +43,7 @@ Estes valores precisam existir no ambiente demo (ver `gravacao.md`, "Dados e pre
 | **0 · Abertura express** | 0:00–0:03 | *(sem fala; som de entrada)* | Logo da Santa Cruz → mini tornado laranja → Santinho. Sem aviso e sem texto de vinheta; só "Representantes" pequeno embaixo do logo | — | nascendo → feliz, acenando |
 | **1 · Boas-vindas** | 0:03–0:09 | Olá! Eu sou o Santinho. Em um minuto, você aprende a pedir um orçamento! | Santinho em tela cheia com o texto "Novo Orçamento em 1 minuto" | — | feliz, acenando |
 | **2 · Entrar** | 0:09–0:14 | Entre com seu nome e seu pin: o Novo Orçamento já abre. | Tela de login → nome → PIN → Entrar → formulário "Novo Orçamento" | Login como Rafael | apontando |
-| **3 · Cliente** | 0:14–0:25 | Comece pelo cliente: digite o nome ou o cê ene pê jota, e escolha na lista. Se ele for novo, clique em cadastrar novo. | Seção Cliente: campo "Buscar cliente cadastrado", lista com 2 resultados, cliente escolhido ("Cliente do cadastro: Doces Serra Azul Ltda."); o botão "Cliente não está na lista — cadastrar novo" destacado | Digitar "doces"; clicar no 1º resultado; passar o mouse no botão de cadastrar novo (**sem clicar**) | explicando |
+| **3 · Cliente** | 0:14–0:25 | Comece pelo cliente: digite o nome ou o cê ene pê jota, e escolha na lista. Se ele for novo, clique em cadastrar novo. | Seção Cliente: campo "Buscar cliente cadastrado", lista com 2 resultados, cliente escolhido ("Cliente do cadastro: Doces Serra Azul Ltda."); o botão "Cliente não está na lista — cadastrar novo" destacado | Digitar "doce"; clicar no 1º resultado; passar o mouse no botão de cadastrar novo (**sem clicar**) | explicando |
 | **4 · Entrega e produto** | 0:25–0:36 | Informe quantas entregas e a data que o cliente pediu. Depois, descreva o produto e coloque as quantidades a orçar. | Campos "Qtd. de entregas (obrigatório)" e "Data de entrega solicitada pelo Cliente (obrigatório)"; depois "Descrição do produto" e "Quantidades a orçar (obrigatório)" com 2 quantidades | Preencher entregas e data; descrição; quantidade 5000; Adicionar quantidade; 10000 | explicando |
 | **5 · Detalhes técnicos** | 0:36–0:46 | Preencha os detalhes técnicos: medidas, material, acabamento. Quanto mais informação, mais rápido sai o orçamento. Sem isso, a Engenharia precisa levantar, e atrasa. | Seção "Detalhes técnicos" **aberta**: "Medidas e suporte" preenchida (comprimento, largura, altura, material, gramatura) e, logo abaixo, a seção "Acabamento" em destaque | Abrir a seção; preencher as medidas e o material; rolar até Acabamento e passar o mouse (**sem marcar nada**) | apontando |
 | **6 · Enviar** | 0:46–0:51 | Pronto! Clique em Enviar solicitação, e a Santa Cruz segue daqui. | Botão "Enviar solicitação" → cartão "Solicitação enviada" | Clicar em Enviar solicitação | comemorando |
