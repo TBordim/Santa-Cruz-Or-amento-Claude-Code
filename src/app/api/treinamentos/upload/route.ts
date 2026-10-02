@@ -8,8 +8,18 @@ const TAMANHO_MAXIMO = 500 * 1024 * 1024; // 500 MB: um vídeo de 6 min em HD te
 // (Vercel Blob) configurado, para mostrar um motivo claro em vez da mensagem genérica do SDK.
 export async function GET() {
   if (!(await ehAdmin())) return Response.json({ pronto: false, motivo: "Sem permissão." }, { status: 403 });
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
     return Response.json({ pronto: false, motivo: "O armazenamento de vídeos (Vercel Blob) não está configurado neste ambiente." });
+  }
+  // O SDK tira o código do armazenamento de dentro do token: vercel_blob_rw_<código>_<segredo>. Um valor fora desse formato
+  // (colado errado, de outro serviço…) faz o SDK recusar com "Invalid `token` parameter". Só descrevemos a forma, nunca o valor.
+  const partes = token.trim().split("_");
+  if (!(partes.length >= 4 && partes[0] === "vercel" && partes[1] === "blob" && partes[2] === "rw" && partes[3])) {
+    return Response.json({
+      pronto: false,
+      motivo: `O BLOB_READ_WRITE_TOKEN deste ambiente não tem o formato esperado (vercel_blob_rw_<código>_<segredo>): o valor atual tem ${token.length} caracteres e ${partes.length} parte(s) separadas por "_". Recadastre a variável na Vercel (Settings › Environment Variables) copiando o token da aba .env.local do armazenamento Blob.`,
+    });
   }
   return Response.json({ pronto: true });
 }
