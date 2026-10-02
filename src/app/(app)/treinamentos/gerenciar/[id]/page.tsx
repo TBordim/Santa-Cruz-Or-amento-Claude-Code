@@ -13,7 +13,7 @@ export default async function EditarTreinamentoPage({ params }: { params: Promis
   const { id } = await params;
   const [t, perfis] = await Promise.all([
     prisma.treinamento.findUnique({ where: { id }, include: { perfis: { select: { perfilId: true } } } }),
-    prisma.perfil.findMany({ where: { admin: false }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
+    prisma.perfil.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true, admin: true } }),
   ]);
   if (!t) notFound();
 

@@ -48,7 +48,7 @@ export async function salvarTreinamento(dados: DadosTreinamento): Promise<Result
   if (!Number.isInteger(dados.notaMinima) || dados.notaMinima < 1 || dados.notaMinima > 100) return { erro: "A nota mínima precisa ser de 1 a 100." };
   if (!Number.isInteger(dados.ordem)) return { erro: "A ordem precisa ser um número inteiro." };
 
-  const perfisValidos = await prisma.perfil.count({ where: { id: { in: dados.perfilIds }, admin: false } });
+  const perfisValidos = await prisma.perfil.count({ where: { id: { in: dados.perfilIds } } });
   if (perfisValidos !== dados.perfilIds.length) return { erro: "Algum perfil marcado não existe mais. Recarregue a página." };
 
   let quiz: Prisma.InputJsonObject | undefined;

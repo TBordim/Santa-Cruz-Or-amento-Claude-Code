@@ -9,7 +9,7 @@ export default async function NovoTreinamentoPage() {
   if (!sessao) redirect("/login");
   if (!sessao.admin) redirect("/treinamentos");
 
-  const perfis = await prisma.perfil.findMany({ where: { admin: false }, orderBy: { nome: "asc" }, select: { id: true, nome: true } });
+  const perfis = await prisma.perfil.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true, admin: true } });
 
   return (
     <>

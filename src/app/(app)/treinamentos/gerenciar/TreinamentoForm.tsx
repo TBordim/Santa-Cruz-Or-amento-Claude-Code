@@ -69,7 +69,7 @@ async function enviarParaBlob(arquivo: File, pasta: "videos" | "legendas", tipo:
   return { url: r.url, pathname: r.pathname };
 }
 
-export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nome: string }[]; inicial?: TreinamentoInicial }) {
+export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nome: string; admin: boolean }[]; inicial?: TreinamentoInicial }) {
   const router = useRouter();
   const [titulo, setTitulo] = useState(inicial?.titulo ?? "");
   const [modulo, setModulo] = useState(inicial?.modulo ?? "");
@@ -225,7 +225,7 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
         <legend className="px-1 text-sm font-semibold">Quem vê e faz este treinamento</legend>
         <p className="mb-3 text-xs text-muted-foreground">Clique nos perfis que devem ver o vídeo. Quem não tem o perfil não acessa.</p>
         {perfis.length === 0 ? (
-          <p className="text-sm text-destructive">Ainda não há perfis para marcar (o perfil de administrador não aparece aqui, porque vê tudo). Em Administração › Perfis de acesso, crie os perfis (por exemplo, Laboratório) e depois volte aqui.</p>
+          <p className="text-sm text-destructive">Ainda não há perfis para marcar. Em Administração › Perfis de acesso, crie os perfis (por exemplo, Laboratório) e depois volte aqui.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {perfis.map((p) => {
@@ -242,6 +242,7 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
                 >
                   {marcado ? "✓ " : ""}
                   {p.nome}
+                  {p.admin ? " (administrador, vê tudo)" : ""}
                 </button>
               );
             })}
