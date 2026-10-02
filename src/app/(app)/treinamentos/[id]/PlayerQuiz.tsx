@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { CheckCircle2, Lock, RotateCcw, XCircle } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { CheckCircle2, Lock, PartyPopper, RotateCcw, XCircle } from "lucide-react";
 import { enviarRespostas, type ResultadoEnvio } from "./actions";
 import { Button } from "@/components/ui/button";
 import type { PerguntaPublica } from "@/lib/treinamentos/quiz";
@@ -129,6 +129,79 @@ export function PlayerQuiz({ treinamentoId, videoUrl, temLegendas, perguntas, no
   );
 }
 
+const CORES_CONFETE = ["#F47216", "#FFA646", "#3D6B49", "#26405C", "#7A3B69", "#946522", "#2F6B5E"];
+
+function reduzMovimento(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// Confete que cai pela tela por alguns segundos e some sozinho. Só CSS (sem biblioteca) e desligado para quem pediu
+// menos movimento no sistema.
+function Confete({ quantidade }: { quantidade: number }) {
+  const [pecas] = useState(() =>
+    Array.from({ length: quantidade }, (_, i) => ({
+      id: i,
+      esquerda: Math.random() * 100,
+      atraso: Math.random() * 1.2,
+      duracao: 2.6 + Math.random() * 2,
+      tamanho: 6 + Math.random() * 7,
+      giro: 360 + Math.random() * 720,
+      deriva: (Math.random() - 0.5) * 160,
+      cor: CORES_CONFETE[i % CORES_CONFETE.length],
+      redondo: i % 3 === 0,
+    })),
+  );
+  const [visivel, setVisivel] = useState(true);
+  useEffect(() => {
+    const fim = setTimeout(() => setVisivel(false), 5200);
+    return () => clearTimeout(fim);
+  }, []);
+  if (!visivel) return null;
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+      <style>{`@keyframes trein-confete{0%{transform:translate3d(0,-12vh,0) rotate(0);opacity:1}85%{opacity:1}100%{transform:translate3d(var(--deriva),108vh,0) rotate(var(--giro));opacity:0}}`}</style>
+      {pecas.map((c) => (
+        <span
+          key={c.id}
+          className="absolute top-0 block"
+          style={
+            {
+              left: `${c.esquerda}%`,
+              width: c.tamanho,
+              height: c.redondo ? c.tamanho : c.tamanho * 0.45,
+              borderRadius: c.redondo ? "50%" : 2,
+              background: c.cor,
+              "--deriva": `${c.deriva}px`,
+              "--giro": `${c.giro}deg`,
+              animation: `trein-confete ${c.duracao}s ${c.atraso}s cubic-bezier(.25,.6,.4,1) forwards`,
+              opacity: 0,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+// A nota "sobe" de 0 até o valor final, em cerca de um segundo.
+function NotaAnimada({ alvo }: { alvo: number }) {
+  const [valor, setValor] = useState(() => (reduzMovimento() ? alvo : 0));
+  useEffect(() => {
+    if (reduzMovimento()) return;
+    const duracao = 1100;
+    const inicio = performance.now();
+    let quadro = 0;
+    const passo = (agora: number) => {
+      const p = Math.min(1, (agora - inicio) / duracao);
+      setValor(Math.round(alvo * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) quadro = requestAnimationFrame(passo);
+    };
+    quadro = requestAnimationFrame(passo);
+    return () => cancelAnimationFrame(quadro);
+  }, [alvo]);
+  return <>{valor}</>;
+}
+
 function Resultado({
   resultado,
   perguntas,
@@ -139,17 +212,50 @@ function Resultado({
   onRefazer: () => void;
 }) {
   const { acertos, total, nota, aprovado, notaMinima, itens } = resultado;
+  const topoRef = useRef<HTMLDivElement>(null);
+
+  // Ao enviar, a tela estava parada no fim do quiz: leva a pessoa para o início do resultado.
+  useEffect(() => {
+    topoRef.current?.scrollIntoView({ behavior: reduzMovimento() ? "auto" : "smooth", block: "start" });
+  }, []);
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className={`rounded-xl p-4 ${aprovado ? "bg-good-soft text-good" : "bg-warn-soft text-warn"}`}>
-        <div className="font-serif text-xl font-semibold">
-          {acertos} de {total} · {nota}% · {aprovado ? "Aprovado" : "Abaixo da nota mínima"}
+    <div ref={topoRef} className="flex scroll-mt-4 flex-col gap-4">
+      {aprovado && !reduzMovimento() && <Confete quantidade={nota === 100 ? 140 : 80} />}
+      <h3 className="font-serif text-xl font-semibold tracking-tight">Resultado</h3>
+      <div
+        className={`animate-in fade-in zoom-in-95 flex items-center gap-4 rounded-xl p-5 duration-500 ${aprovado ? "bg-good-soft text-good" : "bg-warn-soft text-warn"}`}
+        role="status"
+      >
+        <div className="min-w-0 flex-1">
+        {aprovado && (
+          <div className="mb-1 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
+            <PartyPopper className="h-5 w-5" /> {nota === 100 ? "Gabaritou!" : "Parabéns!"}
+          </div>
+        )}
+        <div className="font-serif text-3xl font-semibold">
+          <NotaAnimada alvo={nota} />% <span className="text-lg font-normal">· {acertos} de {total} · {aprovado ? "Aprovado" : "Abaixo da nota mínima"}</span>
         </div>
-        <p className="mt-1 text-sm">
+        <p className="mt-2 text-sm">
           {aprovado
             ? "Treinamento concluído. Sua nota ficou registrada."
             : `Você precisa de ${notaMinima}% para passar. Reveja o vídeo e tente de novo, quantas vezes precisar.`}
         </p>
+        </div>
+        {aprovado && (
+          <>
+            <style>{`@keyframes trein-santinho{0%{transform:translateY(60px) scale(.4) rotate(-12deg);opacity:0}45%{transform:translateY(-14px) scale(1.12) rotate(5deg);opacity:1}62%{transform:translateY(0) scale(.97) rotate(-3deg)}78%{transform:translateY(-8px) rotate(4deg)}100%{transform:translateY(0) rotate(0)}}@keyframes trein-balanca{0%,100%{transform:rotate(0)}25%{transform:rotate(-6deg) translateY(-6px)}75%{transform:rotate(6deg) translateY(-6px)}}`}</style>
+            {/* eslint-disable-next-line @next/next/no-img-element -- arte do mascote, fixa e pequena */}
+            <img
+              src="/santinho.svg"
+              alt="Santinho comemorando"
+              width={120}
+              height={120}
+              className="h-24 w-24 shrink-0 select-none sm:h-[120px] sm:w-[120px]"
+              style={reduzMovimento() ? undefined : { animation: "trein-santinho 1.1s cubic-bezier(.3,1.3,.5,1) both, trein-balanca 1.4s ease-in-out 1.2s 3" }}
+            />
+          </>
+        )}
       </div>
 
       <div className="flex flex-col gap-3">
