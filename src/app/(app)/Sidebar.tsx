@@ -18,6 +18,9 @@ import {
   LayoutGrid,
   Scale,
   FlaskConical,
+  GraduationCap,
+  ClipboardCheck,
+  Film,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -32,6 +35,9 @@ type Props = {
   admin: boolean;
   // Módulos que o perfil abre (ver modulosAcessiveis) — os outros aparecem desabilitados no seletor.
   modulos: ModuloKey[];
+  // Treinamentos do perfil ainda sem aprovação (selo no menu) e se a pessoa vê o painel de acompanhamento.
+  pendentes: number;
+  acompanhamento: boolean;
 };
 
 type NavItem = {
@@ -61,6 +67,8 @@ function SidebarContent({
   perfilNome,
   admin,
   modulos,
+  pendentes,
+  acompanhamento,
   mobile = false,
   onNavigate,
 }: Props & { mobile?: boolean; onNavigate?: () => void }) {
@@ -88,6 +96,12 @@ function SidebarContent({
     ...(admin ? [{ href: "/laboratorio/bases", label: "Bases", icon: FlaskConical, color: "#8C5A21" }] : []),
   ];
 
+  const itemsTreinamentos: NavItem[] = [
+    { href: "/treinamentos", label: "Meus treinamentos", icon: GraduationCap, color: "#2F6B5E" },
+    ...(acompanhamento ? [{ href: "/treinamentos/acompanhamento", label: "Acompanhamento", icon: ClipboardCheck, color: "#946522" }] : []),
+    ...(admin ? [{ href: "/treinamentos/gerenciar", label: "Gerenciar", icon: Film, color: "#233248" }] : []),
+  ];
+
   const itemsAdministracao: NavItem[] = [
     { href: "/administracao", label: "Usuários e perfis", icon: Settings2, color: "#233248" },
   ];
@@ -96,9 +110,11 @@ function SidebarContent({
     ? [{ href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" }]
     : modulo === "laboratorio"
       ? itemsLaboratorio
-      : modulo === "administracao"
-        ? itemsAdministracao
-        : itemsOrcamento;
+      : modulo === "treinamentos"
+        ? itemsTreinamentos
+        : modulo === "administracao"
+          ? itemsAdministracao
+          : itemsOrcamento;
 
   return (
     <>
@@ -127,6 +143,21 @@ function SidebarContent({
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Módulo</span>
             <ModuloSwitcher acessiveis={modulos} className="text-sm! font-sans! font-semibold!" />
           </div>
+        )}
+        {/* Selo de pendência: aparece em qualquer módulo enquanto houver treinamento do perfil sem aprovação.
+            Só avisa; não bloqueia nada. */}
+        {logado && pendentes > 0 && modulo !== "treinamentos" && (
+          <Link
+            href="/treinamentos"
+            onClick={onNavigate}
+            className="mt-2 flex items-center gap-2 rounded-[10px] border border-[color-mix(in_srgb,#2F6B5E_35%,var(--border))] bg-[color-mix(in_srgb,#2F6B5E_8%,var(--sidebar))] px-2.5 py-2 text-[12.5px] font-medium text-foreground no-underline"
+          >
+            <GraduationCap className="h-4 w-4 shrink-0" style={{ color: "#2F6B5E" }} />
+            <span className="flex-1">Treinamentos pendentes</span>
+            <span className="rounded-full px-1.5 py-0.5 font-mono text-[10px] font-semibold text-white" style={{ background: "#2F6B5E" }}>
+              {pendentes}
+            </span>
+          </Link>
         )}
       </div>
 

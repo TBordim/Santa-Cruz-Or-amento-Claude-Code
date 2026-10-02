@@ -5,7 +5,7 @@
 // de rotas nova — não mexer na lógica da sidebar.
 import { AREAS } from "./areas";
 
-export type ModuloKey = "orcamento" | "laboratorio" | "administracao";
+export type ModuloKey = "orcamento" | "laboratorio" | "treinamentos" | "administracao";
 
 export type Modulo = {
   key: ModuloKey;
@@ -19,6 +19,8 @@ export type Modulo = {
 export const MODULOS: Modulo[] = [
   { key: "orcamento", label: "Orçamento", descricao: "Solicitações, precificação e aprovação de orçamentos.", basePath: "/painel" },
   { key: "laboratorio", label: "Laboratório", descricao: "Formulação, ajuste e aprovação de cores.", basePath: "/laboratorio" },
+  // Aberto a qualquer colaborador logado (ver modulosAcessiveis); cada pessoa só enxerga os vídeos do seu perfil.
+  { key: "treinamentos", label: "Treinamentos", descricao: "Vídeos de treinamento do seu perfil e quiz de cada um.", basePath: "/treinamentos" },
   // Serve todos os módulos (usuários e perfis valem pro sistema inteiro), por isso é um módulo
   // próprio e não um item dentro do Orçamento. Só administrador entra.
   { key: "administracao", label: "Administração", descricao: "Usuários, perfis de acesso e configurações do sistema.", basePath: "/administracao" },
@@ -36,8 +38,10 @@ export function moduloAtual(pathname: string): ModuloKey {
 // perfil tem ao menos uma área marcada (a área "Consulta" de cada módulo existe pra quem só
 // precisa ver). Administração é só pra administrador. Todos os módulos continuam aparecendo na
 // página de entrada — os que não estão aqui aparecem bloqueados. Decisão do Thiago em 27/09/2026.
+// Treinamentos é a exceção (01/10/2026): todo colaborador logado entra, sem precisar de área marcada. O que cada
+// um vê lá é filtrado pelo perfil (ver filtroDeAcesso em lib/treinamentos/dados.ts).
 export function modulosAcessiveis(admin: boolean, areas: readonly string[]): ModuloKey[] {
   if (admin) return MODULOS.map((m) => m.key);
   const doPerfil = new Set(AREAS.filter((a) => areas.includes(a.key)).map((a) => a.modulo));
-  return MODULOS.filter((m) => m.key !== "administracao" && doPerfil.has(m.key)).map((m) => m.key);
+  return MODULOS.filter((m) => m.key === "treinamentos" || (m.key !== "administracao" && doPerfil.has(m.key))).map((m) => m.key);
 }
