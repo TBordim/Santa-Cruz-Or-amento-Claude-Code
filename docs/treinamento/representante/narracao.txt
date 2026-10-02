@@ -1,12 +1,12 @@
 Olá! Eu sou o Santinho. Em um minuto, você aprende a pedir um orçamento!
 
-Entre com seu nome e seu pin. O Novo Orçamento já abre para você.
+Entre com seu nome e seu pin: o Novo Orçamento já abre.
 
 Comece pelo cliente: digite o nome ou o cê ene pê jota, e escolha na lista. Se ele for novo, clique em cadastrar novo.
 
 Informe quantas entregas e a data que o cliente pediu. Depois, descreva o produto e coloque as quantidades a orçar.
 
-Detalhes técnicos são opcionais. Não sabe? Deixe em branco, que a Engenharia analisa.
+Preencha os detalhes técnicos: medidas, material, acabamento. Quanto mais informação, mais rápido sai o orçamento. Sem isso, a Engenharia precisa levantar, e atrasa.
 
 Pronto! Clique em Enviar solicitação, e a Santa Cruz segue daqui.
 

@@ -52,7 +52,7 @@ Confira, antes de gravar, com a demo no ar:
 
 - [ ] Login do **Rafael** (PIN 4444) cai no **Novo Orçamento** (e não na página de entrada) `[CONFIRMAR]`.
 - [ ] Digitar `doces` na busca mostra **2 clientes** (Doces Serra Azul e Docerias Vale Doce).
-- [ ] A seção "Detalhes técnicos" aparece **recolhida**.
+- [ ] A seção "Detalhes técnicos" aparece **recolhida** e abre com um clique.
 
 ## Preparar a tela
 
@@ -72,8 +72,8 @@ Confira, antes de gravar, com a demo no ar:
 | **2 · Entrar** | 1. 🔴 ⏸ 1 s no login. 2. **"Sou colaborador da Santa Cruz"**. 3. Nome → **Rafael Representante**. 4. PIN `4444`. 5. **Entrar**. Abre o **Novo Orçamento**. ⏸ 1 s. |
 | **3 · Cliente** | 6. Clique em **"Buscar cliente cadastrado"** e digite `doces`. ⏸ 1 s na lista (2 resultados). 7. Clique em **Doces Serra Azul Ltda.** Aparece "Cliente do cadastro: Doces Serra Azul Ltda.". ⏸ 1 s. 8. Passe o mouse sobre **"Cliente não está na lista — cadastrar novo"**, **sem clicar**. ⏸ 1 s. |
 | **4 · Entrega e produto** | 9. Role até **Condições comerciais e entrega**. **Qtd. de entregas:** `1`. 10. **Data de entrega solicitada pelo Cliente:** `30/11/2026`. 11. Role até **Produto**. **Descrição do produto:** `Caixa para bolo 20 x 20 x 10 cm`. 12. **Quantidades a orçar:** `5000`; clique em **Adicionar quantidade**; `10000`. ⏸ 1 s. |
-| **5 · Detalhes técnicos** | 13. Role até **"Detalhes técnicos (toque para abrir)"**. Passe o mouse sobre o texto "Se não tiver, deixe em branco". ⏸ 2 s. **Não abra.** |
-| **6 · Enviar** | 14. Role até o fim. Clique em **Enviar solicitação**. Aparece **"Solicitação enviada"**. ⏸ 3 s. 15. ⏹ Pare. |
+| **5 · Detalhes técnicos** | 13. Role até **"Detalhes técnicos (toque para abrir)"** e **clique para abrir**. 14. **Formato — Comprimento (mm):** `200`. **Largura (mm):** `200`. **Altura (mm):** `100`. 15. **Descrição do material:** `Cartão duplex`; **Gramatura (g/m²):** `300`. ⏸ 1 s. 16. Role até **Acabamento** e passe o mouse sobre as opções, **sem marcar nada**. ⏸ 2 s. |
+| **6 · Enviar** | 17. Role até o fim. Clique em **Enviar solicitação**. Aparece **"Solicitação enviada"**. ⏸ 3 s. 18. ⏹ Pare. |
 
 ## Se errar
 
