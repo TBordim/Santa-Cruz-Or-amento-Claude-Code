@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 import { salvarTreinamento, type ArquivoBlob, type DadosTreinamento } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,14 +31,14 @@ function tamanho(arquivo: File): string {
   return arquivo.size >= 1024 * 1024 ? `${(arquivo.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(arquivo.size / 1024))} KB`;
 }
 
-// O SDK do Blob esconde a resposta do servidor quando falha em obter o token ("Failed to retrieve the client token").
-// Pedimos o mesmo token de novo, só para mostrar o motivo real na tela.
+// O SDK do Blob esconde a resposta do servidor quando falha em obter a autorização de envio ("Failed to retrieve the presigned URL").
+// Pedimos a mesma autorização de novo, só para mostrar o motivo real na tela.
 async function diagnosticoDoToken(): Promise<string> {
   try {
     const r = await fetch("/api/treinamentos/upload", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "blob.generate-client-token", payload: { pathname: "treinamentos/videos/diagnostico.mp4", clientPayload: null, multipart: false } }),
+      body: JSON.stringify({ type: "blob.generate-presigned-url", payload: { pathname: "treinamentos/videos/diagnostico.mp4", clientPayload: null, multipart: false } }),
     });
     const texto = (await r.text()).replace(/"clientToken":"[^"]*"/, '"clientToken":"…"');
     return `servidor respondeu HTTP ${r.status}: ${texto.slice(0, 300)}`;
@@ -75,7 +75,13 @@ function duracaoDoVideo(arquivo: File): Promise<number | null> {
 }
 
 async function enviarParaBlob(arquivo: File, pasta: "videos" | "legendas", tipo: string, aoProgredir: (pct: number) => void): Promise<ArquivoBlob> {
-  const r = await upload(`treinamentos/${pasta}/${nomeSeguro(arquivo.name)}`, arquivo, {
+  // O nome já leva um sufixo aleatório (a URL fica pública, mas não dá para adivinhar); o servidor só autoriza este formato.
+  const nome = nomeSeguro(arquivo.name);
+  const ponto = nome.lastIndexOf(".");
+  const base = ponto > 0 ? nome.slice(0, ponto) : nome;
+  const extensao = ponto > 0 ? nome.slice(ponto) : "";
+  const sufixo = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  const r = await uploadPresigned(`treinamentos/${pasta}/${base}-${sufixo}${extensao}`, arquivo, {
     access: "public",
     handleUploadUrl: "/api/treinamentos/upload",
     contentType: tipo,
@@ -192,7 +198,7 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
         }
       } catch (e2) {
         let motivo = e2 instanceof Error ? e2.message : "erro desconhecido";
-        if (/client token/i.test(motivo)) motivo += ` (diagnóstico: ${await diagnosticoDoToken()})`;
+        if (/client token|presigned/i.test(motivo)) motivo += ` (diagnóstico: ${await diagnosticoDoToken()})`;
         setErro(`Não foi possível salvar: ${motivo}`);
       } finally {
         setEtapa(undefined);
