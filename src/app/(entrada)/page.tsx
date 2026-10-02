@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { sessaoAtual } from "@/lib/permissions";
 import { modulosAcessiveis } from "@/lib/modulos";
+import { contarPendentes } from "@/lib/treinamentos/dados";
 import { Entrada } from "./Entrada";
 
 export const dynamic = "force-dynamic";
@@ -10,5 +11,5 @@ export const dynamic = "force-dynamic";
 export default async function EntradaPage() {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
-  return <Entrada sessao={sessao} acessiveis={modulosAcessiveis(sessao.admin, sessao.areas)} />;
+  return <Entrada sessao={sessao} acessiveis={modulosAcessiveis(sessao.admin, sessao.areas)} pendentes={await contarPendentes(sessao)} />;
 }

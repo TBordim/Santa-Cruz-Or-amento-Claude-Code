@@ -28,6 +28,9 @@ model Perfil {
 
   usuarios Usuario[]
 
+  // Módulo Treinamentos
+  treinamentos TreinamentoPerfil[]
+
   @@map("perfis")
 }
 
@@ -53,6 +56,9 @@ model Usuario {
   rodadasRegistradas    Rodada[]              @relation("RodadaRegistradaPor")
   leiturasLidas         LeituraLab[]          @relation("LeituraLidaPor")
   interacoesRegistradas InteracaoFornecedor[] @relation("InteracaoRegistradaPor")
+
+  // Módulo Treinamentos
+  tentativasTreinamento TentativaTreinamento[]
 
   @@map("usuarios")
 }
@@ -453,4 +459,75 @@ model InteracaoFornecedor {
   criadaEm        DateTime @default(now())
 
   @@map("cor_interacoes_fornecedor")
+}
+
+// ============================================================
+// Módulo Treinamentos — vídeos por perfil, quiz e registro de quem fez
+// Só tabelas novas: nenhuma tabela existente ganha coluna (Perfil e Usuario só ganham a lista inversa).
+// ============================================================
+
+model Treinamento {
+  id        String  @id @default(cuid())
+  titulo    String
+  // Chave de src/lib/modulos.ts ("laboratorio", "orcamento"...). Aparece como selo no cartão.
+  modulo    String
+  descricao String?
+
+  // MP4 no Vercel Blob (URL pública, com sufixo aleatório no nome). O pathname serve pra apagar o arquivo
+  // quando o vídeo é trocado.
+  videoUrl         String
+  videoPathname    String
+  legendasUrl      String? // .vtt
+  legendasPathname String?
+  duracaoSeg       Int?
+
+  // quiz.json guardado inteiro (perguntas, alternativas, correta, explicação): é sempre lido junto do
+  // treinamento, nunca pergunta a pergunta. A correção roda no servidor contra este JSON.
+  quiz       Json
+  notaMinima Int  @default(75) // % de acertos pra contar como aprovado (6 de 8). Sem limite de tentativas.
+  // Sobe quando o vídeo ou o quiz mudam: a aprovação vale pra versão em que foi feita, e o painel mostra
+  // quem precisa refazer.
+  versao     Int  @default(1)
+
+  ativo        Boolean  @default(true)
+  ordem        Int      @default(0)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  perfis     TreinamentoPerfil[]
+  tentativas TentativaTreinamento[]
+
+  @@map("trein_treinamentos")
+}
+
+// Quais perfis veem e fazem cada treinamento (muitos-para-muitos). Quem não está aqui não acessa o vídeo.
+model TreinamentoPerfil {
+  treinamentoId String
+  treinamento   Treinamento @relation(fields: [treinamentoId], references: [id], onDelete: Cascade)
+  perfilId      String
+  perfil        Perfil      @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+
+  @@id([treinamentoId, perfilId])
+  @@map("trein_perfis")
+}
+
+// Cada vez que alguém responde o quiz. Guarda todas (histórico); o painel usa a melhor da versão atual.
+model TentativaTreinamento {
+  id                String      @id @default(cuid())
+  treinamentoId     String
+  treinamento       Treinamento @relation(fields: [treinamentoId], references: [id], onDelete: Cascade)
+  usuarioId         String
+  usuario           Usuario     @relation(fields: [usuarioId], references: [id])
+  versaoTreinamento Int
+
+  respostas Json // [{ perguntaId, escolhida }]
+  acertos   Int
+  total     Int
+  nota      Int // 0-100
+  aprovado  Boolean // nota >= notaMinima do treinamento na hora da resposta
+
+  criadaEm DateTime @default(now())
+
+  @@index([usuarioId, treinamentoId])
+  @@map("trein_tentativas")
 }

@@ -25,7 +25,10 @@ export type AreaKey =
   // registram/editam; Produção, que só consulta, recebe a "Consulta" do Laboratório.
   | "COR_LABORATORIO"
   | "COR_ENGENHARIA"
-  | "CONSULTA_LABORATORIO";
+  | "CONSULTA_LABORATORIO"
+  // Módulo Treinamentos: todo colaborador entra e vê os vídeos do seu perfil sem área nenhuma; esta é só a
+  // permissão do painel de acompanhamento (Diretoria). O cadastro de vídeos é só do administrador.
+  | "TREINAMENTOS_ACOMPANHAMENTO";
 
 export type Area = {
   key: AreaKey;
@@ -49,6 +52,7 @@ export const AREAS: Area[] = [
   { key: "COR_LABORATORIO", label: "Laboratório", hint: "Testes, fórmulas e ajustes de cor", modulo: "laboratorio" },
   { key: "COR_ENGENHARIA", label: "Engenharia de cor", hint: "Registro e gestão das fórmulas de cor", modulo: "laboratorio" },
   { key: "CONSULTA_LABORATORIO", label: "Consulta", hint: "Só ver o módulo Laboratório, sem editar nada", modulo: "laboratorio" },
+  { key: "TREINAMENTOS_ACOMPANHAMENTO", label: "Acompanhamento", hint: "Ver quem já fez cada treinamento, com nota e data", modulo: "treinamentos" },
 ];
 
 export const AREA_KEYS: AreaKey[] = AREAS.map((a) => a.key);

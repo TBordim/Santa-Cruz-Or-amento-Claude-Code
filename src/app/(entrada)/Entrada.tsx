@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { KanbanSquare, FlaskConical, Settings2, Lock, LogOut, ArrowRight } from "lucide-react";
+import { KanbanSquare, FlaskConical, GraduationCap, Settings2, Lock, LogOut, ArrowRight } from "lucide-react";
 import { MODULOS, type ModuloKey } from "@/lib/modulos";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { sair } from "@/app/(app)/actions";
 const VISUAL: Record<ModuloKey, { icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; cor: string }> = {
   orcamento: { icon: KanbanSquare, cor: "#26405C" },
   laboratorio: { icon: FlaskConical, cor: "#7A3B69" },
+  treinamentos: { icon: GraduationCap, cor: "#2F6B5E" },
   administracao: { icon: Settings2, cor: "#233248" },
 };
 
@@ -18,9 +19,12 @@ const VISUAL: Record<ModuloKey, { icon: React.ComponentType<{ className?: string
 export function Entrada({
   sessao,
   acessiveis,
+  pendentes = 0,
 }: {
   sessao: { nome: string; admin: boolean; perfilNome: string };
   acessiveis: ModuloKey[];
+  // Treinamentos do perfil ainda sem aprovação: vira um selo no cartão do módulo Treinamentos.
+  pendentes?: number;
 }) {
   return (
     <div className="min-h-screen">
@@ -85,9 +89,16 @@ export function Entrada({
                   <span className="font-serif text-xl font-semibold text-foreground">{m.label}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">{m.descricao}</p>
-                <span className="mt-auto inline-flex items-center gap-1 text-sm font-semibold text-foreground">
-                  Entrar <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                </span>
+                <div className="mt-auto flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1 text-sm font-semibold text-foreground">
+                    Entrar <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                  {m.key === "treinamentos" && pendentes > 0 && (
+                    <span className="rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold whitespace-nowrap text-white" style={{ background: cor }}>
+                      {pendentes} {pendentes === 1 ? "pendente" : "pendentes"}
+                    </span>
+                  )}
+                </div>
               </Link>
             );
           })}
