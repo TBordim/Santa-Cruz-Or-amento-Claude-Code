@@ -7,7 +7,7 @@ busca de cliente e campos obrigatórios).
 
 | | |
 |---|---|
-| **Duração** | cerca de 56 s (meta: **menos de 1 min**) |
+| **Duração** | **cerca de 55 s** (meta: menos de 1 min). A voz gravada em 02/10/2026 tem 51,2 s de fala; com a abertura de 3 s (a voz entra aos 2,6 s) e 1,2 s de fecho, o vídeo fecha perto de 55 s. Por isso a montagem usa a voz **contínua**, sem a folga de 0,8 s por cena do vídeo do Laboratório (que somaria uns 7 s e passaria de 1 min) |
 | **Narração** | 109 palavras. Na voz usada nos outros vídeos (cerca de 150 palavras por minuto), dá uns 44 s de fala, mais as pausas entre as cenas |
 | **Público** | Representantes comerciais. Só abrem o Novo Orçamento; não veem Painel nem outros módulos |
 | **Apresentador** | só o Santinho. Nenhuma pessoa real aparece nem fala |
