@@ -20,3 +20,14 @@ Pipeline que o Claude usou para montar `VIDEO-Laboratorio-completo-v2.mp4` (5 mi
 
 Dependências (instaladas pelo Claude numa pasta temporária): `playwright-core` com o Chromium,
 `imageio-ffmpeg` (ffmpeg completo) e `faster-whisper`.
+
+## Versão 3 (01/10/2026): só as cenas 3, 4 e 6 foram refeitas
+
+`montar-v3.py` parte do `VIDEO-Laboratorio-completo-v2.mp4`, reaproveita as cenas 1-2, 5 e 7-15 e monta de novo as
+cenas 3, 4 e 6 com a voz nova e as tomadas novas (1, 2 e 4). A voz nova vem num arquivo só (cenas 3, 4 e o trecho
+novo da 6), cortado e com +2 semitons. A cena 6 junta a voz antiga (antes e depois) com o trecho novo no meio.
+As legendas saem do texto do `roteiro.md` alinhado, palavra a palavra, com a transcrição (`transcrever.py`).
+O volume das vozes novas é igualado ao da cena 5 da v2.
+
+As tomadas 2 e 4 são gravadas **no ritmo da fala**: `gravar-tomadas-laboratorio.mjs` espera cada instante da voz
+(`h.ate(tv)`). Se a voz for regravada, os instantes `tv` precisam ser medidos de novo na transcrição.

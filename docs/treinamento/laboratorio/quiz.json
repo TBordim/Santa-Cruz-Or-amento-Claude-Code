@@ -2,7 +2,7 @@
   "modulo": "laboratorio",
   "titulo": "Quiz do Laboratório",
   "versao": 1,
-  "notaMinima": 70,
+  "notaMinima": 75,
   "perguntas": [
     {
       "id": "lab-01",

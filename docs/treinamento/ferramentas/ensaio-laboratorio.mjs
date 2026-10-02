@@ -1,8 +1,8 @@
-// Percorre o gravacao.md do Laboratório contra o app local (porta 3100, banco demo local).
+// Percorre o gravacao.md do Laboratório contra a demo (por padrão a publicada; DEMO_URL aponta para outra, ex.: http://localhost:3003).
 import { chromium } from "playwright-core";
 import os from "node:os";
 
-const BASE = "https://santa-cruz-or-amento-claude-code-git-demo-tbordim.vercel.app";
+const BASE = process.env.DEMO_URL ?? "https://santa-cruz-or-amento-claude-code-git-demo-tbordim.vercel.app";
 const SHOTS = new URL("./shots/", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1");
 const exe = `${os.homedir()}/AppData/Local/ms-playwright/chromium-1243/chrome-win64/chrome.exe`;
 
@@ -19,26 +19,48 @@ async function escolhe(trigger, opcao) {
   await page.getByRole("option", { name: opcao, exact: true }).click();
 }
 
-// Tomada 1 — login e troca de módulo
+// Tomada 1 — login, página de entrada e seletor de módulo
 await page.goto(`${BASE}/login`);
 await page.getByRole("button", { name: "Sou colaborador da Santa Cruz" }).click();
 await escolhe(page.locator("#usuarioId"), "Ana Laboratório");
 await page.fill("#pin", "1111");
 await page.getByRole("button", { name: "Entrar" }).click();
-await page.waitForURL(/\/painel/, { timeout: 60000 });
-await escolhe(page.getByRole("combobox", { name: "Trocar de módulo" }).first(), "Laboratório");
+await checa("T1 página de entrada com cadeado em Orçamento e Administração", async () => {
+  await texto("Para onde você vai hoje?");
+  const cadeados = await page.getByText("Sem acesso no seu perfil").count();
+  if (cadeados !== 2) throw new Error(`${cadeados} cartões com cadeado, esperava 2`);
+});
+await page.getByRole("link", { name: /Laboratório/ }).first().click();
 await page.waitForURL(/\/laboratorio$/, { timeout: 60000 });
+await checa("T1 seletor Módulo abre e fecha sem trocar", async () => {
+  await page.getByRole("combobox", { name: "Trocar de módulo" }).first().click();
+  await page.getByRole("option", { name: "Orçamento", exact: true }).waitFor();
+  await page.keyboard.press("Escape");
+});
 await checa("T1 Início com cartões Cor e Produção", async () => { await texto("Busque uma cor aprovada"); });
 
 // Tomada 2 — lista e busca
 await page.goto(`${BASE}/laboratorio/cor`);
-await checa("T2 lista com 4 cores", async () => { await texto("(4"); });
+await checa("T2 lista com 5 cores (4 STA + 91801663)", async () => { await texto("(5)"); });
+await checa("T2 ordem: STA0004 no topo e 91801663 no fim", async () => {
+  const links = await page.locator("tbody tr td:first-child a").allTextContents();
+  if (links[0] !== "STA0004") throw new Error(`topo: ${links[0]}`);
+  if (links.at(-1) !== "91801663") throw new Error(`fim: ${links.at(-1)}`);
+});
 await page.fill('input[name="q"]', "café");
 await page.getByRole("button", { name: "Buscar", exact: true }).click();
 await checa("T2 busca 'café' acha só STA0002", async () => {
   await texto("encontradas");
   if (!(await page.getByRole("link", { name: "STA0002" }).isVisible())) throw new Error("STA0002 não apareceu");
   if (await page.getByRole("link", { name: "STA0001" }).isVisible()) throw new Error("STA0001 não devia aparecer");
+});
+await page.getByRole("link", { name: "Limpar" }).click();
+await checa("T2 filtro de status Aprovado acha 3 cores", async () => {
+  await texto("(5)");
+  await page.getByRole("combobox", { name: "Filtrar por status" }).click();
+  await page.getByRole("option", { name: "Aprovado", exact: true }).click();
+  await page.getByRole("button", { name: "Buscar", exact: true }).click();
+  await texto("(3 encontradas)");
 });
 await page.getByRole("link", { name: "Limpar" }).click();
 
@@ -59,7 +81,25 @@ await page.getByRole("button", { name: "Criar cor" }).click();
 await page.waitForURL(/\/laboratorio\/cor\/.+/, { timeout: 60000 });
 await checa("T3 bancada abriu como STA0005", async () => { await page.getByRole("heading", { name: "STA0005" }).waitFor(); });
 
-// Tomada 4 — primeira fórmula
+// Tomada 4 — quadro "Como começar" e primeira fórmula
+await checa("T4 sugestões: Pantone 1665C (ΔE 1,15) e 91801663 (ΔE 0,43)", async () => {
+  await texto("Como começar");
+  await texto("Pantone 1665C");
+  await texto("ΔE 1,15");
+  await texto("91801663");
+  await texto("ΔE 0,43");
+});
+await page.getByRole("button", { name: "Usar esta fórmula" }).first().click();
+await checa("T4 'Usar esta fórmula' preenche 44 / 30 / 26 com origem do Pantone", async () => {
+  const v = await page.locator('input[name="percentual"]').evaluateAll((els) => els.map((e) => e.value));
+  if (v.join("/") !== "44/30/26") throw new Error(`preencheu ${v.join("/")}`);
+  await texto("Sugestão do sistema (Pantone convertido)");
+});
+await page.getByRole("button", { name: "Começar do zero" }).click();
+await checa("T4 'Começar do zero' esvazia o quadro", async () => {
+  const v = await page.locator('input[name="percentual"]').evaluateAll((els) => els.map((e) => e.value));
+  if (v.some((x) => x !== "")) throw new Error(`ainda tinha ${v.join("/")}`);
+});
 await escolhe(page.locator("#origem"), "Fórmula do fornecedor");
 const linhas = [["IRO21 — Orange", "45"], ["IRO33 — Warm Red", "30"], ["IRO48 — Transparent White", "25"]];
 for (const [i, [base, pct]] of linhas.entries()) {

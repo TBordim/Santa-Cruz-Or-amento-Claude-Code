@@ -2,13 +2,13 @@ Olá! Eu sou o Santinho, e hoje a gente vai colocar esse módulo no registro! Em
 
 O módulo Laboratório é a bancada digital de desenvolvimento de cor. Quem é do Laboratório ou da Engenharia registra tudo: a cor, as fórmulas testadas e as leituras. Quem produz entra para consultar a fórmula aprovada e calcular o lote. Tudo num lugar só, com histórico.
 
-Depois de entrar com seu nome e seu pin, o aplicativo abre no Orçamento. Para chegar aqui, use o campo Módulo, no topo do menu, e escolha Laboratório. No Início, você tem dois atalhos: Cor e Produção.
+Depois de entrar com seu nome e seu pin, o aplicativo mostra a página de entrada, com um cartão para cada módulo. Clique em Laboratório. Os módulos que o seu perfil não abre aparecem com um cadeado. Já dentro, você troca de módulo pelo campo Módulo, no topo do menu. No Início, você tem dois atalhos: Cor e Produção.
 
-Em Cor fica a lista de todas as cores. Ela não segue a ordem dos números: é como a pilha de provas na mesa, a última mexida fica por cima. Para achar uma cor, use a busca. Vale código, cliente ou referência.
+Em Cor fica a lista de todas as cores, em forma de tabela. Ela vai do código mais novo para o mais antigo: como a pilha de provas na mesa, a mais recente fica por cima. Cada linha mostra o código, o cliente e a referência, o Lab alvo, o Lab aprovado, o delta é e o status. Para achar uma cor, use a busca, que vale para código, cliente ou referência, e o filtro de status ao lado.
 
 Para cadastrar, use o quadro Nova cor. O código você não digita: o sistema gera o próximo número sozinho. Preencha o cliente, a referência e o tipo. E o mais importante: o Lab alvo. São três valores, éle, á e bê. Ou você preenche os três, ou deixa os três em branco. Depois, é só clicar em Criar cor.
 
-Pronto: essa é a bancada da cor, com tudo sobre ela numa tela só. Vamos registrar a primeira fórmula. Escolha a origem, aqui Fórmula do fornecedor, e adicione as tintas com o percentual de cada uma. A soma precisa fechar em cem por cento exatos. Enquanto não fecha, aparece um alerta ao lado do total. Clique em Salvar rodada.
+Pronto: essa é a bancada da cor, com tudo sobre ela numa tela só. Antes de preencher, olhe o quadro Como começar. O aplicativo pode sugerir um ponto de partida: uma cor aprovada com Lab parecido, ou o Pantone mais próximo, já convertido em tintas. Se servir, clique em Usar esta fórmula. Se não, comece do zero. Aqui, vamos com a fórmula do fornecedor. Vamos registrar a primeira fórmula. Escolha a origem, aqui Fórmula do fornecedor, e adicione as tintas com o percentual de cada uma. A soma precisa fechar em cem por cento exatos. Enquanto não fecha, aparece um alerta ao lado do total. Clique em Salvar rodada.
 
 Hora da puxada no Quick Peek. Aqui você registra só o melhor Lab, o mais perto do alvo. Digite éle, á e bê, e clique em Registrar puxada. Digitou errado? É só corrigir: o valor novo substitui o antigo.
 

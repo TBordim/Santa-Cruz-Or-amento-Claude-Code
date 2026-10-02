@@ -13,4 +13,4 @@ Os dois criam dados na demo (a cor STA0005 e as rodadas dela), então:
 2. **Rode:** `node gravar-tomadas-laboratorio.mjs "<pasta de saída>"`. Para regravar só algumas tomadas, acrescente `"03,07"`. Precisa do `playwright-core` e do Chromium do Playwright instalados.
 3. **Depois:** reinicie a demo de novo.
 
-O endereço da demo está fixo no começo de cada script (`BASE`).
+Por padrão os scripts usam a demo publicada (`BASE`, no começo de cada um). Para apontar para outra, defina `DEMO_URL` antes de rodar, por exemplo `DEMO_URL=http://localhost:3003 node ensaio-laboratorio.mjs`. Desde 01/10/2026 o ensaio confere 5 cores na lista, a página de entrada, o filtro de status e as sugestões da cena 6 (dados em `laboratorio/gravacao.md`, "Dados das sugestões").

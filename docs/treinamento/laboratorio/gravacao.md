@@ -1,6 +1,6 @@
 # Checklist de gravação: Módulo Laboratório
 
-**Versão 1 (25/09/2026).** Acompanha o [roteiro](roteiro.md). Cada bloco diz a **cena**
+**Versão 2 (01/10/2026).** Acompanha o [roteiro](roteiro.md). Mudaram as tomadas 1, 2 e 4 e os pré-requisitos; as outras seguem como na versão 1. Cada bloco diz a **cena**
 correspondente.
 
 Grave **só a tela**, sem voz. A narração do Santinho entra depois, na edição.
@@ -20,7 +20,14 @@ Legenda:
   - usuário **Ana Laboratório**, PIN **1111**, com a permissão Laboratório;
   - cores **STA0001 a STA0004**: Pet Feliz Rações, Café Vale do Sol, Farmacêutica Boa Saúde e
     Cosméticos Lírio do Campo;
-  - **nenhuma** outra cor com código STA, para a cor criada ao vivo sair como **STA0005**.
+  - **nenhuma** outra cor com código STA, para a cor criada ao vivo sair como **STA0005**;
+  - a cor **91801663** (Confeitaria Doce Aurora, Aprovado, código da base antiga) e o Pantone
+    **1665C** no catálogo, que alimentam as sugestões da Tomada 4. Ver "Dados das sugestões"
+    no fim deste arquivo.
+- [ ] A demo precisa estar com o código do Laboratório até o commit `976b9db` (01/10/2026) ou mais
+      novo. Sem isso, faltam a página de entrada, o filtro de status e o quadro "Como começar".
+      A branch `demo` **não é commitada** (decisão do Thiago, 01/10/2026): o merge e o seed novo
+      valem só para a gravação, na pasta `wt-demo`.
 - [ ] Endereço da demo aberto. **Nunca grave no endereço de produção.**
 
 ### Preparar a tela
@@ -48,26 +55,39 @@ Legenda:
 2. Clique em **"Sou colaborador da Santa Cruz"**.
 3. Clique em **"Seu nome"** (lista "Escolha seu nome…") → escolha **Ana Laboratório**.
 4. Clique no campo **PIN** e digite **1111**.
-5. Clique em **Entrar**. O app abre o **Painel** do Orçamento. ⏸ 2 s.
-6. No topo do menu da esquerda, clique no campo **"Módulo"** (onde está escrito "Orçamento"). ⏸ 1 s
-   com a lista aberta.
-7. Escolha **Laboratório**. Abre a tela **Laboratório**, com os cartões **Cor** e **Produção**. ⏸ 3 s.
-8. ⏹ Pare.
+5. Clique em **Entrar**. Abre a página **"Para onde você vai hoje?"**, com três cartões.
+   **Orçamento** e **Administração** aparecem apagados, com cadeado e o aviso "Sem acesso no seu
+   perfil". **Laboratório** está liberado. ⏸ 4 s, para dar tempo de falar do cadeado.
+6. Clique no cartão **Laboratório**. Abre o **Início** do Laboratório, com os cartões **Cor** e
+   **Produção**. ⏸ 2 s.
+7. No topo do menu da esquerda, clique no campo **"Módulo"** (onde está escrito "Laboratório").
+   ⏸ 2 s com a lista aberta (Orçamento e Administração aparecem desabilitados). Aperte **Esc**
+   para fechar, sem escolher nada.
+8. ⏸ 3 s no Início. ⏹ Pare.
 
 ## Tomada 2: Lista de cores (cena 4)
 
 **Ponto de partida:** Início do Laboratório (fim da Tomada 1).
 
+A lista é uma **tabela**, e fica **abaixo** do quadro Nova cor. Em 1080p ela não aparece sem
+rolar a página. É preciso rolar até ela e ficar parado.
+
 1. 🔴 ⏸ 2 s.
-2. No menu da esquerda, clique em **Cor**. ⏸ 3 s na lista (4 cores).
-3. Clique no campo **"Buscar código, cliente, referência…"** e digite **café**.
-4. Clique em **Buscar**. A lista mostra só a **STA0002**. ⏸ 2 s.
-5. Clique em **Limpar**. As 4 cores voltam. ⏸ 2 s.
-6. ⏹ Pare.
+2. No menu da esquerda, clique em **Cor**. Abre o quadro **Nova cor**. ⏸ 1 s.
+3. Role **devagar** até o título **"Cores cadastradas (5)"**. ⏸ 4 s, com a tabela inteira na tela.
+   Passe o mouse, bem devagar, pelos cabeçalhos: **Código**, **Cliente / referência**, **LAB
+   alvo**, **LAB aprovado**, **ΔE** e **Status**. Na edição, dê zoom na tabela. A ordem é
+   STA0004, STA0003, STA0002, STA0001 e, no fim, a 91801663 (base antiga).
+4. Clique no campo **"Buscar código, cliente, referência…"** e digite **café**.
+5. Clique em **Buscar**. A lista mostra só a **STA0002**. ⏸ 2 s.
+6. Clique em **Limpar**. As 5 cores voltam. ⏸ 1 s.
+7. Abra o filtro **"Todos os status"**, escolha **Aprovado** e clique em **Buscar**. Ficam a
+   STA0003, a STA0002 e a 91801663 ("3 encontradas"). ⏸ 3 s.
+8. Clique em **Limpar**. ⏸ 1 s. ⏹ Pare.
 
 ## Tomada 3: Nova cor (cena 5)
 
-**Ponto de partida:** tela Cor, sem busca.
+**Ponto de partida:** tela Cor, sem busca nem filtro, rolada até o topo (quadro Nova cor visível).
 
 1. 🔴 ⏸ 2 s no quadro **Nova cor**. Mostre o campo **Código** travado com **STA0005**. ⏸ 2 s.
 2. **Cliente:** `Doces Serra Azul Ltda.`
@@ -91,16 +111,24 @@ Legenda:
 
 **Ponto de partida:** bancada da STA0005 (fim da Tomada 3).
 
-1. 🔴 ⏸ 2 s. Role a página até o quadro **"Registrar a primeira fórmula"**.
-2. **Origem da fórmula:** clique em "Escolha…" → **Fórmula do fornecedor**.
-3. **Linha 1:** em "Base…", escolha **IRO21 — Orange**. No campo **%**, digite `45`.
-4. Clique em **Adicionar tinta**.
-5. **Linha 2:** **IRO33 — Warm Red**, `30`.
-6. Clique em **Adicionar tinta**.
-7. **Linha 3:** **IRO48 — Transparent White**. Digite `25` **devagar**. Enquanto a soma não
-   fecha, o total mostra ⚠. Ao completar, aparece **"total: 100,00%"** sem ⚠. ⏸ 2 s.
-8. Clique em **Salvar rodada**. Aparece o cartão **Rodada 1**. ⏸ 2 s.
-9. ⏹ Pare.
+1. 🔴 ⏸ 2 s. Role a página até o quadro **"Como começar"**.
+2. ⏸ 4 s nele. Aparecem duas sugestões: **Pantone 1665C** (ΔE 1,15), em cima, e **91801663 ·
+   Confeitaria Doce Aurora** (ΔE 0,43), embaixo. A fala cita primeiro a cor aprovada e depois o
+   Pantone: aponte o mouse para o bloco de baixo e depois para o de cima.
+3. Clique em **Usar esta fórmula** no Pantone. O botão vira "Selecionada" e o quadro "Registrar a
+   primeira fórmula" vem preenchido (IRO21 44 · IRO33 30 · IRO48 26), com a origem em
+   **"Sugestão do sistema (Pantone convertido)"**. ⏸ 3 s.
+4. Clique em **Começar do zero**. O quadro volta em branco. ⏸ 1 s.
+5. Role até o quadro **"Registrar a primeira fórmula"**.
+6. **Origem da fórmula:** clique em "Escolha…" → **Fórmula do fornecedor**.
+7. **Linha 1:** em "Base…", escolha **IRO21 — Orange**. No campo **%**, digite `45`.
+8. Clique em **Adicionar tinta**.
+9. **Linha 2:** **IRO33 — Warm Red**, `30`.
+10. Clique em **Adicionar tinta**.
+11. **Linha 3:** **IRO48 — Transparent White**. Digite `25` **devagar**. Enquanto a soma não
+    fecha, o total mostra ⚠. Ao completar, aparece **"total: 100,00%"** sem ⚠. ⏸ 2 s.
+12. Clique em **Salvar rodada**. Aparece o cartão **Rodada 1**. ⏸ 2 s.
+13. ⏹ Pare.
 
 ## Tomada 5: Puxada (cena 7)
 
@@ -222,10 +250,10 @@ depois de cada clipe.**
 
 | Tomada | Cena do roteiro | Duração no vídeo |
 |---|---|---|
-| 1 | 3 · Chegando ao módulo | 18 s |
-| 2 | 4 · Lista de cores | 20 s |
+| 1 | 3 · Chegando ao módulo | 26 s |
+| 2 | 4 · Lista de cores | 30 s |
 | 3 | 5 · Nova cor | 29 s |
-| 4 | 6 · Primeira fórmula | 31 s |
+| 4 | 6 · Primeira fórmula | 53 s |
 | 5 | 7 · Puxada | 20 s |
 | 6 | 8 · ΔE e eixo LAB | 35 s |
 | 7 | 9 · Novo ajuste | 25 s |
@@ -237,3 +265,56 @@ depois de cada clipe.**
 As cenas 0a–0c, 1, 2, 14 e 15 não têm gravação de tela: são animação do Santinho e texto.
 Na edição, as tomadas podem ser **aceleradas** nos trechos de digitação para caber no tempo da
 cena.
+
+## Dados das sugestões (seed da demo)
+
+A Tomada 4 só funciona se a demo tiver estes dados. Eles entram no `prisma/seed-demo.ts` da pasta
+`wt-demo`, **sem commit**. Os ΔE foram calculados com a própria função do app (alvo da STA0005:
+L* 52 · a* 58 · b* 32).
+
+| Item | Dados | ΔE contra o alvo |
+|---|---|---|
+| Pantone **1665C** no catálogo | LAB 53,0 · 59,5 · 33,5; composição `{ Orange021: 44, WarmRed: 30, TransWhite: 26 }`, soma 100, não parcial | 1,15 |
+| Cor **91801663**, Confeitaria Doce Aurora, Aprovado | Referência LARANJA P. 1495, amostra do cliente, alvo 51,5 · 57,5 · 31,5, cartão duplex 300 g/m², verniz UV brilho. Rodada 1 (fornecedor) aprovada: IRO21 46 · IRO33 29 · IRO48 25, puxada 51,6 · 57,4 · 31,8 | 0,43 |
+
+A 91801663 usa um código da base antiga de propósito. A conta do próximo código só olha os
+códigos STA, então a cor criada ao vivo continua saindo **STA0005**.
+
+No `seed-demo.ts`, acrescente:
+
+```ts
+// 1) em CORES, depois da STA0004:
+{
+  codigo: "91801663",
+  cliente: "Confeitaria Doce Aurora",
+  referenciaDeclarada: "LARANJA P. 1495",
+  tipoReferencia: "AMOSTRA_CLIENTE",
+  alvo: { l: 51.5, a: 57.5, b: 31.5 },
+  substrato: "Cartão duplex 300 g/m²",
+  acabamento: "Verniz UV brilho",
+  status: "APROVADO",
+  rodadas: [
+    { origem: "FORNECEDOR", composicao: [["IRO21", 46], ["IRO33", 29], ["IRO48", 25]], puxada: { l: 51.6, a: 57.4, b: 31.8 }, aprovada: true },
+  ],
+},
+
+// 2) na lista de deleteMany() do passo 1, antes de cor.deleteMany():
+prisma.pantoneCor.deleteMany(),
+
+// 3) no fim do passo 3, depois do laço das cores:
+await prisma.pantoneCor.create({
+  data: {
+    codigo: "1665C",
+    labL: 53.0,
+    labA: 59.5,
+    labB: 33.5,
+    composicao: { Orange021: 44, WarmRed: 30, TransWhite: 26 },
+    somaPercentual: 100,
+    parcial: false,
+  },
+});
+```
+
+Se a demo estiver com o código antigo (sem a tabela `cor_pantone_catalogo`), o seed falha no
+Pantone: faça o merge do Laboratório na `demo` primeiro.
+

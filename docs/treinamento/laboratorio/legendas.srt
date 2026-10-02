@@ -37,278 +37,326 @@ fórmula aprovada e calcular o lote.
 Tudo num lugar só, com histórico.
 
 9
-00:00:53,300 --> 00:00:59,762
-Depois de entrar com seu nome e
-seu PIN, o app abre no Orçamento.
+00:00:53,300 --> 00:00:59,647
+Depois de entrar com seu nome e seu PIN,
+o aplicativo mostra a página de entrada,
 
 10
-00:00:59,812 --> 00:01:06,273
-Para chegar aqui, use o campo Módulo,
-no topo do menu, e escolha Laboratório.
+00:00:59,697 --> 00:01:02,095
+com um cartão para cada módulo.
 
 11
-00:01:06,323 --> 00:01:09,092
-No Início, você tem dois atalhos:
+00:01:02,145 --> 00:01:03,832
+Clique em Laboratório.
 
 12
-00:01:09,142 --> 00:01:10,527
-Cor e Produção.
+00:01:03,882 --> 00:01:08,649
+Os módulos que o seu perfil não
+abre aparecem com um cadeado.
 
 13
-00:01:11,300 --> 00:01:15,454
-Em Cor fica a lista de todas as cores.
+00:01:08,699 --> 00:01:13,940
+Já dentro, você troca de módulo
+pelo campo Módulo, no topo do menu.
 
 14
-00:01:15,504 --> 00:01:18,735
-Ela não segue a ordem dos números:
+00:01:13,990 --> 00:01:17,810
+No Início, você tem dois
+atalhos: Cor e Produção.
 
 15
-00:01:18,785 --> 00:01:25,246
-é como a pilha de provas na mesa,
-a última mexida fica por cima.
+00:01:19,300 --> 00:01:23,657
+Em Cor fica a lista de todas
+as cores, em forma de tabela.
 
 16
-00:01:25,296 --> 00:01:28,527
-Para achar uma cor, use a busca.
+00:01:23,707 --> 00:01:29,661
+Ela vai do código mais novo para o mais
+antigo: como a pilha de provas na mesa,
 
 17
-00:01:28,577 --> 00:01:30,885
-Vale código, cliente ou referência.
+00:01:29,711 --> 00:01:31,864
+a mais recente fica por cima.
 
 18
-00:01:31,300 --> 00:01:34,531
-Para cadastrar, use o quadro Nova cor.
+00:01:31,914 --> 00:01:38,019
+Cada linha mostra o código, o cliente e
+a referência, o LAB alvo, o LAB aprovado,
 
 19
-00:01:34,581 --> 00:01:36,888
-O código você não digita:
+00:01:38,069 --> 00:01:39,235
+o ΔE e o status.
 
 20
-00:01:36,938 --> 00:01:40,169
-o sistema gera o próximo número sozinho.
+00:01:39,285 --> 00:01:45,086
+Para achar uma cor, use a busca, que
+vale para código, cliente ou referência,
 
 21
-00:01:40,219 --> 00:01:43,912
-Preencha o cliente, a referência e o tipo.
+00:01:45,136 --> 00:01:47,290
+e o filtro de status ao lado.
 
 22
-00:01:43,962 --> 00:01:47,192
-E o mais importante: o LAB alvo.
+00:01:49,300 --> 00:01:52,531
+Para cadastrar, use o quadro Nova cor.
 
 23
-00:01:47,242 --> 00:01:50,473
-São três valores, L, a e b.
+00:01:52,581 --> 00:01:54,888
+O código você não digita:
 
 24
-00:01:50,523 --> 00:01:55,600
+00:01:54,938 --> 00:01:58,169
+o sistema gera o próximo número sozinho.
+
+25
+00:01:58,219 --> 00:02:01,912
+Preencha o cliente, a referência e o tipo.
+
+26
+00:02:01,962 --> 00:02:05,192
+E o mais importante: o LAB alvo.
+
+27
+00:02:05,242 --> 00:02:08,473
+São três valores, L, a e b.
+
+28
+00:02:08,523 --> 00:02:13,600
 Ou você preenche os três,
 ou deixa os três em branco.
 
-25
-00:01:55,650 --> 00:01:58,881
+29
+00:02:13,650 --> 00:02:16,881
 Depois, é só clicar em Criar cor.
 
-26
-00:02:00,300 --> 00:02:06,762
+30
+00:02:18,300 --> 00:02:24,762
 Pronto: essa é a bancada da cor,
 com tudo sobre ela numa tela só.
 
-27
-00:02:06,812 --> 00:02:09,119
+31
+00:02:24,812 --> 00:02:28,435
+Antes de preencher, olhe
+o quadro Como começar.
+
+32
+00:02:28,485 --> 00:02:34,765
+O aplicativo pode sugerir um ponto de
+partida: uma cor aprovada com LAB parecido,
+
+33
+00:02:34,815 --> 00:02:38,751
+ou o Pantone mais próximo,
+já convertido em tintas.
+
+34
+00:02:38,801 --> 00:02:41,799
+Se servir, clique em Usar esta fórmula.
+
+35
+00:02:41,849 --> 00:02:43,596
+Se não, comece do zero.
+
+36
+00:02:43,646 --> 00:02:46,722
+Aqui, vamos com a fórmula do fornecedor.
+
+37
+00:02:47,562 --> 00:02:49,869
 Vamos registrar a primeira fórmula.
 
-28
-00:02:09,169 --> 00:02:15,631
+38
+00:02:49,919 --> 00:02:56,381
 Escolha a origem, aqui Fórmula do fornecedor,
 e adicione as tintas com o percentual
 
-29
-00:02:15,681 --> 00:02:20,296
+39
+00:02:56,431 --> 00:03:01,046
 de cada uma. A soma precisa
 fechar em 100% exatos.
 
-30
-00:02:20,346 --> 00:02:24,962
+40
+00:03:01,096 --> 00:03:05,712
 Enquanto não fecha, aparece
 um alerta ao lado do total.
 
-31
-00:02:25,012 --> 00:02:26,858
+41
+00:03:05,762 --> 00:03:07,608
 Clique em Salvar rodada.
 
-32
-00:02:31,300 --> 00:02:34,069
+42
+00:03:11,300 --> 00:03:14,069
 Hora da puxada no Quick Peek.
 
-33
-00:02:34,119 --> 00:02:39,658
+43
+00:03:14,119 --> 00:03:19,658
 Aqui você registra só o melhor
 LAB, o mais perto do alvo.
 
-34
-00:02:39,708 --> 00:02:44,323
+44
+00:03:19,708 --> 00:03:24,323
 Digite L, a e b e clique
 em Registrar puxada.
 
-35
-00:02:44,373 --> 00:02:46,681
+45
+00:03:24,373 --> 00:03:26,681
 Digitou errado? É só corrigir:
 
-36
-00:02:46,731 --> 00:02:49,500
+46
+00:03:26,731 --> 00:03:29,500
 o valor novo substitui o antigo.
 
-37
-00:02:51,300 --> 00:02:54,069
+47
+00:03:31,300 --> 00:03:34,069
 Agora a bancada mostra o resultado.
 
-38
-00:02:54,119 --> 00:03:01,504
+48
+00:03:34,119 --> 00:03:41,504
 O ΔE dessa rodada ficou em 2,59, em
 vermelho, porque a meta é abaixo de 1.
 
-39
-00:03:01,554 --> 00:03:08,477
+49
+00:03:41,554 --> 00:03:48,477
 No eixo LAB, a mira é o alvo
 e a bolinha é a sua puxada.
 
-40
-00:03:08,527 --> 00:03:13,604
+50
+00:03:48,527 --> 00:03:53,604
 A seta mostra o caminho: aqui,
 menos vermelho e menos amarelo.
 
-41
-00:03:13,654 --> 00:03:19,654
+51
+00:03:53,654 --> 00:03:59,654
 E a régua ao lado mostra que
 a tinta ficou um pouco escura.
 
-42
-00:03:19,704 --> 00:03:24,319
+52
+00:03:59,704 --> 00:04:04,319
 A seta dá a direção;
 quanto mudar, é com você.
 
-43
-00:03:26,300 --> 00:03:32,762
+53
+00:04:06,300 --> 00:04:12,762
 Vamos ajustar. O quadro Novo ajuste já
 vem com a fórmula da rodada anterior:
 
-44
-00:03:32,812 --> 00:03:40,658
+54
+00:04:12,812 --> 00:04:20,658
 mude só o que precisa. Aqui, um pouco menos
 de laranja e de vermelho, e mais branco.
 
-45
-00:03:40,708 --> 00:03:43,477
+55
+00:04:20,708 --> 00:04:23,477
 Salve, faça a puxada e registre.
 
-46
-00:03:43,527 --> 00:03:46,296
+56
+00:04:23,527 --> 00:04:26,296
 Olha só: 0,59. Dentro da tolerância!
 
-47
-00:03:51,300 --> 00:03:54,992
+57
+00:04:31,300 --> 00:04:34,992
 Chegou na cor? Clique
 em Aprovar esta rodada.
 
-48
-00:03:55,042 --> 00:04:01,504
+58
+00:04:35,042 --> 00:04:41,504
 Atenção: o botão não pede confirmação,
 e a cor passa na hora para Aprovado.
 
-49
-00:04:01,554 --> 00:04:09,400
+59
+00:04:41,554 --> 00:04:49,400
 Um ΔE acima de 1 até pode ser aprovado,
 mas fica em vermelho, para todo mundo ver.
 
-50
-00:04:11,300 --> 00:04:17,762
+60
+00:04:51,300 --> 00:04:57,762
 Errou algum dado? Editar dados corrige
 o cadastro, menos o código, que é fixo.
 
-51
-00:04:17,812 --> 00:04:23,350
+61
+00:04:57,812 --> 00:05:03,350
 O lápis corrige a fórmula de
 uma rodada, e a lixeira exclui.
 
-52
-00:04:23,400 --> 00:04:24,600
+62
+00:05:03,400 --> 00:05:04,600
 Cuidado:
 
-53
-00:04:24,650 --> 00:04:31,112
+63
+00:05:04,650 --> 00:05:11,112
 excluir a rodada aprovada devolve a cor
 para Em desenvolvimento, e ela sai da
 
-54
-00:04:31,162 --> 00:04:32,362
+64
+00:05:11,162 --> 00:05:12,362
 Produção.
 
-55
-00:04:33,300 --> 00:04:34,685
+65
+00:05:13,300 --> 00:05:14,685
 Agora, a Produção.
 
-56
-00:04:34,735 --> 00:04:40,735
+66
+00:05:14,735 --> 00:05:20,735
 No menu, clique em Produção, digite
 o código completo da cor e busque.
 
-57
-00:04:40,785 --> 00:04:47,708
+67
+00:05:20,785 --> 00:05:27,708
 Informe quantos quilos vai produzir, por
 exemplo 25, e o app calcula na hora quanto
 
-58
-00:04:47,758 --> 00:04:51,450
+68
+00:05:27,758 --> 00:05:31,450
 de cada tinta usar. Só
 aparecem cores aprovadas.
 
-59
-00:04:58,300 --> 00:05:02,454
+69
+00:05:38,300 --> 00:05:42,454
 Opa, cuidado aqui, que esse
 erro borra a impressão!
 
-60
-00:05:02,504 --> 00:05:04,350
+70
+00:05:42,504 --> 00:05:44,350
 Os deslizes mais comuns:
 
-61
-00:05:04,400 --> 00:05:12,246
+71
+00:05:44,400 --> 00:05:52,246
 preencher só parte do LAB alvo, fórmula que
 não fecha em 100%, a mesma tinta em duas
 
-62
-00:05:12,296 --> 00:05:16,450
+72
+00:05:52,296 --> 00:05:56,450
 linhas e, na Produção,
 digitar só parte do código.
 
-63
-00:05:16,500 --> 00:05:19,731
+73
+00:05:56,500 --> 00:05:59,731
 Em todos esses casos, o app avisa.
 
-64
-00:05:19,781 --> 00:05:22,088
+74
+00:05:59,781 --> 00:06:02,088
 Leia a mensagem e corrija.
 
-65
-00:05:28,300 --> 00:05:32,915
+75
+00:06:08,300 --> 00:06:12,915
 Recapitulando: um, cadastre a
 cor com o LAB alvo completo.
 
-66
-00:05:32,965 --> 00:05:40,812
+76
+00:06:12,965 --> 00:06:20,812
 Dois, registre cada rodada com a melhor
 puxada, e use o ΔE e a seta para ajustar.
 
-67
-00:05:40,862 --> 00:05:45,938
+77
+00:06:20,862 --> 00:06:25,938
 Três, aprove a rodada certa,
 e a Produção calcula o lote.
 
-68
-00:05:48,300 --> 00:05:50,654
+78
+00:06:28,300 --> 00:06:30,654
 Pronto, tudo impresso e aprovado.
 
-69
-00:05:50,704 --> 00:05:57,900
+79
+00:06:30,704 --> 00:06:37,900
 Agora é com você! Responda o quiz a seguir
 e mostre que já domina o Laboratório.
