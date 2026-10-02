@@ -54,11 +54,18 @@ export default async function AcompanhamentoPage({
         title="Acompanhamento"
         description="Quem já fez cada treinamento, com a melhor nota e a data. Só aparecem as pessoas cujo perfil é ligado ao treinamento."
         action={
-          <Button asChild variant="outline" className="gap-2">
-            <a href={`/treinamentos/acompanhamento/csv${consulta.size ? `?${consulta}` : ""}`}>
-              <Download className="h-3.5 w-3.5" /> Exportar CSV
-            </a>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {sessao.admin && (
+              <Button asChild variant="ghost">
+                <Link href={`/treinamentos/acompanhamento/${sessao.usuarioId}`}>Minhas tentativas</Link>
+              </Button>
+            )}
+            <Button asChild variant="outline" className="gap-2">
+              <a href={`/treinamentos/acompanhamento/csv${consulta.size ? `?${consulta}` : ""}`}>
+                <Download className="h-3.5 w-3.5" /> Exportar CSV
+              </a>
+            </Button>
+          </div>
         }
       />
 

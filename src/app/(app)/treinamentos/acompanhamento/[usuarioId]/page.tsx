@@ -8,6 +8,7 @@ import { SeloModulo } from "@/components/treinamentos/badges";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { podeAcompanhar } from "@/lib/treinamentos/dados";
+import { ApagarTentativasButton } from "./ApagarTentativasButton";
 
 // Detalhe de uma pessoa: todas as tentativas dela, com data, versão e nota (inclusive as reprovadas).
 export default async function PessoaPage({ params }: { params: Promise<{ usuarioId: string }> }) {
@@ -25,6 +26,7 @@ export default async function PessoaPage({ params }: { params: Promise<{ usuario
         orderBy: { criadaEm: "desc" },
         select: {
           id: true,
+          treinamentoId: true,
           versaoTreinamento: true,
           acertos: true,
           total: true,
@@ -38,12 +40,33 @@ export default async function PessoaPage({ params }: { params: Promise<{ usuario
   });
   if (!u) notFound();
 
+  // Para o administrador: quantas tentativas a pessoa tem em cada treinamento (para poder zerá-las).
+  const porTreinamento = new Map<string, { titulo: string; n: number }>();
+  for (const t of u.tentativasTreinamento) {
+    const atual = porTreinamento.get(t.treinamentoId);
+    porTreinamento.set(t.treinamentoId, { titulo: t.treinamento.titulo, n: (atual?.n ?? 0) + 1 });
+  }
+
   return (
     <>
       <Link href="/treinamentos/acompanhamento" className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline hover:text-foreground">
         <ArrowLeft className="h-3.5 w-3.5" /> Acompanhamento
       </Link>
       <PageHeader title={u.nome} description={`${u.perfil.nome} · todas as tentativas, da mais recente para a mais antiga.`} />
+
+      {sessao.admin && porTreinamento.size > 0 && (
+        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+          <div className="text-sm font-semibold">Apagar tentativas (só administrador)</div>
+          {[...porTreinamento.entries()].map(([treinamentoId, x]) => (
+            <div key={treinamentoId} className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <span>
+                {x.titulo} <span className="text-muted-foreground">· {x.n} {x.n === 1 ? "tentativa" : "tentativas"}</span>
+              </span>
+              <ApagarTentativasButton usuarioId={usuarioId} treinamentoId={treinamentoId} pessoa={u.nome} treinamento={x.titulo} quantidade={x.n} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {u.tentativasTreinamento.length === 0 ? (
         <div className="empty-state">Essa pessoa ainda não respondeu nenhum quiz.</div>
