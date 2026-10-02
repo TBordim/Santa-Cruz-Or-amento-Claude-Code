@@ -1,6 +1,7 @@
 import { ListaDinamica } from "./ListaDinamica";
 import { SuportesLista } from "./SuportesLista";
 import { ModelosLista } from "./ModelosLista";
+import { ClienteProvider, ClienteSecao, CampoCliente } from "./ClienteSecao";
 import {
   ORIGENS_PEDIDO,
   ANALISE_CREDITO,
@@ -40,7 +41,11 @@ function CheckGroup({ nome, opcoes, marcados }: { nome: string; opcoes: readonly
 // 30/09/2026 — um orçamento pode ter vários modelos na mesma faca.
 export function CamposComerciaisFields({
   defaults,
+  comBuscaCliente = false,
 }: {
+  // Busca no cadastro de clientes (Novo Orçamento). Em Aberto, onde o card já tem cliente, fica
+  // desligada.
+  comBuscaCliente?: boolean;
   defaults?: {
     origemPedido?: string | null;
     classificacaoDetalhe?: string | null;
@@ -68,7 +73,7 @@ export function CamposComerciaisFields({
   const r = defaults?.reqCliente;
 
   return (
-    <>
+    <ClienteProvider>
       <FormSection title="Classificação">
         {/* A classificação (novo/repetição) em si fica em cada modelo, na seção Produto. */}
         <Row2>
@@ -80,9 +85,12 @@ export function CamposComerciaisFields({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Detalhe da classificação">
-            <Input name="classificacaoDetalhe" defaultValue={defaults?.classificacaoDetalhe ?? ""} />
-          </Field>
+          {/* Dispensado no Novo Orçamento (02/10/2026); segue disponível em Em Aberto. */}
+          {!comBuscaCliente && (
+            <Field label="Detalhe da classificação">
+              <Input name="classificacaoDetalhe" defaultValue={defaults?.classificacaoDetalhe ?? ""} />
+            </Field>
+          )}
         </Row2>
         <Row2>
           <Field label="Análise de crédito">
@@ -108,27 +116,10 @@ export function CamposComerciaisFields({
         </label>
       </FormSection>
 
-      <FormSection title="Cliente">
-        <Field label="Cliente">
-          <Input name="cliente" required defaultValue={defaults?.cliente ?? ""} />
-        </Field>
-        <Row2>
-          <Field label="CNPJ"><Input name="cnpj" defaultValue={defaults?.cnpj ?? ""} /></Field>
-          <Field label="Endereço"><Input name="endereco" defaultValue={defaults?.endereco ?? ""} /></Field>
-        </Row2>
-        <Row2>
-          <Field label="Representante"><Input name="representante" defaultValue={defaults?.representante ?? ""} /></Field>
-          <Field label="Comissão CEV"><Input name="comissaoCev" defaultValue={defaults?.comissaoCev ?? ""} /></Field>
-        </Row2>
-        <Row2>
-          <Field label="Telefone"><Input name="telefone" defaultValue={defaults?.telefone ?? ""} /></Field>
-          <Field label="E-mail"><Input name="email" type="email" defaultValue={defaults?.email ?? ""} /></Field>
-        </Row2>
-        <Field label="Contato compras"><Input name="contatoCompras" defaultValue={defaults?.contatoCompras ?? ""} /></Field>
-      </FormSection>
+      <ClienteSecao defaults={defaults} comBusca={comBuscaCliente} />
 
       <FormSection title="Condições comerciais e entrega">
-        <Field label="Condição de pagamento"><Input name="condPagamento" defaultValue={defaults?.condPagamento ?? ""} /></Field>
+        <Field label="Condição de pagamento"><CampoCliente nome="condPagamento" campo="condPagamento" defaultValue={defaults?.condPagamento} /></Field>
         <Row2>
           <Field label="Modalidade">
             <Select name="modalidade" defaultValue={defaults?.modalidade ?? OPCOES_MODALIDADE[0]}>
@@ -138,11 +129,15 @@ export function CamposComerciaisFields({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Localidade de entrega"><Input name="entregaLocalidade" defaultValue={defaults?.entregaLocalidade ?? ""} /></Field>
+          <Field label="Localidade de entrega"><CampoCliente nome="entregaLocalidade" campo="entregaLocalidade" defaultValue={defaults?.entregaLocalidade} /></Field>
         </Row2>
         <Row2>
-          <Field label="Qtd. de entregas"><Input name="qtdEntregas" defaultValue={defaults?.qtdEntregas ?? ""} /></Field>
-          <Field label="Datas de entrega"><Input name="entregaDatas" defaultValue={defaults?.entregaDatas ?? ""} /></Field>
+          <Field label={comBuscaCliente ? "Qtd. de entregas (obrigatório)" : "Qtd. de entregas"}>
+            <Input name="qtdEntregas" required={comBuscaCliente} defaultValue={defaults?.qtdEntregas ?? ""} />
+          </Field>
+          <Field label={comBuscaCliente ? "Data de entrega solicitada pelo Cliente (obrigatório)" : "Data de entrega solicitada pelo Cliente"}>
+            <Input name="entregaDatas" required={comBuscaCliente} defaultValue={defaults?.entregaDatas ?? ""} />
+          </Field>
         </Row2>
       </FormSection>
 
@@ -152,16 +147,28 @@ export function CamposComerciaisFields({
             a linha continuava sem id e ganhava OUTRO id no salvamento seguinte. */}
         <ModelosLista key={JSON.stringify(defaults?.modelos ?? [])} valoresIniciais={defaults?.modelos} />
         <Field
-          label="Quantidades a orçar"
+          label={comBuscaCliente ? "Quantidades a orçar (obrigatório)" : "Quantidades a orçar"}
           hint="Quantidade total do conjunto (todos os modelos juntos). Cada quantidade gera uma SO — por papel, se houver mais de uma opção de papel."
         >
-          <ListaDinamica name="quantidades" placeholder="Ex.: 5000" botaoLabel="Adicionar quantidade" valoresIniciais={r?.quantidadesLista} />
+          <ListaDinamica name="quantidades" placeholder="Ex.: 5000" botaoLabel="Adicionar quantidade" obrigatorio={comBuscaCliente} valoresIniciais={r?.quantidadesLista} />
         </Field>
         <Field label="Observações">
           <Textarea name="obs" rows={2} defaultValue={defaults?.obs ?? ""} />
         </Field>
       </FormSection>
 
+      {/* Dados técnicos: o representante preenche o que tiver; o que ficar em branco a Engenharia
+          analisa na etapa seguinte. No Novo Orçamento começa recolhido pra encurtar o formulário
+          (os campos recolhidos continuam indo no envio); em Em Aberto, onde o card já existe,
+          começa aberto. */}
+      <details open={!comBuscaCliente} className="group mt-6 border-t border-border pt-6">
+        <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">
+          Detalhes técnicos <span className="font-normal text-muted-foreground group-open:hidden">(toque para abrir)</span>
+          <span className="mt-1 block text-xs font-normal text-muted-foreground">
+            Se você tiver essas informações, preencha. Se não tiver, deixe em branco — a Engenharia analisa.
+          </span>
+        </summary>
+        <div className="mt-4">
       <FormSection title="Medidas e suporte">
         <Row2 compacto>
           <Field label="Formato — Comprimento (mm)"><Input name="medidaF" defaultValue={r?.medidaF ?? ""} /></Field>
@@ -208,6 +215,8 @@ export function CamposComerciaisFields({
           <Field label="Fechamento fundo"><Input name="fechamentoFundo" defaultValue={r?.fechamentoFundo ?? ""} /></Field>
         </Row2>
       </FormSection>
-    </>
+        </div>
+      </details>
+    </ClienteProvider>
   );
 }

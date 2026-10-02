@@ -16,11 +16,14 @@ export function ListaDinamica({
   placeholder,
   valoresIniciais,
   botaoLabel,
+  obrigatorio = false,
 }: {
   name: string;
   placeholder?: string;
   valoresIniciais?: string[];
   botaoLabel: string;
+  // A primeira linha é obrigatória (as demais são extras).
+  obrigatorio?: boolean;
 }) {
   const [valores, setValores] = useState<string[]>(valoresIniciais?.length ? valoresIniciais : [""]);
 
@@ -30,6 +33,7 @@ export function ListaDinamica({
         <div key={i} className="flex items-center gap-2">
           <Input
             name={name}
+            required={obrigatorio && i === 0}
             value={v}
             placeholder={placeholder}
             onChange={(e) => setValores(valores.map((x, j) => (j === i ? e.target.value : x)))}

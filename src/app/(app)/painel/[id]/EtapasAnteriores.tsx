@@ -137,7 +137,7 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
               { label: "Modalidade", value: doc.modalidade },
               { label: "Localidade de entrega", value: doc.entregaLocalidade },
               { label: "Qtd. de entregas", value: doc.qtdEntregas },
-              { label: "Datas de entrega", value: doc.entregaDatas },
+              { label: "Data de entrega solicitada pelo Cliente", value: doc.entregaDatas },
             ],
           },
           ...modelos.map((m, i) => ({

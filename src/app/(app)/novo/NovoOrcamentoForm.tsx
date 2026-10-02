@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 // React limpa o formulário quando ela termina — inclusive quando volta com erro de validação —
 // e tudo que a pessoa digitou e ainda não estava salvo sumia da tela (achado no teste de
 // 30/09/2026: modelo novo e Observações apagados depois de um "Liberar" com erro).
-export function NovoOrcamentoForm() {
+export function NovoOrcamentoForm({ representante }: { representante: string }) {
   const [state, onSubmit, pending] = useFormActionSemReset(criarOrcamento, undefined);
 
   if (state?.sucesso) {
@@ -28,7 +28,7 @@ export function NovoOrcamentoForm() {
     <Card className="max-w-[760px]">
       <CardContent>
         <form onSubmit={onSubmit} className="flex flex-col gap-0">
-          <CamposComerciaisFields />
+          <CamposComerciaisFields comBuscaCliente defaults={{ representante }} />
           {state?.erro && <div className="anexo-erro mt-4">{state.erro}</div>}
           <div className="mt-6">
             <Button type="submit" disabled={pending}>{pending ? "Enviando…" : "Enviar solicitação"}</Button>
