@@ -82,6 +82,7 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
   const [legendas, setLegendas] = useState<File | null>(null);
   const [removerLegendas, setRemoverLegendas] = useState(false);
   const [quizTexto, setQuizTexto] = useState("");
+  const [quizArquivo, setQuizArquivo] = useState<string | null>(null);
   const [quizInfo, setQuizInfo] = useState<{ ok: boolean; texto: string } | null>(null);
   const [etapa, setEtapa] = useState<string | undefined>();
   const [progresso, setProgresso] = useState<number | null>(null);
@@ -224,7 +225,7 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
         <legend className="px-1 text-sm font-semibold">Quem vê e faz este treinamento</legend>
         <p className="mb-3 text-xs text-muted-foreground">Clique nos perfis que devem ver o vídeo. Quem não tem o perfil não acessa.</p>
         {perfis.length === 0 ? (
-          <p className="text-sm text-destructive">Nenhum perfil cadastrado. Crie os perfis em Administração antes de cadastrar o treinamento.</p>
+          <p className="text-sm text-destructive">Ainda não há perfis para marcar (o perfil de administrador não aparece aqui, porque vê tudo). Em Administração › Perfis de acesso, crie os perfis (por exemplo, Laboratório) e depois volte aqui.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {perfis.map((p) => {
@@ -286,19 +287,44 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
           accept=".json,application/json"
           onChange={async (e) => {
             const f = e.target.files?.[0];
+            setQuizArquivo(f ? f.name : null);
             lerQuiz(f ? await f.text() : "");
           }}
           className="text-sm"
         />
-        <Textarea
-          value={quizTexto}
-          onChange={(e) => lerQuiz(e.target.value)}
-          rows={4}
-          placeholder="…ou cole aqui o conteúdo do quiz.json"
-          className="max-h-40 overflow-auto font-mono text-xs"
-          aria-label="Conteúdo do quiz"
-        />
-        {quizInfo && <p className={`text-xs ${quizInfo.ok ? "text-good" : "text-destructive"}`}>{quizInfo.texto}</p>}
+        {quizInfo?.ok && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg bg-good-soft px-3 py-2 text-sm text-good">
+            <span className="font-medium">
+              ✓ {quizInfo.texto}
+              {quizArquivo ? ` (${quizArquivo})` : ""}
+            </span>
+            <button
+              type="button"
+              className="text-xs underline"
+              onClick={() => {
+                lerQuiz("");
+                setQuizArquivo(null);
+                const campo = document.getElementById("quiz") as HTMLInputElement | null;
+                if (campo) campo.value = "";
+              }}
+            >
+              Remover
+            </button>
+            <span className="w-full text-xs text-muted-foreground">Está tudo certo com o quiz. Para gravar, role até o fim e clique em &quot;{inicial ? "Salvar alterações" : "Cadastrar treinamento"}&quot;.</span>
+          </div>
+        )}
+        {quizInfo && !quizInfo.ok && <p className="text-sm text-destructive">{quizInfo.texto}</p>}
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">Ou cole o texto do quiz.json aqui</summary>
+          <Textarea
+            value={quizTexto}
+            onChange={(e) => lerQuiz(e.target.value)}
+            rows={4}
+            placeholder="Cole aqui o conteúdo do quiz.json"
+            className="mt-2 max-h-40 overflow-auto font-mono text-xs"
+            aria-label="Conteúdo do quiz"
+          />
+        </details>
       </div>
 
       <label className="flex items-center gap-2 text-sm">
