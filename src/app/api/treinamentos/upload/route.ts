@@ -4,6 +4,16 @@ import { ehAdmin } from "@/lib/permissions";
 const TIPOS_PERMITIDOS = ["video/mp4", "video/webm", "text/vtt"];
 const TAMANHO_MAXIMO = 500 * 1024 * 1024; // 500 MB: um vídeo de 6 min em HD tem de 30 a 60 MB
 
+// Checagem prévia (o formulário chama antes de enviar o vídeo): diz se este ambiente tem o armazenamento de vídeos
+// (Vercel Blob) configurado, para mostrar um motivo claro em vez da mensagem genérica do SDK.
+export async function GET() {
+  if (!(await ehAdmin())) return Response.json({ pronto: false, motivo: "Sem permissão." }, { status: 403 });
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return Response.json({ pronto: false, motivo: "O armazenamento de vídeos (Vercel Blob) não está configurado neste ambiente." });
+  }
+  return Response.json({ pronto: true });
+}
+
 // Upload direto do navegador para o Vercel Blob (as funções do servidor têm limite de tamanho de requisição, e um MP4
 // passa dele). Esta rota só autoriza: gera o token para quem é administrador, para arquivos de vídeo/legenda dentro
 // de treinamentos/, e o nome ganha um sufixo aleatório (a URL fica pública, mas não dá para adivinhar).

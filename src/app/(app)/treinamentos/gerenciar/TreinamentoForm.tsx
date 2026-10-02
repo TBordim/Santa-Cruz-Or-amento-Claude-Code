@@ -27,6 +27,10 @@ export type TreinamentoInicial = {
   nPerguntas: number;
 };
 
+function tamanho(arquivo: File): string {
+  return arquivo.size >= 1024 * 1024 ? `${(arquivo.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(arquivo.size / 1024))} KB`;
+}
+
 function nomeSeguro(nome: string): string {
   return nome
     .normalize("NFD")
@@ -80,6 +84,7 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
   const [quizTexto, setQuizTexto] = useState("");
   const [quizInfo, setQuizInfo] = useState<{ ok: boolean; texto: string } | null>(null);
   const [etapa, setEtapa] = useState<string | undefined>();
+  const [progresso, setProgresso] = useState<number | null>(null);
   const [erro, setErro] = useState<string | undefined>();
   const [aviso, setAviso] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
@@ -108,15 +113,32 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
     e.preventDefault();
     setErro(undefined);
     setAviso(undefined);
+    // Confere tudo ANTES de começar o envio do vídeo: assim não se espera o upload para só então descobrir que faltava um campo.
+    const faltas: string[] = [];
+    if (!titulo.trim()) faltas.push("o título");
+    if (!modulo) faltas.push("o módulo");
+    if (perfilIds.length === 0) faltas.push("pelo menos um perfil");
+    if (!inicial && !video) faltas.push("o vídeo");
+    if (!inicial && !quizTexto.trim()) faltas.push("o quiz");
+    if (quizInfo && !quizInfo.ok) faltas.push("um quiz válido");
+    if (faltas.length > 0) {
+      setErro(`Antes de enviar, falta: ${faltas.join(", ")}.`);
+      return;
+    }
     startTransition(async () => {
       try {
         let videoBlob: ArquivoBlob | undefined;
         let legendasBlob: ArquivoBlob | undefined;
         let duracaoSeg: number | null = null;
+        if (video || legendas) {
+          const prev = await fetch("/api/treinamentos/upload").then((r) => r.json()).catch(() => null);
+          if (!prev?.pronto) throw new Error(prev?.motivo ?? "Não consegui falar com o servidor para enviar o vídeo. Recarregue a página e tente de novo.");
+        }
         if (video) {
           duracaoSeg = await duracaoDoVideo(video);
-          setEtapa("Enviando o vídeo… 0%");
-          videoBlob = await enviarParaBlob(video, "videos", video.type || "video/mp4", (p) => setEtapa(`Enviando o vídeo… ${p}%`));
+          setEtapa("Enviando o vídeo…");
+          setProgresso(0);
+          videoBlob = await enviarParaBlob(video, "videos", video.type || "video/mp4", (p) => setProgresso(p));
         }
         if (legendas) {
           setEtapa("Enviando as legendas…");
@@ -152,9 +174,10 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
           router.push("/treinamentos/gerenciar");
         }
       } catch (e2) {
-        setErro(e2 instanceof Error ? e2.message : "Não foi possível salvar. Tente de novo.");
+        setErro(e2 instanceof Error ? `Não foi possível salvar: ${e2.message}` : "Não foi possível salvar. Tente de novo.");
       } finally {
         setEtapa(undefined);
+        setProgresso(null);
       }
     });
   }
@@ -199,20 +222,43 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
 
       <fieldset className="rounded-xl border border-border p-4">
         <legend className="px-1 text-sm font-semibold">Quem vê e faz este treinamento</legend>
-        <p className="mb-2 text-xs text-muted-foreground">Só os perfis marcados enxergam o vídeo. Quem não tem o perfil não acessa.</p>
-        <div className="flex flex-wrap gap-x-5 gap-y-2">
-          {perfis.map((p) => (
-            <label key={p.id} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={perfilIds.includes(p.id)} onChange={() => alternarPerfil(p.id)} className="h-4 w-4 accent-[var(--primary)]" />
-              {p.nome}
-            </label>
-          ))}
-        </div>
+        <p className="mb-3 text-xs text-muted-foreground">Clique nos perfis que devem ver o vídeo. Quem não tem o perfil não acessa.</p>
+        {perfis.length === 0 ? (
+          <p className="text-sm text-destructive">Nenhum perfil cadastrado. Crie os perfis em Administração antes de cadastrar o treinamento.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {perfis.map((p) => {
+              const marcado = perfilIds.includes(p.id);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={marcado}
+                  onClick={() => alternarPerfil(p.id)}
+                  className={`rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
+                    marcado ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"
+                  }`}
+                >
+                  {marcado ? "✓ " : ""}
+                  {p.nome}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <p className="mt-3 font-mono text-xs text-muted-foreground">
+          {perfilIds.length === 0 ? "Nenhum perfil marcado." : `${perfilIds.length} ${perfilIds.length === 1 ? "perfil marcado" : "perfis marcados"}.`}
+        </p>
       </fieldset>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="video">{inicial ? "Trocar o vídeo (opcional)" : "Vídeo (MP4)"}</Label>
         <input id="video" type="file" accept="video/mp4,video/webm" onChange={(e) => setVideo(e.target.files?.[0] ?? null)} className="text-sm" />
+        {video && (
+          <p className="text-xs text-good">
+            Escolhido: {video.name} ({tamanho(video)}). O envio começa quando você clicar em &quot;{inicial ? "Salvar alterações" : "Cadastrar treinamento"}&quot;.
+          </p>
+        )}
         {inicial && (
           <a href={inicial.videoUrl} target="_blank" rel="noreferrer" className="text-xs text-muted-foreground underline">
             Ver o vídeo atual
@@ -223,6 +269,7 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="legendas">Legendas (.vtt, opcional)</Label>
         <input id="legendas" type="file" accept=".vtt,text/vtt" onChange={(e) => setLegendas(e.target.files?.[0] ?? null)} className="text-sm" />
+        {legendas && <p className="text-xs text-good">Escolhido: {legendas.name} ({tamanho(legendas)}).</p>}
         {inicial?.temLegendas && (
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input type="checkbox" checked={removerLegendas} onChange={(e) => setRemoverLegendas(e.target.checked)} className="h-4 w-4 accent-[var(--primary)]" />
@@ -248,7 +295,7 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
           onChange={(e) => lerQuiz(e.target.value)}
           rows={4}
           placeholder="…ou cole aqui o conteúdo do quiz.json"
-          className="font-mono text-xs"
+          className="max-h-40 overflow-auto font-mono text-xs"
           aria-label="Conteúdo do quiz"
         />
         {quizInfo && <p className={`text-xs ${quizInfo.ok ? "text-good" : "text-destructive"}`}>{quizInfo.texto}</p>}
@@ -264,12 +311,27 @@ export function TreinamentoForm({ perfis, inicial }: { perfis: { id: string; nom
           Trocar o vídeo ou o quiz sobe a versão (hoje v{inicial.versao}): quem já foi aprovado vai precisar refazer.
         </div>
       )}
-      {erro && <div className="anexo-erro">{erro}</div>}
+      {pending && (
+        <div className="rounded-lg border border-border bg-card p-3 text-sm">
+          <div className="mb-2 font-medium">{etapa ?? "Salvando…"}{progresso != null ? ` ${progresso}%` : ""}</div>
+          {progresso != null && (
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progresso}%` }} />
+            </div>
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">Não feche esta página até terminar.</p>
+        </div>
+      )}
+      {erro && (
+        <div className="anexo-erro" role="alert">
+          {erro}
+        </div>
+      )}
       {aviso && <div className="rounded-lg bg-good-soft p-3 text-sm text-good">{aviso}</div>}
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
-          {pending ? (etapa ?? "Salvando…") : inicial ? "Salvar alterações" : "Cadastrar treinamento"}
+          {pending ? "Enviando…" : inicial ? "Salvar alterações" : "Cadastrar treinamento"}
         </Button>
         <Button type="button" variant="ghost" disabled={pending} onClick={() => router.push("/treinamentos/gerenciar")}>
           Voltar
