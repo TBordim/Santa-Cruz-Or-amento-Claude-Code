@@ -61,6 +61,13 @@ export function isAreaKey(value: string): value is AreaKey {
   return (AREA_KEYS as string[]).includes(value);
 }
 
+// Representante comercial: perfil cuja única área é "Novo Orçamento". Só abre o Novo Orçamento —
+// não enxerga Painel, histórico nem nenhum outro módulo (decisão do Thiago em 02/10/2026).
+// Sem imports de banco, pra poder rodar no middleware (Edge).
+export function soNovoOrcamento(admin: boolean, areas: readonly string[]): boolean {
+  return !admin && areas.length > 0 && areas.every((a) => a === "NOVO");
+}
+
 export function areaLabel(key: string): string {
   return AREAS.find((a) => a.key === key)?.label ?? key;
 }

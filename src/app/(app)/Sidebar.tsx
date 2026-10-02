@@ -38,6 +38,8 @@ type Props = {
   // Treinamentos do perfil ainda sem aprovação (selo no menu) e se a pessoa vê o painel de acompanhamento.
   pendentes: number;
   acompanhamento: boolean;
+  // Representante: só vê o Novo Orçamento (sem troca de módulo nem busca).
+  soNovo?: boolean;
 };
 
 type NavItem = {
@@ -69,6 +71,7 @@ function SidebarContent({
   modulos,
   pendentes,
   acompanhamento,
+  soNovo = false,
   mobile = false,
   onNavigate,
 }: Props & { mobile?: boolean; onNavigate?: () => void }) {
@@ -106,7 +109,7 @@ function SidebarContent({
     { href: "/administracao", label: "Usuários e perfis", icon: Settings2, color: "#233248" },
   ];
 
-  const items: NavItem[] = !logado
+  const items: NavItem[] = !logado || soNovo
     ? [{ href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" }]
     : modulo === "laboratorio"
       ? itemsLaboratorio
@@ -123,9 +126,9 @@ function SidebarContent({
           {/* Logo + nome levam de volta à página de entrada (escolha de módulo) — a um clique de
               qualquer tela. Sem login, levam ao formulário público de Novo orçamento. */}
           <Link
-            href={logado ? "/" : "/novo"}
+            href={logado && !soNovo ? "/" : "/novo"}
             onClick={onNavigate}
-            title={logado ? "Página de entrada" : undefined}
+            title={logado && !soNovo ? "Página de entrada" : undefined}
             className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg no-underline"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] border border-border bg-gradient-to-br from-secondary to-card p-1 shadow-[0_0_0_3px_var(--accent)]">
@@ -138,7 +141,7 @@ function SidebarContent({
           {!mobile && <ThemeToggle />}
         </div>
         <div className="font-mono text-[10px] tracking-widest text-muted-foreground">SANTA CRUZ IND. GRÁFICA</div>
-        {logado && (
+        {logado && !soNovo && (
           <div className="mt-2 flex items-center gap-1.5">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Módulo</span>
             <ModuloSwitcher acessiveis={modulos} className="text-sm! font-sans! font-semibold!" />
@@ -161,7 +164,7 @@ function SidebarContent({
         )}
       </div>
 
-      {logado && (
+      {logado && !soNovo && (
         <button
           type="button"
           onClick={() => {
@@ -256,15 +259,15 @@ export function MobileNav(props: Props) {
       <Button type="button" variant="ghost" size="icon-lg" aria-label="Abrir menu" onClick={() => setAberto(true)}>
         <Menu className="size-5" />
       </Button>
-      <Link href={logado ? "/" : "/novo"} className="shrink-0 no-underline" aria-label="Página de entrada">
+      <Link href={logado && !props.soNovo ? "/" : "/novo"} className="shrink-0 no-underline" aria-label="Página de entrada">
         {/* eslint-disable-next-line @next/next/no-img-element -- mesmo motivo do logo da Sidebar */}
         <img src="/logo-santa-cruz.png" alt="" width={26} height={26} />
       </Link>
       <div className="min-w-0 flex-1">
         <span className="block truncate font-serif text-base font-semibold leading-tight text-foreground">App Sta Cruz</span>
-        {logado && <ModuloSwitcher acessiveis={props.modulos} className="text-xs! font-sans! font-medium! text-muted-foreground!" />}
+        {logado && !props.soNovo && <ModuloSwitcher acessiveis={props.modulos} className="text-xs! font-sans! font-medium! text-muted-foreground!" />}
       </div>
-      {logado && (
+      {logado && !props.soNovo && (
         <Button
           type="button"
           variant="ghost"

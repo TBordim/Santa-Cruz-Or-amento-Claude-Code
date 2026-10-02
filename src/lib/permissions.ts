@@ -2,7 +2,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import type { AreaKey } from "@/lib/areas";
+import { soNovoOrcamento, type AreaKey } from "@/lib/areas";
 import { modulosAcessiveis, type ModuloKey } from "@/lib/modulos";
 
 // Equivalente a sessaoAtual()/ehAdmin()/podeEditar() do santa-cruz-orcamentos.html (linhas
@@ -18,6 +18,8 @@ export type SessaoAtual = {
   areas: AreaKey[];
   perfilId: string;
   perfilNome: string;
+  // Representante: só pode abrir o Novo Orçamento (ver soNovoOrcamento em areas.ts).
+  soNovo: boolean;
 };
 
 // cache() deduplica dentro da mesma requisição — o layout autenticado e a página que ele
@@ -40,6 +42,7 @@ export const sessaoAtual = cache(async (): Promise<SessaoAtual | null> => {
     areas: usuario.perfil.areas as AreaKey[],
     perfilId: usuario.perfilId,
     perfilNome: usuario.perfil.nome,
+    soNovo: soNovoOrcamento(usuario.perfil.admin, usuario.perfil.areas),
   };
 });
 
@@ -50,7 +53,7 @@ export async function ehAdmin(): Promise<boolean> {
 
 export async function podeEditar(area: AreaKey): Promise<boolean> {
   const s = await sessaoAtual();
-  if (!s) return area === "NOVO"; // representante sem login (chega na Fase 2)
+  if (!s) return false; // Novo Orçamento também exige login (02/10/2026)
   if (s.admin) return true;
   return s.areas.includes(area);
 }
@@ -61,6 +64,7 @@ export async function podeEditar(area: AreaKey): Promise<boolean> {
 export async function exigirModulo(modulo: ModuloKey): Promise<SessaoAtual> {
   const s = await sessaoAtual();
   if (!s) redirect("/login");
+  if (s.soNovo) redirect("/novo");
   if (!modulosAcessiveis(s.admin, s.areas).includes(modulo)) redirect("/");
   return s;
 }

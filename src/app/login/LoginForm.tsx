@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useActionState } from "react";
 import { autenticar } from "./actions";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -13,12 +12,11 @@ import { ArrowLeft, FilePlus2 } from "lucide-react";
 
 type Usuario = { id: string; nome: string };
 
-// Representante comercial externo não tem usuário/PIN cadastrado — não faz sentido pedir login
-// pra ele. A tela abre com essa escolha em vez do formulário de PIN direto: "Sou Representante"
-// já leva pra Novo Orçamento (pública, ver auth.config.ts); só quem clica em "Sou colaborador"
-// vê o formulário de usuário+PIN. Pedido do Thiago em 18/09/2026.
+// A tela abre com a escolha entre representante e colaborador; os dois entram com nome + PIN.
+// O representante tem um perfil só com a área "Novo Orçamento" e, depois de entrar, só enxerga
+// essa tela (ver auth.config.ts). Desde 02/10/2026 o Novo Orçamento não é mais público.
 export function LoginForm({ usuarios }: { usuarios: Usuario[] }) {
-  const [modo, setModo] = useState<"escolha" | "colaborador">("escolha");
+  const [modo, setModo] = useState<"escolha" | "colaborador" | "representante">("escolha");
   const [erro, formAction, pending] = useActionState(autenticar, undefined);
 
   return (
@@ -34,13 +32,11 @@ export function LoginForm({ usuarios }: { usuarios: Usuario[] }) {
       <CardContent>
         {modo === "escolha" ? (
           <div className="flex flex-col gap-3">
-            <Button asChild size="lg" className="w-full gap-2">
-              <Link href="/novo">
-                <FilePlus2 className="h-4 w-4" /> Sou Representante
-              </Link>
+            <Button type="button" size="lg" className="w-full gap-2" onClick={() => setModo("representante")}>
+              <FilePlus2 className="h-4 w-4" /> Sou Representante
             </Button>
             <p className="text-center text-xs text-muted-foreground">
-              Envie uma solicitação de orçamento — não precisa de login.
+              Envie uma solicitação de orçamento.
             </p>
             <div className="my-1 border-t border-dashed border-border" />
             <Button type="button" variant="outline" className="w-full" onClick={() => setModo("colaborador")}>
@@ -56,7 +52,9 @@ export function LoginForm({ usuarios }: { usuarios: Usuario[] }) {
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Voltar
             </button>
-            <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">Entrar como colaborador</p>
+            <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {modo === "representante" ? "Entrar como representante" : "Entrar como colaborador"}
+            </p>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="usuarioId">Seu nome</Label>
               <Select name="usuarioId" required>

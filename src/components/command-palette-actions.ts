@@ -10,7 +10,7 @@ export type ResultadoBusca = { id: string; cliente: string; produtoDescricao: st
 // Finalizado), por cliente ou produto, limitada a 8 resultados.
 export async function buscarOrcamentosPalette(query: string): Promise<ResultadoBusca[]> {
   const sessao = await sessaoAtual();
-  if (!sessao) return [];
+  if (!sessao || sessao.soNovo) return [];
   const q = query.trim();
   if (q.length < 2) return [];
 

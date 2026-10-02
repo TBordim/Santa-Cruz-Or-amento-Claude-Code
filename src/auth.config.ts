@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from "next-auth";
+import { soNovoOrcamento } from "@/lib/areas";
 
 // Metade "edge-safe" da configuração do Auth.js: nada aqui importa Prisma/bcrypt, então pode
 // rodar no middleware (runtime Edge) só para checar se existe sessão válida, sem tocar no banco.
@@ -21,13 +22,17 @@ export const authConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const logado = !!auth?.user;
       const naLogin = nextUrl.pathname === "/login";
+      // Representante (perfil só com a área NOVO) entra e vai direto pro Novo Orçamento; qualquer
+      // outro endereço volta pra lá. Desde 02/10/2026 o Novo Orçamento exige login — o cadastro de
+      // clientes aparece nele, então não pode mais ser público.
+      const representante = logado && soNovoOrcamento(!!auth?.user?.admin, auth?.user?.areas ?? []);
+      if (representante) {
+        return nextUrl.pathname === "/novo" ? true : Response.redirect(new URL("/novo", nextUrl));
+      }
       if (naLogin) {
         // já logado tentando ver /login de novo: manda pra página de entrada (escolha de módulo)
         return logado ? Response.redirect(new URL("/", nextUrl)) : true;
       }
-      // "Novo Orçamento" é a única tela pública — representante comercial externo (sem
-      // usuário cadastrado) só enxerga essa tela, igual ao sistema atual (área NOVO).
-      if (nextUrl.pathname === "/novo") return true;
       return logado;
     },
     jwt({ token, user }) {
