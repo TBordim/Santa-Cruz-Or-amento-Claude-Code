@@ -5,6 +5,7 @@ import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
 import { prisma } from "@/lib/db";
 import { PIN_REGEX, BCRYPT_ROUNDS } from "@/lib/validation";
+import { soNovoOrcamento } from "@/lib/areas";
 
 export type FormState = string | undefined;
 
@@ -16,8 +17,16 @@ export async function autenticar(_prevState: FormState, formData: FormData): Pro
   if (typeof usuarioId !== "string" || !usuarioId) return "Escolha seu nome.";
   if (typeof pin !== "string" || !pin.trim()) return "Digite o PIN.";
 
+  // Representante (perfil só com a área NOVO) vai direto pro /novo. Mandar pra "/" deixava o
+  // endereço do navegador em "/" (o middleware redireciona pro /novo por baixo) e as ações do
+  // formulário — busca de cliente, enviar — fazem POST pro endereço atual, "/", que o middleware
+  // devolvia com 302: a lista de clientes nunca aparecia sem um F5. Só escolhe o destino; quem
+  // valida nome e PIN é o signIn.
+  const perfil = await prisma.usuario.findUnique({ where: { id: usuarioId }, select: { perfil: { select: { admin: true, areas: true } } } });
+  const destino = perfil && soNovoOrcamento(perfil.perfil.admin, perfil.perfil.areas) ? "/novo" : "/";
+
   try {
-    await signIn("credentials", { usuarioId, pin, redirectTo: "/" });
+    await signIn("credentials", { usuarioId, pin, redirectTo: destino });
   } catch (error) {
     if (error instanceof AuthError) {
       // Mesma mensagem para usuário inexistente, inativo ou PIN errado — de propósito, não
