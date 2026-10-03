@@ -5,6 +5,8 @@ Scripts que o Claude usa para gravar e testar os vídeos na **demo**. Nunca apon
 | Script | O que faz |
 |---|---|
 | `ensaio-laboratorio.mjs` | Percorre o `gravacao.md` do Laboratório e confere 23 pontos da tela (números, mensagens, estados). Não grava vídeo. |
+| `gravar-representante.mjs` | Grava, numa passada só, o fluxo do vídeo do Representante (login → Novo Orçamento → enviar), no ritmo da voz. `DRY=1` faz um ensaio sem enviar. Usa `cursor-gravacao.mjs`. |
+| `abertura/abertura-express.html` e `renderizar-express.mjs` | Abertura do Santinho 2x mais rápida (3 s), para vídeos de 1 minuto. |
 | `gravar-tomadas-laboratorio.mjs` | Grava as 14 tomadas em WebM 1280×720, com cursor visível e destaque de clique. |
 
 Os dois criam dados na demo (a cor STA0005 e as rodadas dela), então:

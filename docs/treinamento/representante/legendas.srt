@@ -1,0 +1,68 @@
+1
+00:00:02,600 --> 00:00:02,930
+Olá!
+
+2
+00:00:03,260 --> 00:00:04,490
+Eu sou o Santinho.
+
+3
+00:00:04,820 --> 00:00:08,750
+Em um minuto, você aprende
+a pedir um orçamento!
+
+4
+00:00:08,920 --> 00:00:12,830
+Entre com seu nome e seu PIN:
+o Novo Orçamento já abre.
+
+5
+00:00:13,080 --> 00:00:18,650
+Comece pelo cliente: digite o nome
+ou o CNPJ, e escolha na lista.
+
+6
+00:00:18,920 --> 00:00:22,250
+Se ele for novo, clique em cadastrar novo.
+
+7
+00:00:22,480 --> 00:00:26,270
+Informe quantas entregas e
+a data que o cliente pediu.
+
+8
+00:00:26,480 --> 00:00:30,610
+Depois, descreva o produto e
+coloque as quantidades a orçar.
+
+9
+00:00:30,560 --> 00:00:36,170
+Preencha os detalhes técnicos:
+medidas, material, acabamento.
+
+10
+00:00:36,580 --> 00:00:40,550
+Quanto mais informação,
+mais rápido sai o orçamento.
+
+11
+00:00:40,860 --> 00:00:45,370
+Sem isso, a Engenharia
+precisa levantar, e atrasa.
+
+12
+00:00:45,500 --> 00:00:45,810
+Pronto!
+
+13
+00:00:46,400 --> 00:00:50,810
+Clique em Enviar solicitação,
+e a Santa Cruz segue daqui.
+
+14
+00:00:51,280 --> 00:00:52,290
+Foi rápido, né?
+
+15
+00:00:52,640 --> 00:00:53,850
+Bons negócios!
