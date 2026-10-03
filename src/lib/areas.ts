@@ -15,6 +15,7 @@ export type AreaKey =
   | "ENVIO_OFERTA"
   | "FINALIZADO"
   | "CADASTRO_PRODUTO"
+  | "CLIENTES"
   | "LEGADO"
   | "HISTORICO"
   // "Consulta" de cada módulo: só dá entrada no módulo, pra ver, sem editar nada. Desde
@@ -46,6 +47,7 @@ export const AREAS: Area[] = [
   { key: "ENVIO_OFERTA", label: "Envio de Oferta", hint: "Etapa 5 — monta e envia a oferta ao cliente", modulo: "orcamento" },
   { key: "FINALIZADO", label: "Retorno do Cliente", hint: "Etapa 6 — registra o retorno do cliente", modulo: "orcamento" },
   { key: "CADASTRO_PRODUTO", label: "Cadastro de Produto", hint: "Etapa 7 — lança o Nº de Cadastro de Produto de produto novo aprovado pelo cliente", modulo: "orcamento" },
+  { key: "CLIENTES", label: "Clientes", hint: "Conferir, editar e desativar o cadastro de clientes", modulo: "orcamento" },
   { key: "LEGADO", label: "Arquivo legado", hint: "Cadastrar, editar e excluir registros antigos", modulo: "orcamento" },
   { key: "HISTORICO", label: "Histórico", hint: "Excluir registros do histórico", modulo: "orcamento" },
   { key: "CONSULTA_ORCAMENTO", label: "Consulta", hint: "Só ver o módulo Orçamento, sem editar nada", modulo: "orcamento" },
