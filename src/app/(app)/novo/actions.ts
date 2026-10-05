@@ -8,6 +8,7 @@ import { cnpjValido, somenteDigitos } from "@/lib/clientes/cnpj";
 import { textoBusca } from "@/lib/clientes/busca";
 import { salvarAnexoNoBlob } from "@/lib/anexos/storage";
 import { erroNosCores } from "@/lib/orcamentos/cores";
+import { erroNoLink } from "@/lib/orcamentos/link";
 import { MAX_ARQUIVOS_NOVO, MAX_TOTAL_BYTES_NOVO, tipoAnexoAceito } from "@/lib/anexos/limites";
 
 export type AnexoEnviado = { nome: string; url: string; mime: string };
@@ -35,6 +36,8 @@ export async function criarOrcamento(_prev: FormState, formData: FormData): Prom
 
   const erroCores = erroNosCores(campos.modelos);
   if (erroCores) return { erro: erroCores };
+  const erroLink = erroNoLink(campos.reqCliente.linkArte);
+  if (erroLink) return { erro: erroLink };
 
   // Anexos vão junto do formulário. Conferidos antes de criar o orçamento, pra não deixar um
   // orçamento criado pela metade por causa de um arquivo recusado.

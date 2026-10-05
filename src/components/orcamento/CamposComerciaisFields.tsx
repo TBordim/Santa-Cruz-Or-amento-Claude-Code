@@ -157,6 +157,12 @@ export function CamposComerciaisFields({
         <Field label="Observações">
           <Textarea name="obs" rows={2} defaultValue={defaults?.obs ?? ""} />
         </Field>
+        <Field
+          label="Link da arte"
+          hint="Quando o cliente manda a arte por link (Google Drive, WeTransfer...), cole aqui. Opcional."
+        >
+          <Input name="linkArte" inputMode="url" placeholder="https://drive.google.com/..." defaultValue={r?.linkArte ?? ""} />
+        </Field>
         {/* Só no Novo Orçamento: o orçamento ainda não existe, então os arquivos vão junto do envio.
             Em Em Aberto os anexos têm a própria seção, na gaveta. */}
         {comBuscaCliente && (

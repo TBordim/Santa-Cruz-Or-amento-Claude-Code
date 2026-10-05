@@ -63,6 +63,8 @@ export type ReqCliente = {
   fechamentoFundo?: string;
   // Uma ou mais quantidades pedidas — cada uma vira uma faixa em `precificacao`.
   quantidadesLista: string[];
+  // Link da arte quando o cliente manda por Drive/WeTransfer em vez de um arquivo por tipo.
+  linkArte?: string;
 };
 
 // Etapa 2 — Engenharia. Campos "mortos" (caixaC/L/A, recursos*, processosManuais,

@@ -108,6 +108,19 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
         anexos={<Anexos doc={doc} tipo="ARTE" />}
         grupos={[
           {
+            titulo: "Arte do cliente",
+            linhas: [
+              {
+                label: "Link da arte",
+                value: c?.linkArte && (
+                  <a href={c.linkArte} target="_blank" rel="noreferrer" className="break-all underline underline-offset-2">
+                    {c.linkArte}
+                  </a>
+                ),
+              },
+            ],
+          },
+          {
             titulo: "Classificação",
             linhas: [
               { label: "Origem do pedido", value: doc.origemPedido },

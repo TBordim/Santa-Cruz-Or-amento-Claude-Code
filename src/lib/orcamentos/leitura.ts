@@ -3,6 +3,7 @@ import { chave } from "./chave";
 import { normalizarCodigoInterno } from "./codigo-interno";
 import { CLASSIFICACOES_MODELO, resumoDosModelos } from "./modelos";
 import { normalizarCores } from "./cores";
+import { normalizarLink } from "./link";
 import type { ClassificacaoModelo, Modelo, ReqCliente, ReqTecnicos, Suporte, SuporteTecnico } from "./types";
 
 function str(fd: FormData, nome: string): string {
@@ -76,6 +77,8 @@ function lerReqCliente(fd: FormData): ReqCliente {
     fechamentoFundo: str(fd, "fechamentoFundo"),
     // Quantidades vazias não viram faixa de preço.
     quantidadesLista: fd.getAll("quantidades").map(String).map((s) => s.trim()).filter(Boolean),
+    // Formato certo é normalizado; errado fica como veio pra erroNoLink poder avisar.
+    linkArte: normalizarLink(str(fd, "linkArte")) ?? str(fd, "linkArte"),
   };
 }
 

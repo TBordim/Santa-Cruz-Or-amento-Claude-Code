@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { sessaoAtual, podeEditar } from "@/lib/permissions";
 import { lerCamposComerciais, lerReqTecnicos, parseValorBR } from "@/lib/orcamentos/leitura";
 import { erroNosCores } from "@/lib/orcamentos/cores";
+import { erroNoLink } from "@/lib/orcamentos/link";
 import { montarPrecificacao, decidirFaixa, type FaixaInput } from "@/lib/orcamentos/tiers";
 import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
 import { normalizarCodigoInterno, codigoInternoValido, formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
@@ -60,6 +61,8 @@ export async function salvarAberto(_prev: FormState, formData: FormData): Promis
   const campos = lerCamposComerciais(formData);
   const erroCores = erroNosCores(campos.modelos);
   if (erroCores) return { erro: erroCores };
+  const erroLink = erroNoLink(campos.reqCliente.linkArte);
+  if (erroLink) return { erro: erroLink };
   await prisma.orcamento.update({ where: { id }, data: campos });
   revalidatePath(`/painel/${id}`);
   return undefined;
@@ -77,6 +80,8 @@ export async function avancarEngenharia(_prev: FormState, formData: FormData): P
   const campos = lerCamposComerciais(formData);
   const erroModelos = erroNosModelos(campos.modelos);
   if (erroModelos) return { erro: erroModelos };
+  const erroLink = erroNoLink(campos.reqCliente.linkArte);
+  if (erroLink) return { erro: erroLink };
   // Todo material a partir do segundo precisa dizer se é papel alternativo ou de uso conjunto
   // — é o que define quantas SOs o orçamento vai ter.
   const semUso = campos.reqCliente.suportes.findIndex((s, i) => i > 0 && !s.uso);
