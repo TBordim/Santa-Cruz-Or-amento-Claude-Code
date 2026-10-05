@@ -2,6 +2,7 @@ import { ListaDinamica } from "./ListaDinamica";
 import { SuportesLista } from "./SuportesLista";
 import { ModelosLista } from "./ModelosLista";
 import { ClienteProvider, ClienteSecao, CampoCliente } from "./ClienteSecao";
+import { AnexosNovo } from "./AnexosNovo";
 import {
   ORIGENS_PEDIDO,
   ANALISE_CREDITO,
@@ -18,6 +19,7 @@ import { FormSection, Field, Row2 } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function CheckGroup({ nome, opcoes, marcados }: { nome: string; opcoes: readonly string[]; marcados?: string[] }) {
@@ -155,6 +157,13 @@ export function CamposComerciaisFields({
         <Field label="Observações">
           <Textarea name="obs" rows={2} defaultValue={defaults?.obs ?? ""} />
         </Field>
+        {/* Só no Novo Orçamento: o orçamento ainda não existe, então os arquivos vão junto do envio.
+            Em Em Aberto os anexos têm a própria seção, na gaveta. */}
+        {comBuscaCliente && (
+          <Field label="Anexos" hint="Arte do cliente, desenho ou foto — imagens ou PDF. Opcional.">
+            <AnexosNovo />
+          </Field>
+        )}
       </FormSection>
 
       {/* Dados técnicos: o representante preenche o que tiver; o que ficar em branco a Engenharia
@@ -162,10 +171,18 @@ export function CamposComerciaisFields({
           (os campos recolhidos continuam indo no envio); em Em Aberto, onde o card já existe,
           começa aberto. */}
       <details open={!comBuscaCliente} className="group mt-6 border-t border-border pt-6">
-        <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">
-          Detalhes técnicos <span className="font-normal text-muted-foreground group-open:hidden">(toque para abrir)</span>
-          <span className="mt-1 block text-xs font-normal text-muted-foreground">
-            Se você tiver essas informações, preencha. Se não tiver, deixe em branco — a Engenharia analisa.
+        {/* O <summary> é o botão de abrir/fechar: caixa com borda e fundo, seta que gira. */}
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-border bg-secondary px-4 py-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-semibold text-foreground">Detalhes técnicos</span>
+            <span className="text-xs font-normal text-muted-foreground">
+              Se você tiver essas informações, preencha. Se não tiver, deixe em branco — a Engenharia analisa.
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <span className="group-open:hidden">Abrir</span>
+            <span className="hidden group-open:inline">Fechar</span>
+            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
           </span>
         </summary>
         <div className="mt-4">

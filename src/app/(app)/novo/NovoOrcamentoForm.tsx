@@ -19,6 +19,7 @@ export function NovoOrcamentoForm({ representante }: { representante: string }) 
         <CardContent>
           <h3 className="mb-1.5 text-base font-semibold text-foreground">Solicitação enviada</h3>
           <p className="text-sm text-muted-foreground">Sua solicitação de orçamento foi registrada. A equipe da Santa Cruz vai dar seguimento.</p>
+          {state.aviso && <div className="anexo-erro mt-3">{state.aviso}</div>}
         </CardContent>
       </Card>
     );
