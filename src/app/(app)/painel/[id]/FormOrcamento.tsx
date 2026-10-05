@@ -102,9 +102,6 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
         quantidades={c?.quantidadesLista ?? []}
         suportes={c?.suportes ?? []}
         ajustes={r?.ajustesOrcamento ?? []}
-        anexos={doc.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nome: a.nome, url: a.url, mime: a.mime, tamanho: a.tamanho, modeloId: a.modeloId }))}
-        modelos={modelos}
-        linkArte={c?.linkArte}
       />
 
       <form id="form-orcamento" className="mt-4" onSubmit={porBotao({ salvar: salvarSubmit, enviar: enviarSubmit }, "salvar")}>

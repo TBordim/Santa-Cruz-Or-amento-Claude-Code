@@ -5,9 +5,8 @@ import { ChevronDown, Plus } from "lucide-react";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
 import { useSalvoToast } from "@/hooks/use-salvo-toast";
 import { ajustarSolicitacao } from "../actions";
-import type { AjusteOrcamento, Modelo, Suporte } from "@/lib/orcamentos/types";
-import { anexosDoModelo, usoDoMaterial } from "@/lib/orcamentos/modelos";
-import { AnexoUpload } from "@/components/anexos/AnexoUpload";
+import type { AjusteOrcamento, Suporte } from "@/lib/orcamentos/types";
+import { usoDoMaterial } from "@/lib/orcamentos/modelos";
 import { fmtDateTime } from "@/lib/orcamentos/constantes";
 import { ListaDinamica } from "@/components/orcamento/ListaDinamica";
 import { Field, Row2 } from "@/components/form-section";
@@ -80,73 +79,16 @@ function NovoPapel({ primeiro, onRemover }: { primeiro: boolean; onRemover: () =
 // que não estava previsto sem devolver o card ao início do processo. Só adiciona — o que já foi
 // salvo não sai daqui —, e cada ajuste fica registrado. O componente é remontado (key, em
 // FormOrcamento) a cada gravação, pra recomeçar limpo com a lista nova.
-export type AnexoDoPedido = {
-  id: string;
-  tipo: string;
-  nome: string;
-  url: string;
-  mime: string;
-  tamanho: number;
-  modeloId?: string | null;
-};
-
-// Arquivos do pedido (arte do cliente, anexos da Engenharia e o link da arte), só pra consulta:
-// quem decide quantas SOs por papel precisa ver a arte sem sair do painel nem abrir a Solicitação.
-function ArquivosDoPedido({
-  id,
-  anexos,
-  modelos,
-  linkArte,
-}: {
-  id: string;
-  anexos: AnexoDoPedido[];
-  modelos: Modelo[];
-  linkArte?: string;
-}) {
-  const arte = anexos.filter((a) => a.tipo === "ARTE");
-  const engenharia = anexos.filter((a) => a.tipo === "ENGENHARIA");
-  if (!arte.length && !engenharia.length && !linkArte) {
-    return <p className="mt-4 text-xs text-muted-foreground">Nenhum arquivo ou link de arte anexado a este pedido.</p>;
-  }
-  return (
-    <div className="mt-4 flex flex-col gap-3 rounded-lg border border-border p-4">
-      <div className="text-sm font-semibold text-foreground">Arquivos do pedido</div>
-      {linkArte && (
-        <div className="text-sm">
-          <span className="text-muted-foreground">Link da arte: </span>
-          <a href={linkArte} target="_blank" rel="noreferrer" className="break-all underline underline-offset-2">{linkArte}</a>
-        </div>
-      )}
-      {modelos.length > 1
-        ? modelos.map((m, i) => {
-            const doModelo = anexosDoModelo(arte, modelos, i);
-            if (!doModelo.length) return null;
-            return (
-              <AnexoUpload key={m.id} orcamentoId={id} tipo="ARTE" anexos={doModelo} titulo={`Arte — ${m.descricao || `Modelo ${i + 1}`}`} somenteLeitura compacto />
-            );
-          })
-        : arte.length > 0 && <AnexoUpload orcamentoId={id} tipo="ARTE" anexos={arte} somenteLeitura compacto />}
-      {engenharia.length > 0 && <AnexoUpload orcamentoId={id} tipo="ENGENHARIA" anexos={engenharia} somenteLeitura compacto />}
-    </div>
-  );
-}
-
 export function AjustesOrcamento({
   id,
   quantidades,
   suportes,
   ajustes,
-  anexos,
-  modelos,
-  linkArte,
 }: {
   id: string;
   quantidades: string[];
   suportes: Suporte[];
   ajustes: AjusteOrcamento[];
-  anexos: AnexoDoPedido[];
-  modelos: Modelo[];
-  linkArte?: string;
 }) {
   const [state, onSubmit, pending] = useFormActionSemReset(ajustarSolicitacao, undefined);
   useSalvoToast(pending, state?.erro, "Ajustes aplicados. As SOs novas aparecem logo abaixo.");
@@ -168,8 +110,6 @@ export function AjustesOrcamento({
           <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
         </span>
       </summary>
-
-      <ArquivosDoPedido id={id} anexos={anexos} modelos={modelos} linkArte={linkArte} />
 
       <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-5 rounded-lg border border-border p-4">
         <input type="hidden" name="id" value={id} />
