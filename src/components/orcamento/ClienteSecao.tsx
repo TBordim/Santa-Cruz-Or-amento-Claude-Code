@@ -5,7 +5,7 @@ import { Search, UserPlus, X } from "lucide-react";
 import { buscarClientes, consultarCnpj } from "@/app/(app)/novo/clientes-actions";
 import { cnpjValido } from "@/lib/clientes/cnpj";
 import type { ClienteSugestao } from "@/lib/clientes/tipos";
-import { FormSection, Field, Row2 } from "@/components/form-section";
+import { FormSection, Field, Grade } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -154,7 +154,7 @@ export function ClienteSecao({ defaults, comBusca }: { defaults?: ClienteDefault
   const valor = (doCadastro: string | undefined, fallback: string | null | undefined) => (c ? (doCadastro ?? "") : (fallback ?? ""));
 
   return (
-    <FormSection title="Cliente">
+    <FormSection title="Cliente" denso>
       {comBusca && (
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3">
           {c && !novo ? (
@@ -252,36 +252,34 @@ export function ClienteSecao({ defaults, comBusca }: { defaults?: ClienteDefault
       <input type="hidden" name="clienteId" value={c?.id ?? ""} />
       <input type="hidden" name="clienteNovo" value={novo ? "1" : ""} />
 
-      <Field label="Cliente">
-        <Input key={`cli-${versao}`} name="cliente" required defaultValue={valor(c?.razaoSocial, defaults?.cliente)} />
-      </Field>
-      <Row2>
+      {/* Grade de 3 colunas (adapta à largura): nome e CNPJ numa linha, endereço inteiro, e os
+          contatos curtos lado a lado — antes cada um ocupava uma linha ou meia linha. */}
+      <Grade cols={3}>
+        <Field label="Cliente" className="@2xl:col-span-2">
+          <Input key={`cli-${versao}`} name="cliente" required defaultValue={valor(c?.razaoSocial, defaults?.cliente)} />
+        </Field>
         <Field label="CNPJ">
           <Input key={`cnpj-${versao}`} name="cnpj" defaultValue={valor(c?.cnpj, defaults?.cnpj)} />
         </Field>
-        <Field label="Endereço">
+        <Field label="Endereço" className="@md:col-span-2 @2xl:col-span-3">
           <Input key={`end-${versao}`} name="endereco" defaultValue={valor(c?.endereco, defaults?.endereco)} />
         </Field>
-      </Row2>
-      <Row2>
-        <Field label="Representante">
-          <Input name="representante" defaultValue={defaults?.representante ?? ""} />
-        </Field>
-        <Field label="Comissão CEV">
-          <Input name="comissaoCev" defaultValue={defaults?.comissaoCev ?? ""} />
-        </Field>
-      </Row2>
-      <Row2>
         <Field label="Telefone">
           <Input key={`tel-${versao}`} name="telefone" defaultValue={valor(c?.telefone, defaults?.telefone)} />
         </Field>
         <Field label="E-mail">
           <Input key={`mail-${versao}`} name="email" type="email" defaultValue={valor(c?.email, defaults?.email)} />
         </Field>
-      </Row2>
-      <Field label="Contato compras">
-        <Input key={`cont-${versao}`} name="contatoCompras" defaultValue={valor(c?.contato, defaults?.contatoCompras)} />
-      </Field>
+        <Field label="Contato compras">
+          <Input key={`cont-${versao}`} name="contatoCompras" defaultValue={valor(c?.contato, defaults?.contatoCompras)} />
+        </Field>
+        <Field label="Representante">
+          <Input name="representante" defaultValue={defaults?.representante ?? ""} />
+        </Field>
+        <Field label="Comissão CEV">
+          <Input name="comissaoCev" defaultValue={defaults?.comissaoCev ?? ""} />
+        </Field>
+      </Grade>
     </FormSection>
   );
 }

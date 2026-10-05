@@ -1,22 +1,46 @@
 // Agrupa um bloco de campos com título — usado nos formulários longos (Novo Orçamento, gaveta
 // por etapa) para reproduzir a divisão em seções do .form-section legado, agora em Tailwind.
-export function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+//
+// `denso`: espaçamento menor entre seções, título e campos — pro Novo Orçamento e a Solicitação,
+// que têm muitas seções e ficavam com a barra de rolagem enorme.
+export function FormSection({ title, children, denso = false }: { title: string; children: React.ReactNode; denso?: boolean }) {
   return (
-    <div className="border-t border-border pt-6 first:mt-0 first:border-t-0 first:pt-0 [&:not(:first-child)]:mt-6">
-      <h4 className="mb-4 text-sm font-semibold text-foreground">{title}</h4>
-      <div className="flex flex-col gap-4">{children}</div>
+    <div
+      className={
+        denso
+          ? "border-t border-border pt-3.5 first:mt-0 first:border-t-0 first:pt-0 [&:not(:first-child)]:mt-4"
+          : "border-t border-border pt-6 first:mt-0 first:border-t-0 first:pt-0 [&:not(:first-child)]:mt-6"
+      }
+    >
+      <h4 className={denso ? "mb-2.5 text-sm font-semibold text-foreground" : "mb-4 text-sm font-semibold text-foreground"}>{title}</h4>
+      <div className={denso ? "flex flex-col gap-3" : "flex flex-col gap-4"}>{children}</div>
     </div>
   );
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+// `className` serve pra ocupar mais de uma coluna de uma Grade (ex.: "@2xl:col-span-2").
+export function Field({ label, hint, children, className = "" }: { label: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
       <label className="text-sm font-medium text-foreground">{label}</label>
       {children}
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>
   );
+}
+
+// Grade de campos que se adapta à LARGURA DISPONÍVEL (container query, não à da tela): na página
+// larga do Novo Orçamento vira 3 ou 4 colunas; na gaveta estreita e no celular, 1 ou 2. Precisa
+// de um ancestral com `@container` (CamposComerciaisFields põe um). As classes são escritas por
+// extenso porque o Tailwind só gera o que encontra no código.
+const COLUNAS = {
+  2: "grid grid-cols-1 gap-3 @md:grid-cols-2",
+  3: "grid grid-cols-1 gap-3 @md:grid-cols-2 @2xl:grid-cols-3",
+  4: "grid grid-cols-1 gap-3 @md:grid-cols-2 @2xl:grid-cols-4",
+} as const;
+
+export function Grade({ cols, children }: { cols: 2 | 3 | 4; children: React.ReactNode }) {
+  return <div className={`${COLUNAS[cols]} items-end`}>{children}</div>;
 }
 
 // `compacto`: pares de campos curtos (medidas, quantidades, %) continuam lado a lado no celular

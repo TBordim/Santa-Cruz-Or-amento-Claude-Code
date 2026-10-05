@@ -28,9 +28,10 @@ export function ListaDinamica({
   const [valores, setValores] = useState<string[]>(valoresIniciais?.length ? valoresIniciais : [""]);
 
   return (
-    <div className="flex flex-col gap-2">
+    // Valores curtos (quantidades): as linhas quebram lado a lado em vez de uma por linha inteira.
+    <div className="flex flex-wrap items-center gap-2">
       {valores.map((v, i) => (
-        <div key={i} className="flex items-center gap-2">
+        <div key={i} className="flex w-44 items-center gap-1">
           <Input
             name={name}
             required={obrigatorio && i === 0}

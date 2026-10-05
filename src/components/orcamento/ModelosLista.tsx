@@ -5,7 +5,7 @@ import { ChevronDown, Copy, Plus, X } from "lucide-react";
 import { CLASSIFICACOES } from "@/lib/orcamentos/constantes";
 import { normalizarCores } from "@/lib/orcamentos/cores";
 import type { ClassificacaoModelo, Modelo } from "@/lib/orcamentos/types";
-import { Field } from "@/components/form-section";
+import { Field, Grade } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -196,36 +196,31 @@ export function ModelosLista({ valoresIniciais, codigoOpcional = false }: { valo
       {linhas.map(({ chave, modelo }, i) => {
         const repeticao = modelo.classificacao.startsWith("REPETICAO");
         return (
-          <div key={chave} className="flex flex-col gap-2.5 rounded-lg border border-dashed border-border p-3">
+          <div key={chave} className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-2.5">
             <input type="hidden" name="modeloId" value={modelo.id} />
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {varios ? `Modelo ${i + 1}` : "Produto"}
-              </div>
-              <div className="flex gap-1">
-                <Button type="button" variant="ghost" size="icon-sm" aria-label={`Duplicar o modelo ${i + 1}`} title="Duplicar" onClick={() => duplicar(chave)}>
-                  <Copy className="h-3.5 w-3.5" />
+            {/* Descrição e os botões na mesma linha: o cabeçalho "Modelo n" gastava uma linha só pra isso. */}
+            <div className="flex items-end gap-1.5">
+              <Field label={varios ? `Modelo ${i + 1} — descrição do produto` : "Descrição do produto"} className="flex-1">
+                <Input name="modeloDescricao" required value={modelo.descricao} onChange={(e) => atualizar(chave, { descricao: e.target.value })} />
+              </Field>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={`Duplicar o modelo ${i + 1}`} title="Duplicar" onClick={() => duplicar(chave)}>
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+              {varios && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-destructive hover:text-destructive"
+                  aria-label={`Remover o modelo ${i + 1}`}
+                  title="Remover"
+                  onClick={() => setLinhas((ls) => ls.filter((l) => l.chave !== chave))}
+                >
+                  <X className="h-3.5 w-3.5" />
                 </Button>
-                {varios && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="text-destructive hover:text-destructive"
-                    aria-label={`Remover o modelo ${i + 1}`}
-                    title="Remover"
-                    onClick={() => setLinhas((ls) => ls.filter((l) => l.chave !== chave))}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
+              )}
             </div>
-
-            <Field label="Descrição do produto">
-              <Input name="modeloDescricao" required value={modelo.descricao} onChange={(e) => atualizar(chave, { descricao: e.target.value })} />
-            </Field>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Grade cols={4}>
               <Field label="Classificação">
                 {/* Valor por campo escondido: o <select> nativo interno do Radix não é confiável
                     pra ler pareado por índice com os outros campos da linha. */}
@@ -237,22 +232,13 @@ export function ModelosLista({ valoresIniciais, codigoOpcional = false }: { valo
                   </SelectContent>
                 </Select>
               </Field>
-              <Field
-                label="Código interno (Santa Cruz)"
-                hint={
-                  repeticao
-                    ? codigoOpcional
-                      ? "Se não tiver o código agora, pode deixar em branco — o escritório completa antes de seguir."
-                      : "Obrigatório — o produto já existe no sistema."
-                    : "Produto novo ganha o código só se o cliente aprovar."
-                }
-              >
+              <Field label={repeticao && !codigoOpcional ? "Código interno (obrigatório)" : "Código interno"}>
                 <CodigoInternoInput name="modeloCodInterno" required={repeticao && !codigoOpcional} defaultValue={modelo.codInterno} />
               </Field>
-              <Field label="Código do cliente" hint="Só pra registro, formato livre.">
+              <Field label="Código do cliente">
                 <Input name="modeloCodigoCliente" defaultValue={modelo.codigoCliente} />
               </Field>
-              <Field label="Nº de cores (Frente/Verso)" hint="Ex.: 3/0 ou 2/1.">
+              <Field label="Nº de cores (F/V)">
                 <Input
                   name="modeloCores"
                   value={modelo.cores ?? ""}
@@ -260,13 +246,19 @@ export function ModelosLista({ valoresIniciais, codigoOpcional = false }: { valo
                   placeholder="3/0"
                   maxLength={7}
                   pattern="\s*\d{1,2}\s*/\s*\d{1,2}\s*"
-                  title="Use Frente/Verso, por exemplo 3/0 ou 2/1"
+                  title="Frente/Verso, por exemplo 3/0 ou 2/1"
                 />
               </Field>
-            </div>
+            </Grade>
           </div>
         );
       })}
+
+      {/* Uma nota só no lugar de uma dica repetida em cada modelo. */}
+      <p className="text-xs text-muted-foreground">
+        Código interno: {codigoOpcional ? "se não tiver agora, deixe em branco — o escritório completa" : "obrigatório em repetição; produto novo só ganha o código se o cliente aprovar"}.
+        {" "}Nº de cores: Frente/Verso, ex.: 3/0 ou 2/1. Código do cliente: só para registro.
+      </p>
 
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap gap-2">

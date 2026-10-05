@@ -52,7 +52,7 @@ export function NovoOrcamentoForm({ representante, soRepresentante }: { represen
   }
 
   return (
-    <Card className="max-w-[760px]">
+    <Card className="max-w-[1000px]">
       <CardContent>
         <form onSubmit={onSubmit} className="flex flex-col gap-0">
           <CamposComerciaisFields comBuscaCliente codigoOpcional={soRepresentante} defaults={{ representante }} />
