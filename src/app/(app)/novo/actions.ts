@@ -12,7 +12,7 @@ import { erroNoLink } from "@/lib/orcamentos/link";
 import { MAX_ARQUIVOS_NOVO, MAX_TOTAL_BYTES_NOVO, tipoAnexoAceito } from "@/lib/anexos/limites";
 
 export type AnexoEnviado = { nome: string; url: string; mime: string };
-export type FormState = { erro?: string; sucesso?: boolean; aviso?: string; anexos?: AnexoEnviado[] } | undefined;
+export type FormState = { erro?: string; sucesso?: boolean; aviso?: string; anexos?: AnexoEnviado[]; orcamentoId?: string } | undefined;
 
 // Equivalente a criarOrcamento() (santa-cruz-orcamentos.html, linhas 1986-2010). Exige login
 // desde 02/10/2026 (representante tem perfil só com a área NOVO) — ver src/lib/permissions.ts.
@@ -91,6 +91,7 @@ export async function criarOrcamento(_prev: FormState, formData: FormData): Prom
   if (sessao && !sessao.soNovo) redirect(`/painel/${orcamento.id}`);
   return {
     sucesso: true,
+    orcamentoId: orcamento.id,
     anexos: enviados,
     aviso: falhas
       ? `O orçamento foi registrado, mas ${falhas === 1 ? "1 arquivo não pôde ser anexado" : `${falhas} arquivos não puderam ser anexados`}. Envie-${falhas === 1 ? "o" : "os"} diretamente à Santa Cruz.`

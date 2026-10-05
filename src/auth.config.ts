@@ -27,7 +27,10 @@ export const authConfig = {
       // clientes aparece nele, então não pode mais ser público.
       const representante = logado && soNovoOrcamento(!!auth?.user?.admin, auth?.user?.areas ?? []);
       if (representante) {
-        return nextUrl.pathname === "/novo" ? true : Response.redirect(new URL("/novo", nextUrl));
+        // Além do Novo Orçamento, só "Minhas Solicitações" (e o PDF de cada uma): a lista mostra
+        // apenas o que a própria pessoa enviou (ver minhas-solicitacoes/page.tsx).
+        const permitido = nextUrl.pathname === "/novo" || nextUrl.pathname.startsWith("/minhas-solicitacoes");
+        return permitido ? true : Response.redirect(new URL("/novo", nextUrl));
       }
       if (naLogin) {
         // já logado tentando ver /login de novo: manda pra página de entrada (escolha de módulo)

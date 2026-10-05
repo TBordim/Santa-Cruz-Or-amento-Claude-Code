@@ -22,6 +22,7 @@ import {
   ClipboardCheck,
   Film,
   Users,
+  ListChecks,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -111,9 +112,13 @@ function SidebarContent({
     { href: "/administracao", label: "Usuários e perfis", icon: Settings2, color: "#233248" },
   ];
 
-  const items: NavItem[] = !logado || soNovo
-    ? [{ href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" }]
-    : modulo === "laboratorio"
+  const itemNovo: NavItem = { href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" };
+  const items: NavItem[] = !logado
+    ? [itemNovo]
+    : soNovo
+      ? // Representante: o Novo Orçamento e o registro do que ele mesmo enviou.
+        [itemNovo, { href: "/minhas-solicitacoes", label: "Minhas Solicitações", icon: ListChecks, color: "#26405C" }]
+      : modulo === "laboratorio"
       ? itemsLaboratorio
       : modulo === "treinamentos"
         ? itemsTreinamentos

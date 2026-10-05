@@ -2,16 +2,36 @@
 
 import { useFormActionSemReset } from "@/hooks/use-form-action";
 import { CamposComerciaisFields } from "@/components/orcamento/CamposComerciaisFields";
+import type { defaultsParaRepetir } from "@/lib/orcamentos/repetir";
 import { criarOrcamento } from "./actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText } from "lucide-react";
+import { Download, FileText, ListChecks, Plus, Repeat2 } from "lucide-react";
+
+// Quando a página abre por "Repetir" (Minhas Solicitações), os campos vêm preenchidos com os
+// dados da solicitação de origem; `repetindo` só alimenta o aviso no topo.
+type Inicial = ReturnType<typeof defaultsParaRepetir>;
+type Repetindo = { em: string; cliente: string };
+
+function dataHora(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 // Envio pelo onSubmit (useFormActionSemReset), não por <form action>/formAction: com action o
 // React limpa o formulário quando ela termina — inclusive quando volta com erro de validação —
 // e tudo que a pessoa digitou e ainda não estava salvo sumia da tela (achado no teste de
 // 30/09/2026: modelo novo e Observações apagados depois de um "Liberar" com erro).
-export function NovoOrcamentoForm({ representante, soRepresentante }: { representante: string; soRepresentante: boolean }) {
+export function NovoOrcamentoForm({
+  representante,
+  soRepresentante,
+  inicial,
+  repetindo,
+}: {
+  representante: string;
+  soRepresentante: boolean;
+  inicial?: Inicial;
+  repetindo?: Repetindo;
+}) {
   const [state, onSubmit, pending] = useFormActionSemReset(criarOrcamento, undefined);
 
   if (state?.sucesso) {
@@ -20,8 +40,26 @@ export function NovoOrcamentoForm({ representante, soRepresentante }: { represen
         <CardContent>
           <h3 className="mb-1.5 text-base font-semibold text-foreground">Solicitação enviada</h3>
           <p className="text-sm text-muted-foreground">Sua solicitação de orçamento foi registrada. A equipe da Santa Cruz vai dar seguimento.</p>
+
+          {/* Registro pra guardar: o PDF é gerado a partir do que ficou gravado. */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {state.orcamentoId && (
+              <Button asChild className="gap-1.5">
+                <a href={`/minhas-solicitacoes/${state.orcamentoId}/pdf`} download>
+                  <Download className="h-4 w-4" /> Salvar PDF no meu aparelho
+                </a>
+              </Button>
+            )}
+            <Button asChild variant="outline" className="gap-1.5">
+              <a href="/minhas-solicitacoes"><ListChecks className="h-4 w-4" /> Minhas Solicitações</a>
+            </Button>
+            <Button asChild variant="outline" className="gap-1.5">
+              <a href="/novo"><Plus className="h-4 w-4" /> Nova solicitação</a>
+            </Button>
+          </div>
+
           {state.anexos && state.anexos.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-5">
               <div className="mb-2 text-sm font-medium text-foreground">
                 {state.anexos.length === 1 ? "Arquivo anexado" : "Arquivos anexados"}
               </div>
@@ -54,8 +92,24 @@ export function NovoOrcamentoForm({ representante, soRepresentante }: { represen
   return (
     <Card className="max-w-[1000px]">
       <CardContent>
+        {repetindo && (
+          <div className="mb-4 flex gap-2.5 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+            <Repeat2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <div>
+              <div className="font-medium text-foreground">
+                Repetindo a solicitação de {dataHora(repetindo.em)}
+                {repetindo.cliente && ` — ${repetindo.cliente}`}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Todos os dados foram copiados: confira e ajuste o que mudou (quantidades, datas de entrega...). Produtos que eram novos
+                vieram como &quot;Repetição — sem alteração&quot;: troque para &quot;com alteração&quot; onde precisar. Os arquivos
+                anexados não são copiados; anexe de novo, se for o caso.
+              </div>
+            </div>
+          </div>
+        )}
         <form onSubmit={onSubmit} className="flex flex-col gap-0">
-          <CamposComerciaisFields comBuscaCliente codigoOpcional={soRepresentante} defaults={{ representante }} />
+          <CamposComerciaisFields comBuscaCliente codigoOpcional={soRepresentante} defaults={inicial ?? { representante }} />
           {state?.erro && <div className="anexo-erro mt-4">{state.erro}</div>}
           <div className="mt-6">
             <Button type="submit" disabled={pending}>{pending ? "Enviando…" : "Enviar solicitação"}</Button>
