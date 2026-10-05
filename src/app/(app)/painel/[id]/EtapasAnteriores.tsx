@@ -242,6 +242,19 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
               { label: "Cotação de Compras", value: doc.comprasItem },
             ],
           },
+          // Quantidades ou papéis incluídos pelo Orçamento depois da Solicitação (ver
+          // ajustarSolicitacao em painel/actions.ts), pra Diretoria e quem vem depois saberem.
+          ...(r?.ajustesOrcamento?.length
+            ? [
+                {
+                  titulo: "Ajustes na Solicitação",
+                  linhas: r.ajustesOrcamento.map((a) => ({
+                    label: `${a.por} · ${fmtDateTime(new Date(a.em))}`,
+                    value: a.itens.join("; "),
+                  })),
+                },
+              ]
+            : []),
           ...tiers.map((t) => ({
             // Uma SO por quantidade × papel, não uma só pro card — ver PrecificacaoTier em types.ts.
             titulo: tituloSO(t),

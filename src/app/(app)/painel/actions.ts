@@ -9,8 +9,10 @@ import { erroNosCores } from "@/lib/orcamentos/cores";
 import { montarPrecificacao, decidirFaixa, type FaixaInput } from "@/lib/orcamentos/tiers";
 import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
 import { normalizarCodigoInterno, codigoInternoValido, formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
-import { modelosDoDoc, resumoDosModelos, ehRepeticao, combinacoesSO, chaveSO, textoMaterial, type CombinacaoSO } from "@/lib/orcamentos/modelos";
-import type { ReqCliente, ReqTecnicos, PrecificacaoTier, Modelo } from "@/lib/orcamentos/types";
+import { modelosDoDoc, resumoDosModelos, ehRepeticao, combinacoesSO, chaveSO, textoMaterial, opcoesDePapel, type CombinacaoSO } from "@/lib/orcamentos/modelos";
+import { chave } from "@/lib/orcamentos/chave";
+import { parseQuantidade } from "@/lib/orcamentos/motor";
+import type { ReqCliente, ReqTecnicos, PrecificacaoTier, Modelo, Suporte, SuporteTecnico, UsoMaterial } from "@/lib/orcamentos/types";
 import type { AreaKey } from "@/lib/areas";
 import { CREDITO_LIBERA } from "@/lib/orcamentos/constantes";
 
@@ -220,6 +222,121 @@ export async function salvarOrcamento(_prev: FormState, formData: FormData): Pro
       comissaoObs: String(formData.get("comissaoObs") ?? "").trim(),
       acabamento: String(formData.get("acabamento") ?? "").trim(),
     },
+  });
+  revalidatePath(`/painel/${id}`);
+  return undefined;
+}
+
+// Ajustes na Solicitação durante a etapa Orçamento: incluir quantidade ou papel que não estava
+// previsto, sem devolver o card ao início. Só ADICIONA (nada que já foi salvo é removido) e só
+// mexe nas quantidades e nos papéis — o resto da Solicitação continua como a Engenharia validou.
+// Pedido do Thiago em 05/10/2026. Quantidade nova e papel de opção geram SOs novas sozinhas
+// (combinacoesSO); o papel novo já entra com o bloco técnico (formato, aproveitamento) preenchido
+// aqui mesmo, no lugar da Engenharia. Cada ajuste fica registrado em reqTecnicos.ajustesOrcamento.
+const CAMPOS_TEC_NOVO_PAPEL = {
+  formato: "novoPapelFormato",
+  codigo: "novoPapelCodigo",
+  qtdFolha: "novoPapelQtdFolha",
+  flsAcerto: "novoPapelFlsAcerto",
+  fatorC: "novoPapelFatorC",
+  fatorL: "novoPapelFatorL",
+  corte: "novoPapelCorte",
+  qtdCh: "novoPapelQtdCh",
+  idealC: "novoPapelIdealC",
+  idealL: "novoPapelIdealL",
+} as const;
+
+export async function ajustarSolicitacao(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  const { nomeAtor } = await exigirEdicao(id);
+  if (doc.etapa !== "ORCAMENTO") return { erro: "Os ajustes só podem ser feitos enquanto o card está na etapa Orçamento." };
+
+  const texto = (nome: string) => formData.getAll(nome).map((v) => String(v).trim());
+  const c: ReqCliente = { ...((doc.reqCliente as ReqCliente | null) ?? ({} as ReqCliente)) };
+  const quantidades = [...(c.quantidadesLista ?? [])];
+  const suportes: Suporte[] = (c.suportes ?? []).map((s) => ({ ...s }));
+  const itens: string[] = [];
+
+  // Quantidades novas: as que já existem não mudam nem saem (cada uma é uma SO, talvez já precificada).
+  for (const q of texto("novaQuantidade").filter(Boolean)) {
+    const n = parseQuantidade(q);
+    if (!n) return { erro: `Quantidade inválida: "${q}". Informe só números, por exemplo 10.000.` };
+    if (quantidades.some((x) => chave(x) === chave(q) || parseQuantidade(x) === n)) {
+      return { erro: `A quantidade ${q} já está na lista.` };
+    }
+    quantidades.push(q);
+    itens.push(`Quantidade ${q} adicionada`);
+  }
+
+  // Papéis que já existem: só dá pra corrigir a descrição e a gramatura. O uso (opção/conjunto) fica
+  // como está — trocar de opção pra conjunto apagaria SOs. A lista chega na mesma ordem da gravada.
+  const descricoes = texto("papelDescricao");
+  const gramaturas = texto("papelGramatura");
+  if (descricoes.length === suportes.length) {
+    suportes.forEach((s, i) => {
+      const nova = { descricao: descricoes[i], gramatura: gramaturas[i] ?? "" };
+      if (!nova.descricao) return; // descrição em branco: mantém a atual
+      if (nova.descricao !== s.descricao || nova.gramatura !== s.gramatura) {
+        itens.push(`Papel ${i + 1} corrigido: "${textoMaterial(s)}" → "${textoMaterial(nova)}"`);
+        s.descricao = nova.descricao;
+        s.gramatura = nova.gramatura;
+      }
+    });
+  }
+
+  // Papéis novos (descrição, gramatura, uso e os dez campos do bloco técnico, pareados por índice).
+  const novosDescricao = texto("novoPapelDescricao");
+  const novosGramatura = texto("novoPapelGramatura");
+  const novosUso = texto("novoPapelUso");
+  const colunasTec = Object.fromEntries(
+    Object.entries(CAMPOS_TEC_NOVO_PAPEL).map(([campo, nome]) => [campo, texto(nome)]),
+  ) as Record<keyof typeof CAMPOS_TEC_NOVO_PAPEL, string[]>;
+
+  const r: ReqTecnicos = { ...((doc.reqTecnicos as ReqTecnicos | null) ?? ({ suportes: [], anexos: [] } as ReqTecnicos)) };
+  // Um bloco técnico por material, na mesma ordem dos materiais: completa o que faltar antes de
+  // acrescentar os novos, pra o índice de cada papel continuar batendo com o bloco dele.
+  const tecnicos: SuporteTecnico[] = [...(r.suportes ?? [])];
+  while (tecnicos.length < suportes.length) tecnicos.push({ formato: "", codigo: "" });
+
+  for (const [k, descricao] of novosDescricao.entries()) {
+    if (!descricao) return { erro: "Informe a descrição de cada papel novo." };
+    const idx = suportes.length;
+    const uso: UsoMaterial = idx === 0 || novosUso[k] !== "conjunto" ? "opcao" : "conjunto";
+    suportes.push({ descricao, gramatura: novosGramatura[k] ?? "", uso });
+    const bloco = Object.fromEntries(
+      Object.keys(CAMPOS_TEC_NOVO_PAPEL).map((campo) => [campo, colunasTec[campo as keyof typeof colunasTec][k] ?? ""]),
+    ) as unknown as SuporteTecnico;
+    tecnicos.push(bloco);
+    itens.push(`Papel "${textoMaterial(suportes[idx])}" adicionado (${uso === "opcao" ? "opção de fornecimento" : "uso conjunto"})`);
+  }
+
+  if (!itens.length) return { erro: "Nada para ajustar: informe uma quantidade nova, um papel novo ou corrija um papel." };
+
+  const reqCliente: ReqCliente = { ...c, quantidadesLista: quantidades, suportes };
+  const opcoes = opcoesDePapel(reqCliente);
+  // Orçamento que tinha uma opção de papel só gravou as SOs sem papel (papelIdx). Ao passar a ter
+  // mais de uma, as SOs que já existem pertencem à primeira opção — sem carimbar isso, a chave
+  // delas (quantidade, sem papel) deixa de casar com as combinações novas e o preço já lançado
+  // se perderia no próximo "Salvar".
+  const precificacao = ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => {
+    if (opcoes.length > 1 && t.papelIdx === undefined && opcoes[0]) return { ...t, papelIdx: opcoes[0].idx, papel: opcoes[0].texto };
+    if (t.papelIdx !== undefined) {
+      const o = opcoes.find((x) => x.idx === t.papelIdx);
+      if (o) return { ...t, papel: o.texto };
+    }
+    return t;
+  });
+
+  const reqTecnicos: ReqTecnicos = {
+    ...r,
+    suportes: tecnicos,
+    ajustesOrcamento: [...(r.ajustesOrcamento ?? []), { em: new Date().toISOString(), por: nomeAtor, itens }],
+  };
+
+  await prisma.orcamento.update({
+    where: { id },
+    data: { reqCliente, reqTecnicos, ...(precificacao.length ? { precificacao } : {}) },
   });
   revalidatePath(`/painel/${id}`);
   return undefined;

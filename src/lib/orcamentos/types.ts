@@ -84,7 +84,14 @@ export type ReqTecnicos = {
   flsAcerto?: string;
   anexos: string[];
   infoComplementares?: string;
+  // Ajustes que o Orçamento fez na Solicitação (quantidade ou papel novo) depois que o card já
+  // estava na etapa Orçamento — ver ajustarSolicitacao em painel/actions.ts. Fica aqui (e não em
+  // ReqCliente) porque salvar a Solicitação de novo recria o ReqCliente do zero, e o histórico
+  // não pode se perder.
+  ajustesOrcamento?: AjusteOrcamento[];
 };
+
+export type AjusteOrcamento = { em: string; por: string; itens: string[] };
 
 // Uma faixa de precificação — uma por quantidade pedida em quantidadesLista. Ver
 // avaliarCriterios/avaliarDiscrepanciaLegado/enviarParaDiretoria (motor.ts/tiers.ts) para como

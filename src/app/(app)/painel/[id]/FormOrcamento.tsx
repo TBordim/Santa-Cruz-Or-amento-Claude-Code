@@ -4,7 +4,8 @@ import { useActionState } from "react";
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
 import { salvarOrcamento, enviarParaDiretoria, solicitarCompras, registrarRetornoCompras } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
-import type { ReqCliente, PrecificacaoTier } from "@/lib/orcamentos/types";
+import type { ReqCliente, ReqTecnicos, PrecificacaoTier } from "@/lib/orcamentos/types";
+import { AjustesOrcamento } from "./AjustesOrcamento";
 import { fmtDateTime, resumoAcabamento } from "@/lib/orcamentos/constantes";
 import { paraCampoBR } from "@/lib/orcamentos/motor";
 import { combinacoesSO, chaveSO, opcoesDePapel, modelosDoDoc } from "@/lib/orcamentos/modelos";
@@ -65,6 +66,7 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
   useSalvoToast(salvando, state?.erro, "Precificação salva.");
 
   const c = doc.reqCliente as ReqCliente | null;
+  const r = doc.reqTecnicos as ReqTecnicos | null;
   // Uma SO por combinação quantidade × opção de papel (ver combinacoesSO em modelos.ts).
   const combinacoes = combinacoesSO(c);
   const nPapeis = opcoesDePapel(c).length;
@@ -92,11 +94,21 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
         <ComprasBox doc={doc} />
       </div>
 
+      {/* Fora do <form id="form-orcamento"> de propósito: tem o próprio envio. A key recomeça o
+          painel limpo depois de cada gravação. */}
+      <AjustesOrcamento
+        key={JSON.stringify([c?.quantidadesLista, c?.suportes, (r?.ajustesOrcamento ?? []).length])}
+        id={doc.id}
+        quantidades={c?.quantidadesLista ?? []}
+        suportes={c?.suportes ?? []}
+        ajustes={r?.ajustesOrcamento ?? []}
+      />
+
       <form id="form-orcamento" className="mt-4" onSubmit={porBotao({ salvar: salvarSubmit, enviar: enviarSubmit }, "salvar")}>
         <input type="hidden" name="id" value={doc.id} form="form-orcamento" />
 
         {combinacoes.length === 0 ? (
-          <div className="empty-state">Nenhuma quantidade lançada na Solicitação — volte a etapa e adicione ao menos uma.</div>
+          <div className="empty-state">Nenhuma quantidade lançada na Solicitação — use &quot;Ajustar quantidades e papéis&quot;, acima, para adicionar ao menos uma.</div>
         ) : (
           combinacoes.map((cb, i) => {
             const t = tierPorChave.get(chaveSO(cb));
