@@ -35,7 +35,7 @@ function NovoPapel({ primeiro, onRemover }: { primeiro: boolean; onRemover: () =
       ) : (
         <Field
           label="Uso do material"
-          hint="Opção de fornecimento = papel alternativo (gera uma SO por quantidade). Uso conjunto = material usado junto com o principal."
+          hint="Opção de fornecimento = papel alternativo (tem o próprio preço, dentro da SO de cada quantidade). Uso conjunto = material usado junto com o principal."
         >
           <input type="hidden" name="novoPapelUso" value={uso} />
           <Select value={uso} onValueChange={(v) => setUso(v as "opcao" | "conjunto")}>
@@ -91,7 +91,7 @@ export function AjustesOrcamento({
   ajustes: AjusteOrcamento[];
 }) {
   const [state, onSubmit, pending] = useFormActionSemReset(ajustarSolicitacao, undefined);
-  useSalvoToast(pending, state?.erro, "Ajustes aplicados. As SOs novas aparecem logo abaixo.");
+  useSalvoToast(pending, state?.erro, "Ajustes aplicados. Os campos de preço novos aparecem logo abaixo.");
   const proxima = useRef(0);
   const [blocos, setBlocos] = useState<number[]>([]);
 

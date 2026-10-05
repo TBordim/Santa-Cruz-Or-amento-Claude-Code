@@ -8,7 +8,8 @@ import type { ReqCliente, ReqTecnicos, PrecificacaoTier } from "@/lib/orcamentos
 import { AjustesOrcamento } from "./AjustesOrcamento";
 import { fmtDateTime, resumoAcabamento } from "@/lib/orcamentos/constantes";
 import { paraCampoBR } from "@/lib/orcamentos/motor";
-import { combinacoesSO, chaveSO, opcoesDePapel, modelosDoDoc } from "@/lib/orcamentos/modelos";
+import { combinacoesSO, chaveSO, opcoesDePapel, modelosDoDoc, type CombinacaoSO } from "@/lib/orcamentos/modelos";
+import { chave } from "@/lib/orcamentos/chave";
 import { FormSection, Field, Row2, ResumoBox, AcoesBar } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -67,8 +68,15 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
 
   const c = doc.reqCliente as ReqCliente | null;
   const r = doc.reqTecnicos as ReqTecnicos | null;
-  // Uma SO por combinação quantidade × opção de papel (ver combinacoesSO em modelos.ts).
+  // Cada combinação quantidade × opção de papel tem o próprio preço (ver combinacoesSO em
+  // modelos.ts); o número da SO é um por quantidade, então a tela agrupa por quantidade.
   const combinacoes = combinacoesSO(c);
+  const grupos: { quantidade: string; itens: { cb: CombinacaoSO; i: number }[] }[] = [];
+  combinacoes.forEach((cb, i) => {
+    const g = grupos.find((x) => chave(x.quantidade) === chave(cb.quantidade));
+    if (g) g.itens.push({ cb, i });
+    else grupos.push({ quantidade: cb.quantidade, itens: [{ cb, i }] });
+  });
   const nPapeis = opcoesDePapel(c).length;
   const modelos = modelosDoDoc(doc);
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
@@ -86,7 +94,7 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
           { label: "Cliente", value: doc.cliente },
           { label: modelos.length > 1 ? `Modelos (${modelos.length})` : "Produto", value: doc.produtoDescricao },
           { label: "Nº de Pré Cadastro", value: doc.preCadastro || "—" },
-          ...(nPapeis > 1 ? [{ label: "Opções de papel", value: `${nPapeis} — uma SO por quantidade em cada papel` }] : []),
+          ...(nPapeis > 1 ? [{ label: "Opções de papel", value: `${nPapeis} — uma SO por quantidade; cada papel tem o próprio preço` }] : []),
         ]}
       />
 
@@ -110,38 +118,65 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
         {combinacoes.length === 0 ? (
           <div className="empty-state">Nenhuma quantidade lançada na Solicitação — use &quot;Ajustar quantidades e papéis&quot;, acima, para adicionar ao menos uma.</div>
         ) : (
-          combinacoes.map((cb, i) => {
-            const t = tierPorChave.get(chaveSO(cb));
-            const titulo =
-              combinacoes.length === 1 ? "Precificação" : `Quantidade: ${cb.quantidade}${cb.papel ? ` · Papel: ${cb.papel}` : ""}`;
+          grupos.map(({ quantidade, itens }) => {
+            // Um número de SO por quantidade, valendo pros papéis dela; o preço é por papel
+            // (decisão do Thiago em 05/10/2026). Card antigo que já tem um número diferente por
+            // papel na mesma quantidade continua com um campo por papel, como estava gravado.
+            const numerosGravados = [
+              ...new Set(itens.map(({ cb }) => tierPorChave.get(chaveSO(cb))?.numeroSequencial).filter((n): n is string => !!n)),
+            ];
+            const numeroPorPapel = itens.length > 1 && numerosGravados.length > 1;
+            const primeiro = itens[0];
+            const campoNumero = (i: number, valor: string, dica: string) => (
+              <Field label="Nº da SO" hint={dica}>
+                <Input name={`numeroSequencial_${i}`} required defaultValue={valor} form="form-orcamento" />
+              </Field>
+            );
             return (
-              <FormSection key={chaveSO(cb)} title={titulo}>
-                <Field label="Nº da SO" hint="Um número por SO (o &quot;Orçamento S.O. nº&quot;): cada quantidade, em cada papel.">
-                  <Input
-                    name={`numeroSequencial_${i}`}
-                    required
-                    defaultValue={t?.numeroSequencial || (cb.papel ? "" : soppLegado[i]) || ""}
-                    form="form-orcamento"
-                  />
-                </Field>
-                <Row2 compacto>
-                  <Field label="Preço projetado">
-                    <Input name={`precoProjetado_${i}`} defaultValue={paraCampoBR(t?.precoProjetado)} placeholder="Ex.: 1.234,56" form="form-orcamento" />
-                  </Field>
-                  <Field label="Custo primário (%)">
-                    <Input name={`custoPrimarioPct_${i}`} defaultValue={paraCampoBR(t?.custoPrimarioPct)} form="form-orcamento" />
-                  </Field>
-                </Row2>
-                <Row2 compacto>
-                  <Field label="Margem P2 (%)">
-                    <Input name={`margemP2Pct_${i}`} defaultValue={paraCampoBR(t?.margemP2Pct)} form="form-orcamento" />
-                  </Field>
-                  <div />
-                </Row2>
-                <Row2 compacto>
-                  <Field label="Número de lotes"><Input name={`numeroLotes_${i}`} defaultValue={t?.numeroLotes ?? ""} form="form-orcamento" /></Field>
-                  <Field label="Número de setups"><Input name={`numeroSetups_${i}`} defaultValue={t?.numeroSetups ?? ""} form="form-orcamento" /></Field>
-                </Row2>
+              <FormSection key={chave(quantidade)} title={combinacoes.length === 1 ? "Precificação" : `Quantidade: ${quantidade}`}>
+                {!numeroPorPapel &&
+                  campoNumero(
+                    primeiro.i,
+                    numerosGravados[0] || (primeiro.cb.papel ? "" : soppLegado[primeiro.i]) || "",
+                    itens.length > 1
+                      ? 'Um número por quantidade (o "Orçamento S.O. nº"): vale para todos os papéis desta quantidade.'
+                      : 'Um número por SO (o "Orçamento S.O. nº").',
+                  )}
+                {itens.map(({ cb, i }) => {
+                  const t = tierPorChave.get(chaveSO(cb));
+                  const conteudo = (
+                    <>
+                      {numeroPorPapel && campoNumero(i, t?.numeroSequencial ?? "", "Este card tem um número de SO por papel (lançado antes da regra de uma SO por quantidade).")}
+                      <Row2 compacto>
+                        <Field label="Preço projetado">
+                          <Input name={`precoProjetado_${i}`} defaultValue={paraCampoBR(t?.precoProjetado)} placeholder="Ex.: 1.234,56" form="form-orcamento" />
+                        </Field>
+                        <Field label="Custo primário (%)">
+                          <Input name={`custoPrimarioPct_${i}`} defaultValue={paraCampoBR(t?.custoPrimarioPct)} form="form-orcamento" />
+                        </Field>
+                      </Row2>
+                      <Row2 compacto>
+                        <Field label="Margem P2 (%)">
+                          <Input name={`margemP2Pct_${i}`} defaultValue={paraCampoBR(t?.margemP2Pct)} form="form-orcamento" />
+                        </Field>
+                        <div />
+                      </Row2>
+                      <Row2 compacto>
+                        <Field label="Número de lotes"><Input name={`numeroLotes_${i}`} defaultValue={t?.numeroLotes ?? ""} form="form-orcamento" /></Field>
+                        <Field label="Número de setups"><Input name={`numeroSetups_${i}`} defaultValue={t?.numeroSetups ?? ""} form="form-orcamento" /></Field>
+                      </Row2>
+                    </>
+                  );
+                  // Mais de um papel na quantidade: cada um num quadro próprio, com o seu preço.
+                  return itens.length > 1 ? (
+                    <div key={chaveSO(cb)} className="flex flex-col gap-3 rounded-lg border border-dashed border-border p-3">
+                      <div className="text-sm font-semibold text-foreground">Papel: {cb.papel}</div>
+                      {conteudo}
+                    </div>
+                  ) : (
+                    <div key={chaveSO(cb)} className="contents">{conteudo}</div>
+                  );
+                })}
               </FormSection>
             );
           })

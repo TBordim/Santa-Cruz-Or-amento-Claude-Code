@@ -113,8 +113,10 @@ export function opcoesDePapel(c: ReqCliente | null | undefined): OpcaoPapel[] {
 
 export type CombinacaoSO = { quantidade: string; papelIdx?: number; papel?: string };
 
-// Uma SO por combinação quantidade × opção de papel (2 papéis × 2 quantidades = 4 SOs,
-// resposta do Thiago em 30/09/2026). Agrupadas por papel: primeiro todas as quantidades do
+// Uma combinação quantidade × opção de papel = uma faixa de PREÇO (2 papéis × 2 quantidades = 4
+// faixas, resposta do Thiago em 30/09/2026). O NÚMERO da SO, porém, é um por quantidade e vale
+// pros papéis dela (decisão de 05/10/2026: SO nova só quando muda a quantidade) — ver lerFaixas
+// em painel/actions.ts. Agrupadas por papel: primeiro todas as quantidades do
 // papel 1, depois as do papel 2...
 export function combinacoesSO(c: ReqCliente | null | undefined): CombinacaoSO[] {
   const quantidades = c?.quantidadesLista ?? [];

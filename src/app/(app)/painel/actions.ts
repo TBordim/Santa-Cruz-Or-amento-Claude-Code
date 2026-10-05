@@ -169,10 +169,23 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
 // Uma faixa (SO) por combinação quantidade × opção de papel — ver combinacoesSO em modelos.ts.
 // Os campos do formulário são numerados na mesma ordem das combinações.
 function lerFaixas(formData: FormData, combinacoes: CombinacaoSO[]): FaixaInput[] {
+  // O número da SO é um por quantidade, valendo pra todos os papéis dela (decisão do Thiago em
+  // 05/10/2026: SO nova só quando muda a quantidade; o preço continua por papel). A tela mostra
+  // o campo só na primeira combinação de cada quantidade e as demais herdam o número. Campo
+  // ausente = herda; campo presente (mesmo vazio) = valor próprio — é o que mantém, como estão,
+  // os cards antigos que já têm um número por papel.
+  const lidos = combinacoes.map((_, i) => {
+    const v = formData.get(`numeroSequencial_${i}`);
+    return v === null ? null : String(v).trim();
+  });
+  const doGrupo = new Map<string, string>();
+  combinacoes.forEach((c, i) => {
+    if (lidos[i] !== null && !doGrupo.has(chave(c.quantidade))) doGrupo.set(chave(c.quantidade), lidos[i] as string);
+  });
   return combinacoes.map(({ quantidade, papelIdx, papel }, i) => ({
     quantidade,
     ...(papel !== undefined ? { papelIdx, papel } : {}),
-    numeroSequencial: String(formData.get(`numeroSequencial_${i}`) ?? "").trim(),
+    numeroSequencial: lidos[i] ?? doGrupo.get(chave(quantidade)) ?? "",
     precoProjetado: parseValorBR(String(formData.get(`precoProjetado_${i}`) ?? "")),
     custoPrimarioPct: (() => {
       const v = parseValorBR(String(formData.get(`custoPrimarioPct_${i}`) ?? ""));
@@ -191,7 +204,8 @@ function lerFaixas(formData: FormData, combinacoes: CombinacaoSO[]): FaixaInput[
 // só, sempre foi assim visualmente) — cada faixa continua com o próprio número gravado, este
 // resumo é só pra exibição rápida, nunca editado direto.
 function resumoSopp(rascunho: { numeroSequencial: string }[]): string {
-  return rascunho.map((r) => r.numeroSequencial).filter(Boolean).join(", ");
+  // Os papéis de uma mesma quantidade compartilham o número: aparece uma vez só no resumo.
+  return [...new Set(rascunho.map((r) => r.numeroSequencial).filter(Boolean))].join(", ");
 }
 
 export async function salvarOrcamento(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -392,9 +406,18 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   if (faixas.some((f) => !f.numeroSequencial)) {
     return { erro: "Informe o Nº da SO de todas as quantidades antes de enviar para a Diretoria." };
   }
-  const numeros = faixas.map((f) => f.numeroSequencial);
-  const soRepetida = numeros.find((n, i) => numeros.indexOf(n) !== i);
-  if (soRepetida) return { erro: `A SO ${soRepetida} aparece mais de uma vez — cada SO tem o próprio número.` };
+  // Uma SO por quantidade: o mesmo número vale pros papéis da mesma quantidade, mas não pode
+  // aparecer em quantidades diferentes.
+  const quantidadesPorSO = new Map<string, Set<string>>();
+  for (const f of faixas) {
+    const qs = quantidadesPorSO.get(f.numeroSequencial) ?? new Set<string>();
+    qs.add(chave(f.quantidade));
+    quantidadesPorSO.set(f.numeroSequencial, qs);
+  }
+  const soEmVariasQuantidades = [...quantidadesPorSO].find(([, qs]) => qs.size > 1);
+  if (soEmVariasQuantidades) {
+    return { erro: `A SO ${soEmVariasQuantidades[0]} aparece em mais de uma quantidade — cada quantidade tem a própria SO.` };
+  }
 
   const acabamento = String(formData.get("acabamento") ?? "").trim();
   const comissaoEspecial = formData.get("comissaoEspecial") === "on";

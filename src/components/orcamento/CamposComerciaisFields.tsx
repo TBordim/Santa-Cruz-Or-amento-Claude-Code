@@ -154,7 +154,7 @@ export function CamposComerciaisFields({
         <ModelosLista key={JSON.stringify(defaults?.modelos ?? [])} valoresIniciais={defaults?.modelos} codigoOpcional={codigoOpcional} />
         <Field
           label={comBuscaCliente ? "Quantidades a orçar (obrigatório)" : "Quantidades a orçar"}
-          hint="Quantidade total do conjunto (todos os modelos juntos). Cada quantidade gera uma SO — por papel, se houver mais de uma opção de papel."
+          hint="Quantidade total do conjunto (todos os modelos juntos). Cada quantidade gera uma SO. Papéis alternativos não abrem SO nova — cada um só tem o próprio preço, dentro da SO da quantidade."
         >
           <ListaDinamica name="quantidades" placeholder="Ex.: 5000" botaoLabel="Adicionar quantidade" obrigatorio={comBuscaCliente} valoresIniciais={r?.quantidadesLista} />
         </Field>
