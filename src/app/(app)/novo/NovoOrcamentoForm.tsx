@@ -5,6 +5,7 @@ import { CamposComerciaisFields } from "@/components/orcamento/CamposComerciaisF
 import { criarOrcamento } from "./actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { FileText } from "lucide-react";
 
 // Envio pelo onSubmit (useFormActionSemReset), não por <form action>/formAction: com action o
 // React limpa o formulário quando ela termina — inclusive quando volta com erro de validação —
@@ -19,6 +20,31 @@ export function NovoOrcamentoForm({ representante }: { representante: string }) 
         <CardContent>
           <h3 className="mb-1.5 text-base font-semibold text-foreground">Solicitação enviada</h3>
           <p className="text-sm text-muted-foreground">Sua solicitação de orçamento foi registrada. A equipe da Santa Cruz vai dar seguimento.</p>
+          {state.anexos && state.anexos.length > 0 && (
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-medium text-foreground">
+                {state.anexos.length === 1 ? "Arquivo anexado" : "Arquivos anexados"}
+              </div>
+              <div className="flex flex-col gap-2">
+                {state.anexos.map((a) => (
+                  <div key={a.url} className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 p-2.5">
+                    {a.mime.startsWith("image/") ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- URL do Blob, não é asset local otimizável
+                      <img src={a.url} alt="" className="h-12 w-12 shrink-0 rounded-md border border-border object-cover" />
+                    ) : (
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">{a.nome}</span>
+                    <Button asChild variant="outline" size="sm">
+                      <a href={a.url} target="_blank" rel="noreferrer">Abrir</a>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {state.aviso && <div className="anexo-erro mt-3">{state.aviso}</div>}
         </CardContent>
       </Card>

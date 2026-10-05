@@ -10,7 +10,8 @@ import { salvarAnexoNoBlob } from "@/lib/anexos/storage";
 import { erroNosCores } from "@/lib/orcamentos/cores";
 import { MAX_ARQUIVOS_NOVO, MAX_TOTAL_BYTES_NOVO, tipoAnexoAceito } from "@/lib/anexos/limites";
 
-export type FormState = { erro?: string; sucesso?: boolean; aviso?: string } | undefined;
+export type AnexoEnviado = { nome: string; url: string; mime: string };
+export type FormState = { erro?: string; sucesso?: boolean; aviso?: string; anexos?: AnexoEnviado[] } | undefined;
 
 // Equivalente a criarOrcamento() (santa-cruz-orcamentos.html, linhas 1986-2010). Exige login
 // desde 02/10/2026 (representante tem perfil só com a área NOVO) — ver src/lib/permissions.ts.
@@ -60,6 +61,7 @@ export async function criarOrcamento(_prev: FormState, formData: FormData): Prom
   // Anexos: o orçamento já existe e vale mesmo se um arquivo falhar (storage fora do ar, por
   // exemplo) — nesse caso avisa quantos não foram, pra serem enviados de outro jeito.
   let falhas = 0;
+  const enviados: AnexoEnviado[] = [];
   for (const arquivo of arquivos) {
     try {
       const { url, pathname } = await salvarAnexoNoBlob(orcamento.id, arquivo);
@@ -75,6 +77,7 @@ export async function criarOrcamento(_prev: FormState, formData: FormData): Prom
           enviadoPorId: sessao?.usuarioId ?? null,
         },
       });
+      enviados.push({ nome: arquivo.name, url, mime: arquivo.type });
     } catch {
       falhas++;
     }
@@ -85,6 +88,7 @@ export async function criarOrcamento(_prev: FormState, formData: FormData): Prom
   if (sessao && !sessao.soNovo) redirect(`/painel/${orcamento.id}`);
   return {
     sucesso: true,
+    anexos: enviados,
     aviso: falhas
       ? `O orçamento foi registrado, mas ${falhas === 1 ? "1 arquivo não pôde ser anexado" : `${falhas} arquivos não puderam ser anexados`}. Envie-${falhas === 1 ? "o" : "os"} diretamente à Santa Cruz.`
       : undefined,
