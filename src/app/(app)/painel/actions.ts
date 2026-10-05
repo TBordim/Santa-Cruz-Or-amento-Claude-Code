@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { sessaoAtual, podeEditar } from "@/lib/permissions";
 import { lerCamposComerciais, lerReqTecnicos, parseValorBR } from "@/lib/orcamentos/leitura";
+import { erroNosCores } from "@/lib/orcamentos/cores";
 import { montarPrecificacao, decidirFaixa, type FaixaInput } from "@/lib/orcamentos/tiers";
 import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
 import { normalizarCodigoInterno, codigoInternoValido, formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
@@ -28,6 +29,8 @@ async function exigirEdicao(id: string): Promise<{ etapa: AreaKey; nomeAtor: str
 // código não aparece em dois modelos.
 function erroNosModelos(modelos: Modelo[]): string | null {
   if (!modelos.length) return "Informe ao menos um modelo (descrição do produto).";
+  const erroCores = erroNosCores(modelos);
+  if (erroCores) return erroCores;
   const nome = (m: Modelo, i: number) => (modelos.length > 1 ? `modelo ${i + 1} (${m.descricao || "sem descrição"})` : "produto");
   for (const [i, m] of modelos.entries()) {
     if (ehRepeticao(m.classificacao) && !m.codInterno) {
@@ -53,6 +56,8 @@ export async function salvarAberto(_prev: FormState, formData: FormData): Promis
     return { erro: "Sem permissão para editar esta etapa." };
   }
   const campos = lerCamposComerciais(formData);
+  const erroCores = erroNosCores(campos.modelos);
+  if (erroCores) return { erro: erroCores };
   await prisma.orcamento.update({ where: { id }, data: campos });
   revalidatePath(`/painel/${id}`);
   return undefined;

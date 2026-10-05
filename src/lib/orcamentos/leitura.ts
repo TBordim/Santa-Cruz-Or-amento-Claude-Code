@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { chave } from "./chave";
 import { normalizarCodigoInterno } from "./codigo-interno";
 import { CLASSIFICACOES_MODELO, resumoDosModelos } from "./modelos";
+import { normalizarCores } from "./cores";
 import type { ClassificacaoModelo, Modelo, ReqCliente, ReqTecnicos, Suporte, SuporteTecnico } from "./types";
 
 function str(fd: FormData, nome: string): string {
@@ -41,6 +42,7 @@ export function lerModelos(fd: FormData): Modelo[] {
   const codigosCliente = fd.getAll("modeloCodigoCliente").map(String);
   const codigosInternos = fd.getAll("modeloCodInterno").map(String);
   const classificacoes = fd.getAll("modeloClassificacao").map(String);
+  const cores = fd.getAll("modeloCores").map(String);
   return descricoes
     .map((descricao, i): Modelo => ({
       id: ids[i]?.trim() || randomUUID(),
@@ -50,6 +52,9 @@ export function lerModelos(fd: FormData): Modelo[] {
       classificacao: (CLASSIFICACOES_MODELO.includes(classificacoes[i] as ClassificacaoModelo)
         ? classificacoes[i]
         : "NOVO") as ClassificacaoModelo,
+      // Formato errado fica como veio (só sem as pontas em branco) pra erroNosCores poder avisar;
+      // formato certo é normalizado ("3 / 0" -> "3/0").
+      cores: normalizarCores(cores[i]) ?? (cores[i] ?? "").trim(),
     }))
     .filter((m) => m.descricao || m.codigoCliente || m.codInterno);
 }

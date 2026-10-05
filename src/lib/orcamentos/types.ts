@@ -39,6 +39,9 @@ export type Modelo = {
   codigoCliente: string;
   codInterno: string; // só dígitos, "" enquanto não houver cadastro
   classificacao: ClassificacaoModelo;
+  // Cores de impressão no formato Frente/Verso ("3/0", "2/1"); ver cores.ts. Ausente nos
+  // orçamentos de antes de 05/10/2026.
+  cores?: string;
 };
 
 // Etapa 1 — Solicitação de Orçamento (Em Aberto). Medidas/suportes/acabamento/verniz/

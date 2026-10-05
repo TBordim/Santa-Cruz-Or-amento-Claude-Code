@@ -7,6 +7,7 @@ import { lerCamposComerciais } from "@/lib/orcamentos/leitura";
 import { cnpjValido, somenteDigitos } from "@/lib/clientes/cnpj";
 import { textoBusca } from "@/lib/clientes/busca";
 import { salvarAnexoNoBlob } from "@/lib/anexos/storage";
+import { erroNosCores } from "@/lib/orcamentos/cores";
 import { MAX_ARQUIVOS_NOVO, MAX_TOTAL_BYTES_NOVO, tipoAnexoAceito } from "@/lib/anexos/limites";
 
 export type FormState = { erro?: string; sucesso?: boolean; aviso?: string } | undefined;
@@ -30,6 +31,9 @@ export async function criarOrcamento(_prev: FormState, formData: FormData): Prom
   if (!campos.reqCliente.quantidadesLista.length) {
     return { erro: "Informe ao menos uma quantidade a orçar." };
   }
+
+  const erroCores = erroNosCores(campos.modelos);
+  if (erroCores) return { erro: erroCores };
 
   // Anexos vão junto do formulário. Conferidos antes de criar o orçamento, pra não deixar um
   // orçamento criado pela metade por causa de um arquivo recusado.

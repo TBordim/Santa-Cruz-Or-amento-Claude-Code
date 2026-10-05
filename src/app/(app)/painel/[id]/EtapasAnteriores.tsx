@@ -146,6 +146,7 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
               { label: "Descrição", value: m.descricao },
               { label: "Classificação", value: classificacaoLabel(m.classificacao) },
               { label: "Código do cliente", value: m.codigoCliente },
+              { label: "Nº de cores (Frente/Verso)", value: m.cores },
               { label: "Código interno", value: m.codInterno && formatarCodigoInterno(m.codInterno) },
             ],
           })),

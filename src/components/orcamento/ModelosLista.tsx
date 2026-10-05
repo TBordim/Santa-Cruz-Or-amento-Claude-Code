@@ -12,7 +12,7 @@ import { CodigoInternoInput } from "./CodigoInternoInput";
 
 type Linha = { chave: number; modelo: Modelo };
 
-const VAZIO: Omit<Modelo, "id"> = { descricao: "", codigoCliente: "", codInterno: "", classificacao: "NOVO" };
+const VAZIO: Omit<Modelo, "id"> = { descricao: "", codigoCliente: "", codInterno: "", classificacao: "NOVO", cores: "" };
 
 // Modelos (produtos) do orçamento. Vários modelos só entram no mesmo orçamento quando usam a
 // mesma faca (mesma medida) — produção conjugada, um preço por faixa pro conjunto. Faca
@@ -63,9 +63,25 @@ export function ModelosLista({ valoresIniciais }: { valoresIniciais?: Modelo[] }
                 <CodigoInternoInput name="modeloCodInterno" required={repeticao} defaultValue={modelo.codInterno} />
               </Field>
             </Row2>
-            <Field label="Código do cliente" hint="O código que o próprio cliente usa pro produto — só pra registro, formato livre.">
-              <Input name="modeloCodigoCliente" defaultValue={modelo.codigoCliente} />
-            </Field>
+            <Row2>
+              <Field label="Código do cliente" hint="O código que o próprio cliente usa pro produto — só pra registro, formato livre.">
+                <Input name="modeloCodigoCliente" defaultValue={modelo.codigoCliente} />
+              </Field>
+              <Field
+                label="Nº de cores (Frente/Verso)"
+                hint="Ex.: 3/0 = três cores na frente e nenhuma no verso; 2/1 = duas na frente e uma no verso."
+              >
+                <Input
+                  name="modeloCores"
+                  defaultValue={modelo.cores ?? ""}
+                  placeholder="3/0"
+                  inputMode="text"
+                  maxLength={7}
+                  pattern="\s*\d{1,2}\s*/\s*\d{1,2}\s*"
+                  title="Use Frente/Verso, por exemplo 3/0 ou 2/1"
+                />
+              </Field>
+            </Row2>
             {linhas.length > 1 && (
               <Button
                 type="button"
