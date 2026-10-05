@@ -11,7 +11,7 @@ import { FileText } from "lucide-react";
 // React limpa o formulário quando ela termina — inclusive quando volta com erro de validação —
 // e tudo que a pessoa digitou e ainda não estava salvo sumia da tela (achado no teste de
 // 30/09/2026: modelo novo e Observações apagados depois de um "Liberar" com erro).
-export function NovoOrcamentoForm({ representante }: { representante: string }) {
+export function NovoOrcamentoForm({ representante, soRepresentante }: { representante: string; soRepresentante: boolean }) {
   const [state, onSubmit, pending] = useFormActionSemReset(criarOrcamento, undefined);
 
   if (state?.sucesso) {
@@ -55,7 +55,7 @@ export function NovoOrcamentoForm({ representante }: { representante: string }) 
     <Card className="max-w-[760px]">
       <CardContent>
         <form onSubmit={onSubmit} className="flex flex-col gap-0">
-          <CamposComerciaisFields comBuscaCliente defaults={{ representante }} />
+          <CamposComerciaisFields comBuscaCliente codigoOpcional={soRepresentante} defaults={{ representante }} />
           {state?.erro && <div className="anexo-erro mt-4">{state.erro}</div>}
           <div className="mt-6">
             <Button type="submit" disabled={pending}>{pending ? "Enviando…" : "Enviar solicitação"}</Button>

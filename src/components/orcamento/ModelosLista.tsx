@@ -50,7 +50,7 @@ function semEnviar(e: React.KeyboardEvent) {
 // Desde 05/10/2026 dá pra criar muitos de uma vez: orçamento com dezenas de tipos do mesmo
 // produto (sabores, nuances) era lento e sujeito a erro lançando um a um. Cada tipo continua
 // sendo um modelo de verdade (código próprio, rastreabilidade, comparação na Diretoria).
-export function ModelosLista({ valoresIniciais }: { valoresIniciais?: Modelo[] }) {
+export function ModelosLista({ valoresIniciais, codigoOpcional = false }: { valoresIniciais?: Modelo[]; codigoOpcional?: boolean }) {
   const proxima = useRef(valoresIniciais?.length ?? 1);
   const [linhas, setLinhas] = useState<Linha[]>(
     valoresIniciais?.length
@@ -239,9 +239,15 @@ export function ModelosLista({ valoresIniciais }: { valoresIniciais?: Modelo[] }
               </Field>
               <Field
                 label="Código interno (Santa Cruz)"
-                hint={repeticao ? "Obrigatório — o produto já existe no sistema." : "Produto novo ganha o código só se o cliente aprovar."}
+                hint={
+                  repeticao
+                    ? codigoOpcional
+                      ? "Se não tiver o código agora, pode deixar em branco — o escritório completa antes de seguir."
+                      : "Obrigatório — o produto já existe no sistema."
+                    : "Produto novo ganha o código só se o cliente aprovar."
+                }
               >
-                <CodigoInternoInput name="modeloCodInterno" required={repeticao} defaultValue={modelo.codInterno} />
+                <CodigoInternoInput name="modeloCodInterno" required={repeticao && !codigoOpcional} defaultValue={modelo.codInterno} />
               </Field>
               <Field label="Código do cliente" hint="Só pra registro, formato livre.">
                 <Input name="modeloCodigoCliente" defaultValue={modelo.codigoCliente} />

@@ -44,7 +44,11 @@ function CheckGroup({ nome, opcoes, marcados }: { nome: string; opcoes: readonly
 export function CamposComerciaisFields({
   defaults,
   comBuscaCliente = false,
+  codigoOpcional = false,
 }: {
+  // Representante em viagem pode não ter o código interno à mão: repetição não exige o código
+  // na tela. O escritório completa em Em Aberto, que exige antes de liberar pra Engenharia.
+  codigoOpcional?: boolean;
   // Busca no cadastro de clientes (Novo Orçamento). Em Aberto, onde o card já tem cliente, fica
   // desligada.
   comBuscaCliente?: boolean;
@@ -147,7 +151,7 @@ export function CamposComerciaisFields({
         {/* `key` pelo conteúdo gravado: depois de salvar, a lista recomeça com o que voltou do
             servidor — é lá que um modelo novo ganha o id que liga ele à própria arte. Sem isso,
             a linha continuava sem id e ganhava OUTRO id no salvamento seguinte. */}
-        <ModelosLista key={JSON.stringify(defaults?.modelos ?? [])} valoresIniciais={defaults?.modelos} />
+        <ModelosLista key={JSON.stringify(defaults?.modelos ?? [])} valoresIniciais={defaults?.modelos} codigoOpcional={codigoOpcional} />
         <Field
           label={comBuscaCliente ? "Quantidades a orçar (obrigatório)" : "Quantidades a orçar"}
           hint="Quantidade total do conjunto (todos os modelos juntos). Cada quantidade gera uma SO — por papel, se houver mais de uma opção de papel."

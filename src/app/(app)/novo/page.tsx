@@ -15,7 +15,7 @@ export default async function NovoOrcamentoPage() {
         title="Novo Orçamento"
         description="Preencha os dados comerciais e técnicos básicos do pedido — a Santa Cruz segue o fluxo a partir daqui."
       />
-      <NovoOrcamentoForm representante={sessao?.soNovo ? sessao.nome : ""} />
+      <NovoOrcamentoForm representante={sessao?.soNovo ? sessao.nome : ""} soRepresentante={!!sessao?.soNovo} />
     </>
   );
 }
