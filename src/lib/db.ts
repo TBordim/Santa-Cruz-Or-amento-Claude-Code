@@ -7,7 +7,12 @@ import { PrismaClient } from "@/generated/prisma/client";
 // contra o Postgres local do `npx prisma dev`, usado em desenvolvimento); node-postgres fala
 // Postgres "de verdade" e funciona igual local e contra o Neon (que aceita conexão TCP normal).
 function createPrismaClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  // APP_DATABASE_URL (quando definida) tem prioridade: é uma variável nossa, que a integração
+  // Neon–Vercel não gerencia nem reescreve. Em 06/10/2026 a integração passou a gravar na
+  // DATABASE_URL de Production o banco de demonstração, e essa variável não é editável; com
+  // APP_DATABASE_URL apontamos Production pro banco certo sem depender dela. Sem APP_*, tudo
+  // segue como sempre (DATABASE_URL).
+  const adapter = new PrismaPg({ connectionString: process.env.APP_DATABASE_URL || process.env.DATABASE_URL });
   return new PrismaClient({ adapter });
 }
 

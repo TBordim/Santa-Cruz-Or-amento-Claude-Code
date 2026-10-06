@@ -14,7 +14,12 @@ export default defineConfig({
     // migrate segura uma "advisory lock" de sessão, e através do pooler essa trava pode ficar
     // presa numa conexão reaproveitada, travando os builds seguintes (erro P1002 no deploy de
     // 27/09/2026). Local não tem DATABASE_URL_UNPOOLED e segue usando o DATABASE_URL de sempre.
-    url: process.env["DATABASE_URL_UNPOOLED"] || process.env["DATABASE_URL"],
+    // Com APP_DATABASE_URL definida (ver src/lib/db.ts), o migrate usa o par APP_* — nunca mistura
+    // com as variáveis da integração, que podem apontar pra outro banco. A conexão direta
+    // (APP_DATABASE_URL_UNPOOLED) é exigida pelo scripts/verificar-banco.mjs em produção.
+    url: process.env["APP_DATABASE_URL"]
+      ? process.env["APP_DATABASE_URL_UNPOOLED"] || process.env["APP_DATABASE_URL"]
+      : process.env["DATABASE_URL_UNPOOLED"] || process.env["DATABASE_URL"],
     shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"],
   },
 });

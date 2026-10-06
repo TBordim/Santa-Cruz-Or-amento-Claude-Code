@@ -33,8 +33,13 @@ function ler(nome) {
   }
 }
 
-const principal = ler("DATABASE_URL");
-const direta = ler("DATABASE_URL_UNPOOLED");
+// APP_DATABASE_URL (quando definida) tem prioridade sobre as variáveis da integração Neon–Vercel
+// (ver src/lib/db.ts e prisma7.config.ts). Com ela, o par é APP_*; senão, o par de sempre.
+const comApp = Boolean(process.env.APP_DATABASE_URL);
+const NOME_PRINCIPAL = comApp ? "APP_DATABASE_URL" : "DATABASE_URL";
+const NOME_DIRETA = comApp ? "APP_DATABASE_URL_UNPOOLED" : "DATABASE_URL_UNPOOLED";
+const principal = ler(NOME_PRINCIPAL);
+const direta = ler(NOME_DIRETA);
 
 function descrever(nome, c) {
   if (!c) return `${nome}: não definida`;
@@ -43,30 +48,33 @@ function descrever(nome, c) {
 }
 
 console.log(`[verificar-banco] ambiente: ${ambiente}`);
-console.log(`[verificar-banco] ${descrever("DATABASE_URL", principal)}`);
-console.log(`[verificar-banco] ${descrever("DATABASE_URL_UNPOOLED", direta)}`);
+console.log(`[verificar-banco] ${descrever(NOME_PRINCIPAL, principal)}`);
+console.log(`[verificar-banco] ${descrever(NOME_DIRETA, direta)}`);
 
 const problemas = [];
 
 if (!principal || principal.invalida) {
-  problemas.push("DATABASE_URL não está definida ou não é uma URL válida.");
+  problemas.push(`${NOME_PRINCIPAL} não está definida ou não é uma URL válida.`);
 } else {
   if (!process.env.PERMITIR_BANCO_DEMO && /demo/i.test(principal.banco)) {
-    problemas.push(`DATABASE_URL aponta para o banco "${principal.banco}", que parece ser de DEMONSTRAÇÃO.`);
+    problemas.push(`${NOME_PRINCIPAL} aponta para o banco "${principal.banco}", que parece ser de DEMONSTRAÇÃO.`);
   }
   if (process.env.BANCO_ESPERADO && principal.banco !== process.env.BANCO_ESPERADO) {
-    problemas.push(`DATABASE_URL aponta para "${principal.banco}", mas BANCO_ESPERADO é "${process.env.BANCO_ESPERADO}".`);
+    problemas.push(`${NOME_PRINCIPAL} aponta para "${principal.banco}", mas BANCO_ESPERADO é "${process.env.BANCO_ESPERADO}".`);
   }
 }
 
 if (direta && !direta.invalida && principal && !principal.invalida) {
   if (direta.banco !== principal.banco) {
-    problemas.push(`DATABASE_URL_UNPOOLED ("${direta.banco}") e DATABASE_URL ("${principal.banco}") apontam para bancos diferentes.`);
+    problemas.push(`${NOME_DIRETA} ("${direta.banco}") e ${NOME_PRINCIPAL} ("${principal.banco}") apontam para bancos diferentes.`);
   } else if (direta.endpoint !== principal.endpoint) {
-    problemas.push("DATABASE_URL_UNPOOLED e DATABASE_URL apontam para servidores (endpoints) diferentes.");
+    problemas.push(`${NOME_DIRETA} e ${NOME_PRINCIPAL} apontam para servidores (endpoints) diferentes.`);
   }
 }
-if (direta?.invalida) problemas.push("DATABASE_URL_UNPOOLED não é uma URL válida.");
+if (direta?.invalida) problemas.push(`${NOME_DIRETA} não é uma URL válida.`);
+// Com APP_DATABASE_URL, a conexão direta (usada pelo migrate) também precisa ser nossa — senão o
+// migrate cairia na conexão com pooler, que pode travar o build (erro P1002 de 27/09/2026).
+if (comApp && !direta) problemas.push("APP_DATABASE_URL está definida, mas falta APP_DATABASE_URL_UNPOOLED (a conexão DIRETA do mesmo banco).");
 
 if (problemas.length === 0) {
   console.log("[verificar-banco] ok.");
