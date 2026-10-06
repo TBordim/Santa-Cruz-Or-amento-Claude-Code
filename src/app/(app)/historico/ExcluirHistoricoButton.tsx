@@ -16,7 +16,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-export function ExcluirHistoricoButton({ id, cliente }: { id: string; cliente: string | null }) {
+// `compacto`: só o ícone (a coluna Ações da tabela é estreita pra caber sem rolagem lateral).
+export function ExcluirHistoricoButton({ id, cliente, compacto = false }: { id: string; cliente: string | null; compacto?: boolean }) {
   const [pending, startTransition] = useTransition();
 
   // Chama a server action direto no clique em vez de <form action={...}> — o AlertDialogAction
@@ -33,9 +34,15 @@ export function ExcluirHistoricoButton({ id, cliente }: { id: string; cliente: s
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
-          <Trash2 className="h-3.5 w-3.5" /> Excluir
-        </Button>
+        {compacto ? (
+          <Button type="button" variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive" aria-label="Excluir" title="Excluir">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        ) : (
+          <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
+            <Trash2 className="h-3.5 w-3.5" /> Excluir
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
