@@ -39,7 +39,14 @@ const comApp = Boolean(process.env.APP_DATABASE_URL);
 const NOME_PRINCIPAL = comApp ? "APP_DATABASE_URL" : "DATABASE_URL";
 const NOME_DIRETA = comApp ? "APP_DATABASE_URL_UNPOOLED" : "DATABASE_URL_UNPOOLED";
 const principal = ler(NOME_PRINCIPAL);
-const direta = ler(NOME_DIRETA);
+let direta = ler(NOME_DIRETA);
+// Só a APP_DATABASE_URL (pooled) definida: o migrate usa a mesma URL sem "-pooler" (ver
+// prisma7.config.ts). Aqui só descrevemos o que vai valer, sem imprimir credenciais.
+let derivada = false;
+if (comApp && !direta && principal && !principal.invalida) {
+  direta = { host: principal.endpoint, endpoint: principal.endpoint, banco: principal.banco };
+  derivada = true;
+}
 
 function descrever(nome, c) {
   if (!c) return `${nome}: não definida`;
@@ -49,7 +56,7 @@ function descrever(nome, c) {
 
 console.log(`[verificar-banco] ambiente: ${ambiente}`);
 console.log(`[verificar-banco] ${descrever(NOME_PRINCIPAL, principal)}`);
-console.log(`[verificar-banco] ${descrever(NOME_DIRETA, direta)}`);
+console.log(`[verificar-banco] ${descrever(NOME_DIRETA, direta)}${derivada ? " (derivada da APP_DATABASE_URL, sem -pooler)" : ""}`);
 
 const problemas = [];
 
@@ -72,9 +79,6 @@ if (direta && !direta.invalida && principal && !principal.invalida) {
   }
 }
 if (direta?.invalida) problemas.push(`${NOME_DIRETA} não é uma URL válida.`);
-// Com APP_DATABASE_URL, a conexão direta (usada pelo migrate) também precisa ser nossa — senão o
-// migrate cairia na conexão com pooler, que pode travar o build (erro P1002 de 27/09/2026).
-if (comApp && !direta) problemas.push("APP_DATABASE_URL está definida, mas falta APP_DATABASE_URL_UNPOOLED (a conexão DIRETA do mesmo banco).");
 
 if (problemas.length === 0) {
   console.log("[verificar-banco] ok.");
