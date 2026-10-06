@@ -21,6 +21,16 @@ export const dynamic = "force-dynamic";
 
 type SP = { aba?: string; periodo?: string; q?: string };
 
+// Os rótulos completos de DESFECHOS ("Aguardando retorno do cliente", "Negativo — orçamento
+// perdido") são longos demais pra coluna estreita e vazavam sobre a coluna Ações. Na lista vai o
+// nome curto; o completo fica no title (aparece ao passar o mouse ou manter o toque).
+const DESFECHO_CURTO: Record<string, string> = {
+  AGUARDANDO: "Aguardando",
+  POSITIVO: "Positivo",
+  NEGATIVO: "Negativo",
+  SEM_RETORNO: "Sem retorno",
+};
+
 const PILL_STYLE: Record<string, string> = {
   good: "bg-good-soft text-good",
   bad: "bg-bad-soft text-bad",
@@ -160,10 +170,10 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente / Produto</TableHead>
-                  <TableHead className="w-[118px]">Valor</TableHead>
-                  <TableHead className="w-[98px]">Data</TableHead>
-                  <TableHead className="w-[118px]">Desfecho</TableHead>
-                  <TableHead className="w-[104px] text-right">Ações</TableHead>
+                  <TableHead className="w-[132px]">Valor</TableHead>
+                  <TableHead className="w-[124px]">Data</TableHead>
+                  <TableHead className="w-[124px]">Desfecho</TableHead>
+                  <TableHead className="w-[100px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -177,9 +187,11 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                       {d.produtoDescricao && <div className="break-words text-muted-foreground">{d.produtoDescricao}</div>}
                     </td>
                     <TableCell className="font-mono">{valorTexto}</TableCell>
-                    <td className="break-words p-2 align-middle text-muted-foreground">{dataTexto}</td>
+                    {/* Data curta nunca quebra no meio ("11/06/202|6"); só o texto livre do arquivo
+                        legado, que pode ser longo, pode passar pra linha de baixo. */}
+                    <td className={`p-2 align-middle text-muted-foreground ${dataTexto.length <= 12 ? "whitespace-nowrap" : "break-words"}`}>{dataTexto}</td>
                     <td className="p-2 align-middle">
-                      {legado ? "—" : <Badge className={`border-0 ${PILL_STYLE[info.pill]}`}>{info.label}</Badge>}
+                      {legado ? "—" : <Badge title={info.label} className={`border-0 ${PILL_STYLE[info.pill]}`}>{DESFECHO_CURTO[info.key]}</Badge>}
                     </td>
                     <td className="p-2 align-middle">
                       <div className="flex justify-end gap-0.5">
@@ -208,7 +220,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                     <div className="break-words text-sm font-semibold text-foreground">{d.cliente}</div>
                     {d.produtoDescricao && <div className="break-words text-sm text-muted-foreground">{d.produtoDescricao}</div>}
                   </div>
-                  {!legado && <Badge className={`shrink-0 border-0 ${PILL_STYLE[info.pill]}`}>{info.label}</Badge>}
+                  {!legado && <Badge title={info.label} className={`shrink-0 border-0 ${PILL_STYLE[info.pill]}`}>{DESFECHO_CURTO[info.key]}</Badge>}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <Badge variant="secondary" className="border-0 text-[10px]">{legado ? "Legado" : "Fluxo"}</Badge>
