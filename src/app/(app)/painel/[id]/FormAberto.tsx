@@ -27,7 +27,7 @@ export function FormAberto({ doc }: { doc: OrcamentoComAnexos }) {
     <>
       <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
         <div className="mb-1 font-semibold text-foreground">Diretriz da etapa</div>
-        <div className="text-muted-foreground">Preencha os dados comerciais, técnicos básicos e anexe a arte do cliente antes de enviar para a Engenharia.</div>
+        <div className="text-muted-foreground">Preencha os dados comerciais e anexe a arte do cliente antes de enviar para a Engenharia. Os Detalhes técnicos são obrigatórios para liberar: medidas (comprimento, largura e altura), material com gramatura e ao menos um tipo de impressão.</div>
       </div>
 
       <form id="form-aberto" className="mt-4" onSubmit={porBotao({ salvar: salvarSubmit, avancar: avancarSubmit }, "salvar")}>

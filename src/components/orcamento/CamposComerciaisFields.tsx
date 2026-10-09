@@ -187,7 +187,7 @@ export function CamposComerciaisFields({
           <span className="flex flex-col gap-0.5">
             <span className="text-sm font-semibold text-foreground">Detalhes técnicos</span>
             <span className="text-xs font-normal text-muted-foreground">
-              Se você tiver essas informações, preencha. Se não tiver, deixe em branco — a Engenharia analisa.
+              Se você tiver essas informações, preencha (medidas, material e impressão são exigidos antes de seguir para a Engenharia). Se não tiver, deixe em branco: o escritório completa.
             </span>
           </span>
           <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">

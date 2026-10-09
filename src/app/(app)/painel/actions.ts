@@ -7,6 +7,7 @@ import { sessaoAtual, podeEditar } from "@/lib/permissions";
 import { lerCamposComerciais, lerReqTecnicos, parseValorBR } from "@/lib/orcamentos/leitura";
 import { erroNosCores } from "@/lib/orcamentos/cores";
 import { erroNoLink } from "@/lib/orcamentos/link";
+import { faltaNosDetalhesTecnicos } from "@/lib/orcamentos/tecnicos";
 import { montarPrecificacao, decidirFaixa, type FaixaInput } from "@/lib/orcamentos/tiers";
 import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
 import { normalizarCodigoInterno, codigoInternoValido, formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
@@ -82,6 +83,11 @@ export async function avancarEngenharia(_prev: FormState, formData: FormData): P
   if (erroModelos) return { erro: erroModelos };
   const erroLink = erroNoLink(campos.reqCliente.linkArte);
   if (erroLink) return { erro: erroLink };
+  // Detalhes técnicos: opcionais pro representante, obrigatórios pra liberar à Engenharia.
+  const faltaTec = faltaNosDetalhesTecnicos(campos.reqCliente);
+  if (faltaTec.length) {
+    return { erro: `Preencha os Detalhes técnicos antes de liberar para a Engenharia. Falta: ${faltaTec.join("; ")}.` };
+  }
   // Todo material a partir do segundo precisa dizer se é papel alternativo ou de uso conjunto
   // — é o que define quantas SOs o orçamento vai ter.
   const semUso = campos.reqCliente.suportes.findIndex((s, i) => i > 0 && !s.uso);
