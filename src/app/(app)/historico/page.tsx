@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search } from "lucide-react";
 import { ExcluirHistoricoButton } from "./ExcluirHistoricoButton";
+import { VerLegado } from "./VerLegado";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,24 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
       legado,
       valorTexto: legado ? fmtMoney(d.precoAtual ? Number(d.precoAtual) : null) : fmtMoney(valor),
       dataTexto: legado ? (d.dataLegadoTexto || fmtDate(d.criadoEm)) : fmtDate(d.criadoEm),
+      // Registro do Arquivo legado não tem card no Painel: o "Ver" dele abre os dados lançados e a
+      // foto da folha digitalizada (valores já convertidos pra número, que o componente de cliente
+      // não recebe Decimal do Prisma).
+      paraVer: legado
+        ? {
+            cliente: d.cliente,
+            produtoDescricao: d.produtoDescricao,
+            codInterno: d.codInterno,
+            precoAtual: d.precoAtual ? Number(d.precoAtual) : null,
+            quantidade: d.quantidade ? Number(d.quantidade) : null,
+            custoPrimarioPct: d.custoPrimarioPct ? Number(d.custoPrimarioPct) : null,
+            margemP2Pct: d.margemP2Pct ? Number(d.margemP2Pct) : null,
+            data: d.dataLegadoTexto || fmtDate(d.criadoEm),
+            obs: d.obs,
+            fotoUrl: d.fotoUrl,
+            fotoMime: d.fotoMime,
+          }
+        : null,
     };
   });
 
@@ -177,7 +196,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {itens.map(({ d, linhas, info, legado, valorTexto, dataTexto }) => (
+                {itens.map(({ d, linhas, info, legado, valorTexto, dataTexto, paraVer }) => (
                   <LinhaComDica key={d.id} linhas={linhas}>
                     <td className="p-2 align-middle">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -200,6 +219,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                             <Link href={`/painel/${d.id}`}>Ver</Link>
                           </Button>
                         )}
+                        {paraVer && <VerLegado legado={paraVer} />}
                         {!legado && <ExcluirHistoricoButton id={d.id} cliente={d.cliente} compacto />}
                       </div>
                     </td>
@@ -213,7 +233,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
               na tabela aparece ao passar o mouse (custo, margem, quem decidiu...) vira "Detalhes",
               que abre ao toque — celular não tem "passar o mouse". */}
           <div className="flex flex-col gap-2.5 lg:hidden">
-            {itens.map(({ d, linhas, info, legado, valorTexto, dataTexto }) => (
+            {itens.map(({ d, linhas, info, legado, valorTexto, dataTexto, paraVer }) => (
               <div key={d.id} className="rounded-xl border border-border bg-card p-3.5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -246,6 +266,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                       <Link href={`/painel/${d.id}`}>Ver</Link>
                     </Button>
                   )}
+                  {paraVer && <VerLegado legado={paraVer} variante="outline" />}
                   {!legado && <ExcluirHistoricoButton id={d.id} cliente={d.cliente} />}
                 </div>
               </div>

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ImagemAmpliavel } from "@/components/anexos/VisualizadorAmpliado";
 import { CodigoInternoInput } from "@/components/orcamento/CodigoInternoInput";
 import {
   AlertDialog,
@@ -145,8 +146,7 @@ export function LegadoRow({ legado }: { legado: Legado }) {
                     <a href={legado.fotoUrl} target="_blank" rel="noreferrer">Abrir PDF em nova aba</a>
                   </Button>
                 ) : (
-                  // eslint-disable-next-line @next/next/no-img-element -- URL do Blob
-                  <img src={legado.fotoUrl} alt="Foto da folha" className="max-w-[320px] rounded-lg border border-border" />
+                  <ImagemAmpliavel src={legado.fotoUrl} alt="Foto da folha" className="max-w-[320px] rounded-lg border border-border" />
                 )
               )}
             </div>

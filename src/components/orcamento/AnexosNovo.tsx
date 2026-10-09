@@ -5,6 +5,7 @@ import { FileText, Paperclip, X } from "lucide-react";
 import { prepararAnexo } from "@/lib/anexos/compressao";
 import { MAX_ARQUIVOS_NOVO, MAX_TOTAL_BYTES_NOVO, tipoAnexoAceito } from "@/lib/anexos/limites";
 import { Button } from "@/components/ui/button";
+import { ImagemAmpliavel } from "@/components/anexos/VisualizadorAmpliado";
 
 function fmtKB(bytes: number) {
   return (bytes / 1024).toFixed(0) + " KB";
@@ -138,8 +139,9 @@ export function AnexosNovo() {
                       </div>
                     </>
                   ) : (
-                    // eslint-disable-next-line @next/next/no-img-element -- idem acima
-                    <img src={url} alt={a.name} className="mt-2.5 max-w-full rounded-md border border-border" />
+                    <div className="mt-2.5">
+                      <ImagemAmpliavel src={url} alt={a.name} className="max-w-full rounded-md border border-border" />
+                    </div>
                   ))}
               </div>
             );

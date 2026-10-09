@@ -2,7 +2,8 @@
 
 import { useRef, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
-import { FileText, Image as ImageIcon, Paperclip, Trash2 } from "lucide-react";
+import { FileText, Image as ImageIcon, Maximize2, Paperclip, Trash2 } from "lucide-react";
+import { ImagemAmpliavel, VisualizadorAmpliado } from "./VisualizadorAmpliado";
 import { prepararAnexo } from "@/lib/anexos/compressao";
 import { adicionarAnexo, excluirAnexo } from "./actions";
 import { FormSection } from "@/components/form-section";
@@ -53,6 +54,7 @@ export function AnexoUpload({
   const [erro, setErro] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
   const [aberto, setAberto] = useState<string | null>(null);
+  const [pdfAmpliado, setPdfAmpliado] = useState<AnexoItem | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const info = TIPO_INFO[tipo];
 
@@ -133,15 +135,19 @@ export function AnexoUpload({
                 (a.mime === "application/pdf" ? (
                   <>
                     <iframe src={a.url} className="mt-2.5 h-[60dvh] w-full md:h-[420px] rounded-md border border-border" />
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setPdfAmpliado(a)}>
+                        <Maximize2 className="h-3.5 w-3.5" /> Ampliar
+                      </Button>
                       <Button asChild variant="outline" size="sm">
                         <a href={a.url} target="_blank" rel="noreferrer">Abrir em nova aba</a>
                       </Button>
                     </div>
                   </>
                 ) : (
-                  // eslint-disable-next-line @next/next/no-img-element -- URL do Blob, não é asset local otimizável
-                  <img src={a.url} alt={a.nome} className="mt-2.5 max-w-full rounded-md border border-border" />
+                  <div className="mt-2.5">
+                    <ImagemAmpliavel src={a.url} alt={a.nome} className="max-w-full rounded-md border border-border" />
+                  </div>
                 ))}
             </div>
           ))}
@@ -171,6 +177,9 @@ export function AnexoUpload({
         </div>
       )}
       {erro && <div className="anexo-erro">{erro}</div>}
+      {pdfAmpliado && (
+        <VisualizadorAmpliado aberto aoMudar={(v) => !v && setPdfAmpliado(null)} src={pdfAmpliado.url} tipo="pdf" nome={pdfAmpliado.nome} />
+      )}
     </FormSection>
   );
 }
