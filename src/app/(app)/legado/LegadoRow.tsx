@@ -39,6 +39,10 @@ type Legado = {
   fotoUrl: string | null;
   fotoMime: string | null;
   criadoEm: Date;
+  // Medidas (mm), em texto — moram em reqCliente.
+  medidaF: string;
+  medidaL: string;
+  medidaA: string;
 };
 
 export function LegadoRow({ legado }: { legado: Legado }) {
@@ -111,13 +115,21 @@ export function LegadoRow({ legado }: { legado: Legado }) {
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor={`codInterno-${legado.id}`}>Código interno (Santa Cruz)</Label>
                     <CodigoInternoInput id={`codInterno-${legado.id}`} name="codInterno" defaultValue={legado.codInterno ?? ""} />
-                    {!legado.codInterno && (
-                      <span className="text-xs text-warn">Sem código interno, este registro não entra em nenhuma comparação da Diretoria ainda.</span>
+                    {!legado.codInterno && !(legado.medidaF && legado.medidaL) && (
+                      <span className="text-xs text-warn">Sem código interno nem medidas (comprimento e largura), este registro não entra em nenhuma comparação da Diretoria ainda.</span>
                     )}
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor={`precoAtual-${legado.id}`}>Preço atual</Label>
                     <Input id={`precoAtual-${legado.id}`} name="precoAtual" defaultValue={paraCampoBR(legado.precoAtual)} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Medidas (mm) — comparação por medidas, quando não há código</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <Input name="medidaF" defaultValue={legado.medidaF} placeholder="Comprimento" inputMode="decimal" aria-label="Comprimento (mm)" />
+                    <Input name="medidaL" defaultValue={legado.medidaL} placeholder="Largura" inputMode="decimal" aria-label="Largura (mm)" />
+                    <Input name="medidaA" defaultValue={legado.medidaA} placeholder="Altura" inputMode="decimal" aria-label="Altura (mm)" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -30,6 +30,17 @@ export type OrcamentoAnteriorRef = {
   acabamento: string | null;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
+  // Como o anterior foi encontrado. Ausente = pelo código interno (a regra de sempre). "medidas" =
+  // segunda linha de rastreio, quando o card não tem código: mesmo cliente + medidas exatas. Aí
+  // `rastreio` diz o que foi achado, pra Diretoria conferir se é mesmo o mesmo produto.
+  via?: "codigo" | "medidas";
+  rastreio?: {
+    origem: "NOVO" | "LEGADO";
+    cliente: string | null;
+    data: string; // ISO
+    desfecho: string | null; // chave do desfecho (POSITIVO...), só nos orçamentos do fluxo
+    medidas: string;
+  };
 };
 
 export type MontarPrecificacaoInput = {
@@ -119,7 +130,15 @@ export function montarPrecificacao(input: MontarPrecificacaoInput): Precificacao
       { label: "Último preço", anterior: anterior?.precoFinal ?? null, atual: f.precoProjetado },
     ]);
 
-    if (av.aprovavel && discrepancia.bloqueia) {
+    // Anterior achado só por MEDIDAS (card sem código): o vínculo é mais fraco que o de código —
+    // pode ser outro produto de mesma medida, e o orçamento antigo pode ter sido recusado pelo
+    // cliente. Então a regra automática nunca aprova sozinha: a Diretoria vê a comparação e decide.
+    if (av.aprovavel && anterior?.via === "medidas") {
+      tier.statusDiretoria = "pendente";
+      tier.motivoPendencia = discrepancia.bloqueia
+        ? (discrepancia.motivo ?? tier.motivoPendencia)
+        : "Comparado por medidas (produto sem código interno): a Diretoria precisa conferir se é o mesmo produto.";
+    } else if (av.aprovavel && discrepancia.bloqueia) {
       tier.statusDiretoria = "pendente";
       tier.motivoPendencia = discrepancia.motivo ?? tier.motivoPendencia;
     } else if (av.aprovavel) {

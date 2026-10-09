@@ -48,7 +48,12 @@ export async function Drawer({ id }: { id: string }) {
       // que este card já estava na Diretoria, o valor congelado nunca vai refletir isso. Achado
       // em teste real: card enviado à Diretoria antes do outro orçamento existir ficava sem
       // comparação pra sempre, mesmo depois do outro ser finalizado.
-      const anteriorAoVivo = await buscarOrcamentoAnterior(modelos, doc.id);
+      const anteriorAoVivo = await buscarOrcamentoAnterior(modelos, doc.id, {
+        clienteId: doc.clienteId,
+        clienteChave: doc.clienteChave,
+        cnpj: doc.cnpj,
+        reqCliente: doc.reqCliente,
+      });
       corpo = <PainelDiretoria doc={doc} anteriorAoVivo={anteriorAoVivo} />;
       break;
     }

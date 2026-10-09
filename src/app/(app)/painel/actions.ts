@@ -425,7 +425,13 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   const modelos = modelosDoDoc(doc);
   const produtoNovoClassificacao = modelos.some((m) => m.classificacao === "NOVO" || m.classificacao === "REPETICAO_NOVO");
 
-  const anterior = await buscarOrcamentoAnterior(modelos, doc.id);
+  // Por código interno e, sem código (produto que o cliente não aprovou antes), por cliente + medidas.
+  const anterior = await buscarOrcamentoAnterior(modelos, doc.id, {
+    clienteId: doc.clienteId,
+    clienteChave: doc.clienteChave,
+    cnpj: doc.cnpj,
+    reqCliente: doc.reqCliente,
+  });
 
   const precificacao = montarPrecificacao({ faixas, comissaoEspecial, acabamentoAtual: acabamento, produtoNovoClassificacao, anterior });
   const todosAuto = precificacao.every((t) => t.statusDiretoria === "auto_aprovado");

@@ -19,6 +19,7 @@ export type LegadoParaVer = {
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
   data: string;
+  medidas: string; // "40 × 25 × 195 mm", ou vazio sem medidas
   obs: string | null;
   fotoUrl: string | null;
   fotoMime: string | null;
@@ -45,6 +46,7 @@ export function VerLegado({ legado: l, variante = "ghost" }: { legado: LegadoPar
           rows={[
             { label: "Produto", value: l.produtoDescricao || "—" },
             { label: "Código interno", value: l.codInterno ? formatarCodigoInterno(l.codInterno) : "Sem código" },
+            { label: "Medidas", value: l.medidas || "—" },
             { label: "Preço (por milheiro)", value: fmtMoney(l.precoAtual) },
             { label: "Quantidade", value: l.quantidade != null ? String(l.quantidade) : "—" },
             { label: "Custo primário", value: l.custoPrimarioPct != null ? fmtPct(l.custoPrimarioPct) : "—" },

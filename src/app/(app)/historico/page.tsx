@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search } from "lucide-react";
 import { ExcluirHistoricoButton } from "./ExcluirHistoricoButton";
 import { VerLegado } from "./VerLegado";
+import { medidasDoReq, temMedidasParaComparar, textoMedidas } from "@/lib/orcamentos/medidas";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
             custoPrimarioPct: d.custoPrimarioPct ? Number(d.custoPrimarioPct) : null,
             margemP2Pct: d.margemP2Pct ? Number(d.margemP2Pct) : null,
             data: d.dataLegadoTexto || fmtDate(d.criadoEm),
+            medidas: temMedidasParaComparar(medidasDoReq(d.reqCliente)) ? textoMedidas(medidasDoReq(d.reqCliente)) : "",
             obs: d.obs,
             fotoUrl: d.fotoUrl,
             fotoMime: d.fotoMime,
