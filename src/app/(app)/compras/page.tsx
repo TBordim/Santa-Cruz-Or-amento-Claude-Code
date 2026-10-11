@@ -93,7 +93,7 @@ export default async function ComprasPage({ searchParams }: { searchParams: Prom
           </div>
           {filtro === "sobras" && (
             <p className="max-w-3xl text-xs text-muted-foreground">
-              Material que ficou no fornecedor por causa do pedido mínimo. Registre cada retirada em "Receber sobra" (toda ou parte); o PM sai daqui quando não sobra nada no fornecedor.
+              Material que ficou no fornecedor por causa do pedido mínimo. Registre cada retirada em &quot;Receber sobra&quot; (toda ou parte); o PM sai daqui quando não sobra nada no fornecedor.
             </p>
           )}
           {cartoes.length === 0 ? (
