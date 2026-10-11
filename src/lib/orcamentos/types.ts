@@ -8,6 +8,8 @@
 // produto ("conjunto" — vale pra todas as SOs). O primeiro material é sempre a opção base.
 // Materiais gravados antes de 30/09/2026 não têm o campo e contam como "conjunto": até então
 // não existia orçamento em papéis alternativos. Pedido do Thiago em 30/09/2026.
+import type { PreMontagemSalva } from "@/lib/montagem/salva";
+
 export type UsoMaterial = "opcao" | "conjunto";
 export type Suporte = { descricao: string; gramatura: string; uso?: UsoMaterial };
 
@@ -91,6 +93,9 @@ export type ReqTecnicos = {
   // ReqCliente) porque salvar a Solicitação de novo recria o ReqCliente do zero, e o histórico
   // não pode se perder.
   ajustesOrcamento?: AjusteOrcamento[];
+  // Pré-montagem aprovada pela Engenharia, por material (chave = índice do material). Ver
+  // src/lib/montagem/salva.ts.
+  preMontagem?: Record<string, PreMontagemSalva>;
 };
 
 export type AjusteOrcamento = { em: string; por: string; itens: string[] };

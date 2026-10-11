@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useSalvoToast } from "@/hooks/use-salvo-toast";
 import { CodigoInternoInput } from "@/components/orcamento/CodigoInternoInput";
+import { PreMontagem } from "@/components/orcamento/PreMontagem";
 
 // Formato suporte e aproveitamento, POR MATERIAL — cada papel (principalmente as opções de
 // fornecimento alternativas) tem o próprio formato, código, quantidade por folha e
@@ -125,6 +126,13 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
               <CodigoInternoInput name={`codInterno_${m.id}`} defaultValue={m.codInterno} form="form-engenharia" />
             </Field>
           ))}
+        </FormSection>
+
+        <FormSection title="Pré-montagem">
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Sugere o formato da folha, o corte e as poses por fator a partir da faca e do pedido. A opção escolhida preenche os campos do bloco abaixo; o desenho final continua no ArtiosCAD.
+          </p>
+          <PreMontagem doc={doc} />
         </FormSection>
 
         <FormSection title="Suporte — formato e aproveitamento">
