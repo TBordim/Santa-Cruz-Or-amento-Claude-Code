@@ -274,6 +274,8 @@ model Orcamento {
   atualizadoEm     DateTime         @updatedAt
 
   anexos           Anexo[]
+  // Aceite de Pedido aberto quando o cliente aprova (desfecho positivo). No máximo um por orçamento.
+  aceite           Aceite?
 
   @@map("orcamentos")
 }
@@ -584,4 +586,286 @@ model TentativaTreinamento {
 
   @@index([usuarioId, treinamentoId])
   @@map("trein_tentativas")
+}
+
+// ---------- Aceite de Pedido ----------
+// Módulo Aceite (TP de Vendas 3.2, Engenharia 3.2 e PCP 3.3). Nasce sozinho quando o cliente
+// aprova um orçamento (desfecho positivo). Quem age em cada etapa fica em texto (nome), como nos
+// demais registros do Orçamento. Decisões do Thiago em 08/10/2026:
+//  - o app não lê o ERP: estoque e versão do produto só têm o "visto" de Vendas;
+//  - sem Ordem de Descarte nesta fase;
+//  - Engenharia e Material correm em paralelo; só com os dois prontos o Aceite vai ao PCP;
+//  - o PCP vai virar módulo próprio (branch própria): hoje só lança a data de entrega.
+
+enum EtapaAceite {
+  VENDAS
+  ENGENHARIA_MATERIAL
+  PCP
+  PEDIDO
+  // Atendimento ao Cliente envia a data prevista ao cliente e/ou representante (08/10/2026).
+  ATENDIMENTO
+  // Cliente avisado, pedido em produção: o PCP confirma quando entregou, e só aí conclui (11/10/2026).
+  ENTREGA
+  CONCLUIDO
+}
+
+enum SituacaoPapel {
+  NAO_VERIFICADO
+  RESERVADO_TOTAL
+  RESERVADO_PARCIAL
+  SEM_ESTOQUE
+}
+
+enum SituacaoCadastro {
+  PENDENTE
+  EXISTENTE
+  CRIADO
+}
+
+model Aceite {
+  id          String      @id @default(cuid())
+  // Nº do Aceite (o "Nº" do formulário de Confirmação de Pedido). É gerado no ERP; enquanto o app
+  // não conversa com o ERP, Vendas digita (decisão do Thiago em 08/10/2026).
+  numero      String?     @unique
+  orcamentoId String      @unique
+  orcamento   Orcamento   @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  etapa       EtapaAceite @default(VENDAS)
+
+  // Cópia da SO que o cliente fechou (PrecificacaoTier), congelada na abertura do Aceite.
+  soEscolhida Json?
+
+  // ---------- Vendas ----------
+  pedidoInterno            String?
+  // Protocolo de requisitos do produto (TP de Vendas 3.1.1; "Prot. REF" no formulário).
+  protocoloRequisitos      String?
+  // 1ª data do cliente: a data que o cliente pediu (a acordada é a dataEntrega, definida pelo PCP).
+  dataCliente          DateTime? @db.Date
+  // Itens do pedido: um por modelo do orçamento, com a quantidade que o cliente pediu e a montagem
+  // (grupo de modelos que saem juntos na mesma folha, com as posições de cada um), definida pela
+  // Engenharia. Formato em ItemAceite (src/lib/aceite/montagem.ts).
+  itens                    Json?
+  // Suporte (papel) especificado, puxado da Engenharia do orçamento, e o que vai ser usado de fato
+  // quando é outro (troca de papel).
+  suporteCodigo            String?
+  suporteDescricao         String?
+  suporteQtdFolha          Int?
+  suporteFolhas            Int?
+  suporteUtilizarCodigo    String?
+  suporteUtilizarDescricao String?
+  // Papéis do pedido (um Aceite pode usar vários). Lista de SuporteAceite (src/lib/aceite/suportes.ts),
+  // cada um com código, formato, folhas e situação no estoque. Os campos suporte* acima são de quando
+  // havia um papel só (Aceites anteriores a 08/10/2026) e são lidos como o primeiro da lista.
+  suportes             Json?
+  // Há produto acabado em estoque (sobra de produção anterior na expedição)? null = ainda não
+  // verificado. A versão do produto só é conferida quando há (decisão do Thiago em 11/10/2026).
+  temProdutoAcabado    Boolean?
+  estoqueVerificadoEm      DateTime?
+  estoqueVerificadoPor     String?
+  versaoVerificadaEm       DateTime?
+  versaoVerificadaPor      String?
+  situacaoPapel            SituacaoPapel @default(NAO_VERIFICADO)
+  papelObs                 String?
+  arquivoFisicoConferido   Boolean       @default(false)
+  arquivoFisicoObs         String?
+  vendasLiberadoEm         DateTime?
+  vendasLiberadoPor        String?
+
+  // ---------- Engenharia ----------
+  cadastroSituacao SituacaoCadastro @default(PENDENTE)
+  // Marcações "Faca" e "Clichê" do formulário: o pedido precisa de faca / clichê novo.
+  facaNova         Boolean          @default(false)
+  clicheNovo       Boolean          @default(false)
+  // Código da faca (ex.: 6.001.516), informado pela Engenharia; vazio quando não tem faca.
+  codigoFaca       String?
+  engenhariaEm     DateTime?
+  engenhariaPor    String?
+  engenhariaObs    String?
+
+  // ---------- PCP (hoje só a data; o módulo PCP assume depois) ----------
+  dataEntregaSugerida DateTime? @db.Date
+  dataEntrega         DateTime? @db.Date
+  pcpEm               DateTime?
+  pcpPor              String?
+  pcpObs              String?
+
+  // ---------- Pedido ----------
+  numeroPedido        String?
+  // Nº da Ordem de Fabricação, quando Vendas abre a OF (TP de Vendas 3.3).
+  numeroOF            String?
+  pedidoCadastradoEm  DateTime?
+  pedidoCadastradoPor String?
+  clienteInformadoEm  DateTime?
+  clienteInformadoPor String?
+  // Entrega ao cliente confirmada pelo PCP: a data em que foi entregue (pode diferir da acordada).
+  entregueEm            DateTime? @db.Date
+  entregaConfirmadaEm   DateTime?
+  entregaConfirmadaPor  String?
+  entregaObs            String?
+  // Saldo que não será entregue: cancelado pelo PCP, com motivo.
+  entregaSaldoCancelado Decimal?  @db.Decimal(14, 3)
+  entregaCancelamentoMotivo String?
+  entregas        EntregaAceite[]
+
+  pedidosMaterial PedidoMaterial[]
+  negociacoes     NegociacaoData[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([etapa])
+  @@map("aceites")
+}
+
+// ---------- Pedido de Material (PM) ----------
+// Independente do Aceite de propósito: o módulo Compras (que vai ser acionado por vários módulos)
+// passa a enxergar esta mesma tabela. `origem` diz quem pediu; hoje só "ACEITE".
+
+enum TipoMaterial {
+  PAPEL
+  TINTA
+  VERNIZ
+  OUTRO
+}
+
+enum StatusPedidoMaterial {
+  SOLICITADO
+  EM_COMPRA
+  PRAZO_CONFIRMADO
+  RECEBIDO
+  CANCELADO
+}
+
+model PedidoMaterial {
+  id       String  @id @default(cuid())
+  // Número legível (PM 12), gerado pelo banco.
+  numero   Int     @unique @default(autoincrement())
+  origem   String  @default("ACEITE")
+  aceiteId String?
+  aceite   Aceite? @relation(fields: [aceiteId], references: [id], onDelete: SetNull)
+
+  material         TipoMaterial @default(PAPEL)
+  // Código do material no ERP (ex.: 2025214) e formato (ex.: 96x66); formato mínimo que serve.
+  codigoMaterial   String?
+  formato          String?
+  formatoMinimo    String?
+  // Gramatura (g/m²): com o formato, dá o peso do papel (folhas × m² × g/m²), calculado sozinho.
+  gramatura      Int?
+  descricao        String
+  quantidade       Decimal?     @db.Decimal(14, 3)
+  unidade          String       @default("kg")
+  // Papel é pedido em folhas e comprado em kg: o peso fica junto quando Compras converte.
+  pesoKg           Decimal?     @db.Decimal(14, 3)
+  // Quando o setor precisa do material ("imediata" ou uma data), como no formulário de PM.
+  entregaDesejada  String?
+  // Números no ERP: Solicitação de Compra (SC) e Ordem de Compra (OC).
+  numeroSC         String?
+  numeroOC         String?
+  // Papel do Aceite a que este PM se refere (id do SuporteAceite), quando o Aceite tem mais de um.
+  suporteRef String?
+  fornecedor       String?
+  // Pedido mínimo do fornecedor e a sobra que ele gera (precisa ser vista e consumida depois).
+  minimoFornecedor Decimal?     @db.Decimal(14, 3)
+  sobraPrevista    Decimal?     @db.Decimal(14, 3)
+  // A sobra é retirada do fornecedor depois, de uma vez ou aos poucos: soma do que já veio e quando
+  // o saldo zerou (aí o PM sai da fila de Sobras).
+  sobraRecebida    Decimal?     @db.Decimal(14, 3)
+  sobraEncerradaEm DateTime?
+
+  status        StatusPedidoMaterial @default(SOLICITADO)
+  // Prazo de entrega vigente informado pelo fornecedor (via Compras).
+  prazoPrevisto DateTime?            @db.Date
+  // Recebimentos (podem ser parciais): soma do que já chegou e data do último. Saldo a receber =
+  // quantidade - recebida; o PM só vira RECEBIDO quando o saldo zera. Cada entrega fica no histórico.
+  quantidadeRecebida Decimal?        @db.Decimal(14, 3)
+  recebidoEm         DateTime?       @db.Date
+  obs           String?
+  solicitadoPor String
+  solicitadoEm  DateTime             @default(now())
+
+  // Mudança de prazo/quantidade depois do prazo confirmado acende este alerta pro PCP e Vendas.
+  alertaEm      DateTime?
+  alertaVistoEm DateTime?
+
+  eventos      PedidoMaterialEvento[]
+  atualizadoEm DateTime               @updatedAt
+
+  @@index([aceiteId])
+  @@index([status])
+  @@map("pedidos_material")
+}
+
+model PedidoMaterialEvento {
+  id            String         @id @default(cuid())
+  pedidoId      String
+  pedido        PedidoMaterial @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  tipo          String
+  texto         String
+  prazoAnterior DateTime?      @db.Date
+  prazoNovo     DateTime?      @db.Date
+  porNome       String
+  criadoEm      DateTime       @default(now())
+
+  @@index([pedidoId])
+  @@map("pedido_material_eventos")
+}
+
+// ---------- Negociação de data de entrega ----------
+// Quando o cliente não aceita a data prevista, o Atendimento ao Cliente registra a data que ele quer
+// e o PCP reanalisa (pedido do Thiago em 08/10/2026). Uma linha por rodada: o histórico fica.
+
+enum StatusNegociacao {
+  AGUARDANDO_PCP
+  AGUARDANDO_ATENDIMENTO
+  ENCERRADA
+}
+
+enum ResultadoNegociacao {
+  ATENDE
+  OUTRA_DATA
+  MANTIDA
+}
+
+// Cada entrega ao cliente confirmada pelo PCP, inteira ou parcial (11/10/2026).
+model EntregaAceite {
+  id         String   @id @default(cuid())
+  aceiteId   String
+  aceite     Aceite   @relation(fields: [aceiteId], references: [id], onDelete: Cascade)
+  quantidade Decimal? @db.Decimal(14, 3)
+  entregueEm DateTime @db.Date
+  obs        String?
+  porNome    String
+  criadoEm   DateTime @default(now())
+
+  @@index([aceiteId])
+  @@map("entregas_aceite")
+}
+
+model NegociacaoData {
+  id       String           @id @default(cuid())
+  aceiteId String
+  aceite   Aceite           @relation(fields: [aceiteId], references: [id], onDelete: Cascade)
+  status   StatusNegociacao @default(AGUARDANDO_PCP)
+
+  // Pedido do cliente (Atendimento).
+  dataAtual  DateTime? @db.Date
+  dataPedida DateTime? @db.Date
+  motivo     String?
+  abertaPor  String
+  abertaEm   DateTime  @default(now())
+
+  // Resposta do PCP.
+  resultado    ResultadoNegociacao?
+  dataProposta DateTime?           @db.Date
+  respostaObs  String?
+  respondidaPor String?
+  respondidaEm  DateTime?
+
+  // Atendimento informou o cliente.
+  encerradaPor String?
+  encerradaEm  DateTime?
+  encerradaObs String?
+
+  @@index([aceiteId])
+  @@index([status])
+  @@map("negociacoes_data")
 }

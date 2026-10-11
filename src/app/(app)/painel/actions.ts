@@ -9,13 +9,15 @@ import { erroNosCores } from "@/lib/orcamentos/cores";
 import { erroNoLink } from "@/lib/orcamentos/link";
 import { montarPrecificacao, decidirFaixa, type FaixaInput } from "@/lib/orcamentos/tiers";
 import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
-import { normalizarCodigoInterno, codigoInternoValido, formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
-import { modelosDoDoc, resumoDosModelos, ehRepeticao, combinacoesSO, chaveSO, textoMaterial, opcoesDePapel, type CombinacaoSO } from "@/lib/orcamentos/modelos";
+import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
+import { modelosDoDoc, resumoDosModelos, combinacoesSO, chaveSO, textoMaterial, opcoesDePapel, type CombinacaoSO } from "@/lib/orcamentos/modelos";
 import { chave } from "@/lib/orcamentos/chave";
 import { parseQuantidade } from "@/lib/orcamentos/motor";
 import type { ReqCliente, ReqTecnicos, PrecificacaoTier, Modelo, Suporte, SuporteTecnico, UsoMaterial } from "@/lib/orcamentos/types";
 import type { AreaKey } from "@/lib/areas";
 import { CREDITO_LIBERA } from "@/lib/orcamentos/constantes";
+import { erroNosModelos } from "@/lib/orcamentos/validacao-modelos";
+import { abrirAceite, desfazerAceiteSemAndamento } from "@/lib/aceite/abrir";
 
 export type FormState = { erro?: string } | undefined;
 
@@ -27,27 +29,6 @@ async function exigirEdicao(id: string): Promise<{ etapa: AreaKey; nomeAtor: str
   return { etapa, nomeAtor: sessao?.nome ?? "Representante (sem login)" };
 }
 
-// Regras dos modelos (vários produtos na mesma faca) que valem pra liberar a Solicitação e a
-// Engenharia: modelo de repetição tem que ter código; código tem formato 0.000.000; o mesmo
-// código não aparece em dois modelos.
-function erroNosModelos(modelos: Modelo[]): string | null {
-  if (!modelos.length) return "Informe ao menos um modelo (descrição do produto).";
-  const erroCores = erroNosCores(modelos);
-  if (erroCores) return erroCores;
-  const nome = (m: Modelo, i: number) => (modelos.length > 1 ? `modelo ${i + 1} (${m.descricao || "sem descrição"})` : "produto");
-  for (const [i, m] of modelos.entries()) {
-    if (ehRepeticao(m.classificacao) && !m.codInterno) {
-      return `Informe o Código interno (Santa Cruz) do ${nome(m, i)}: repetição exige o código.`;
-    }
-    if (m.codInterno && !codigoInternoValido(m.codInterno)) {
-      return `Código interno do ${nome(m, i)} deve ter o formato 0.000.000 (7 dígitos).`;
-    }
-  }
-  const codigos = modelos.map((m) => m.codInterno).filter(Boolean);
-  const repetido = codigos.find((c, i) => codigos.indexOf(c) !== i);
-  if (repetido) return `O código ${formatarCodigoInterno(repetido)} aparece em mais de um modelo.`;
-  return null;
-}
 
 // ---------- Etapa 1 — Em Aberto ----------
 
@@ -614,11 +595,18 @@ export async function registrarDesfecho(_prev: FormState, formData: FormData): P
       ...(precisaCadastro ? { etapa: "CADASTRO_PRODUTO" as const } : {}),
     },
   });
+  // Todo desfecho positivo vira Aceite de Pedido, com a SO que o cliente fechou (decisão do Thiago
+  // em 08/10/2026). Produto novo sem código segue também pra etapa 7: a Engenharia lança o código
+  // pelo Aceite e isso resolve a etapa 7 (ver aceite/actions.ts).
+  if (desfecho === "POSITIVO") await abrirAceite(id);
   revalidatePath("/historico");
+  revalidatePath("/atendimento", "layout");
   // Desfecho registrado (qualquer um que não seja "aguardando") tira o card da etapa atual:
   // vai pra etapa 7 ou pro Histórico. Nos dois casos a gaveta fecha, como em toda mudança de
-  // etapa. "Aguardando" continua aberto: nada mudou de lugar.
-  if (desfecho !== "AGUARDANDO") redirect("/painel");
+  // etapa. "Aguardando" continua aberto: nada mudou de lugar. A gaveta também abre no módulo
+  // Atendimento ao Cliente (08/10/2026); aberta de lá, fecha de volta pra lá.
+  const voltarPara = String(formData.get("voltarPara") ?? "");
+  if (desfecho !== "AGUARDANDO") redirect(voltarPara.startsWith("/atendimento") ? voltarPara : "/painel");
   revalidatePath(`/painel/${id}`);
   return undefined;
 }
@@ -664,6 +652,8 @@ export async function voltarEtapa(formData: FormData) {
   await exigirEdicao(id);
   const idx = ordem.indexOf(doc.etapa as (typeof ordem)[number]);
   if (idx <= 0) return;
+  // Desfazer o desfecho positivo desfaz o Aceite que ele abriu, se ninguém mexeu nele ainda.
+  if (doc.etapa === "CADASTRO_PRODUTO") await desfazerAceiteSemAndamento(id);
   await prisma.orcamento.update({
     where: { id },
     data: {

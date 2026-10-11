@@ -23,25 +23,29 @@ import {
   Film,
   Users,
   ListChecks,
+  Handshake,
+  Wrench,
+  ShoppingCart,
+  CalendarClock,
+  Headset,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { sair } from "./actions";
-import { ModuloSwitcher } from "./ModuloSwitcher";
-import { moduloAtual, type ModuloKey } from "@/lib/modulos";
+import { moduloAtual } from "@/lib/modulos";
 
 type Props = {
   nome: string | null;
   perfilNome: string | null;
   admin: boolean;
-  // Módulos que o perfil abre (ver modulosAcessiveis) — os outros aparecem desabilitados no seletor.
-  modulos: ModuloKey[];
   // Treinamentos do perfil ainda sem aprovação (selo no menu) e se a pessoa vê o painel de acompanhamento.
   pendentes: number;
   acompanhamento: boolean;
   // Representante: só vê o Novo Orçamento (sem troca de módulo nem busca).
   soNovo?: boolean;
+  // Setores do Aceite de Pedido em que a pessoa trabalha (ver setoresDaPessoa): só esses aparecem.
+  setoresAceite?: string[];
 };
 
 type NavItem = {
@@ -49,6 +53,8 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   color: string; // hex — vira --nav-color, tingindo fundo/hover/ícone desse item
+  // Fica aceso também nas páginas de dentro (ex.: /aceite/vendas/[id] acende "Vendas").
+  prefixo?: boolean;
 };
 
 // Versão com identidade visual de ERP moderno da sidebarHtml() original (linhas 2980-3063):
@@ -70,10 +76,10 @@ function SidebarContent({
   nome,
   perfilNome,
   admin,
-  modulos,
   pendentes,
   acompanhamento,
   soNovo = false,
+  setoresAceite = [],
   mobile = false,
   onNavigate,
 }: Props & { mobile?: boolean; onNavigate?: () => void }) {
@@ -82,17 +88,46 @@ function SidebarContent({
   const logado = !!nome;
   const modulo = moduloAtual(pathname);
 
-  // Cada módulo tem sua própria navegação — trocar de módulo (ModuloSwitcher, acima) troca essa
+  // Cada módulo tem sua própria navegação — trocar de módulo (abas no topo, ModuloTabs) troca essa
   // lista inteira, não só adiciona um item. Administração é um módulo próprio desde 27/09/2026
   // (usuários e perfis valem pro sistema todo, não só pro Orçamento).
   const itemsOrcamento: NavItem[] = [
     { href: "/painel", label: "Painel", icon: KanbanSquare, color: "#26405C" },
     { href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" },
     { href: "/clientes", label: "Clientes", icon: Users, color: "#3D6B6B" },
-    { href: "/diretoria", label: "Diretoria", icon: Gavel, color: "#946522" },
     { href: "/historico", label: "Histórico", icon: History, color: "#5B6270" },
     { href: "/legado", label: "Arquivo legado", icon: Archive, color: "#8C3B21" },
     { href: "/resumo", label: "Resumo semanal", icon: BarChart3, color: "#2C6E8C" },
+  ];
+
+  // Aceite de Pedido: um ambiente por setor (sem quadro de cards), mais o Acompanhamento. Sem
+  // "Início": /aceite leva direto ao ambiente da pessoa (ver aceite/page.tsx).
+  const itemsAceite: NavItem[] = [
+    ...(setoresAceite.includes("vendas") ? [{ href: "/aceite/vendas", label: "Vendas", icon: Handshake, color: "#2E6B4F", prefixo: true }] : []),
+    { href: "/aceite/acompanhamento", label: "Acompanhamento", icon: ListChecks, color: "#5B6270", prefixo: true },
+  ];
+
+  const itemsDiretoria: NavItem[] = [
+    { href: "/diretoria", label: "Pendências e decididos", icon: Gavel, color: "#946522", prefixo: true },
+  ];
+
+  // Atendimento ao Cliente: retorno dos orçamentos, data ao cliente e acompanhamento dos pedidos.
+  const itemsAtendimento: NavItem[] = [
+    { href: "/atendimento", label: "Painel", icon: Headset, color: "#3E6E9E", prefixo: true },
+  ];
+
+  // Engenharia: pendências de todos os módulos que dependem dela.
+  const itemsEngenharia: NavItem[] = [
+    { href: "/engenharia", label: "Pendências", icon: Wrench, color: "#6C63B5", prefixo: true },
+  ];
+
+  // Compras e PCP: módulos próprios desde já, hoje só com o que o Aceite precisa.
+  const itemsCompras: NavItem[] = [
+    { href: "/compras", label: "Pedidos de Material", icon: ShoppingCart, color: "#8C5A21" },
+  ];
+
+  const itemsPcp: NavItem[] = [
+    { href: "/pcp", label: "Datas de entrega", icon: CalendarClock, color: "#2C7A8C", prefixo: true },
   ];
 
   const itemsLaboratorio: NavItem[] = [
@@ -118,6 +153,18 @@ function SidebarContent({
     : soNovo
       ? // Representante: o Novo Orçamento e o registro do que ele mesmo enviou.
         [itemNovo, { href: "/minhas-solicitacoes", label: "Minhas Solicitações", icon: ListChecks, color: "#26405C" }]
+      : modulo === "diretoria"
+      ? itemsDiretoria
+      : modulo === "atendimento"
+      ? itemsAtendimento
+      : modulo === "aceite"
+      ? itemsAceite
+      : modulo === "engenharia"
+      ? itemsEngenharia
+      : modulo === "compras"
+      ? itemsCompras
+      : modulo === "pcp"
+      ? itemsPcp
       : modulo === "laboratorio"
       ? itemsLaboratorio
       : modulo === "treinamentos"
@@ -148,12 +195,6 @@ function SidebarContent({
           {!mobile && <ThemeToggle />}
         </div>
         <div className="font-mono text-[10px] tracking-widest text-muted-foreground">SANTA CRUZ IND. GRÁFICA</div>
-        {logado && !soNovo && (
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Módulo</span>
-            <ModuloSwitcher acessiveis={modulos} className="text-sm! font-sans! font-semibold!" />
-          </div>
-        )}
         {/* Selo de pendência: aparece em qualquer módulo enquanto houver treinamento do perfil sem aprovação.
             Só avisa; não bloqueia nada. */}
         {logado && pendentes > 0 && modulo !== "treinamentos" && (
@@ -188,7 +229,7 @@ function SidebarContent({
 
       <nav className="flex flex-col gap-1.5 pr-0.5">
         {items.map((it, i) => {
-          const active = pathname === it.href;
+          const active = pathname === it.href || (!!it.prefixo && pathname.startsWith(it.href + "/"));
           const Icon = it.icon;
           return (
             <Link
@@ -272,7 +313,6 @@ export function MobileNav(props: Props) {
       </Link>
       <div className="min-w-0 flex-1">
         <span className="block truncate font-serif text-base font-semibold leading-tight text-foreground">App Sta Cruz</span>
-        {logado && !props.soNovo && <ModuloSwitcher acessiveis={props.modulos} className="text-xs! font-sans! font-medium! text-muted-foreground!" />}
       </div>
       {logado && !props.soNovo && (
         <Button
