@@ -17,7 +17,9 @@ import { Button } from "@/components/ui/button";
 // React limpa o formulário quando ela termina — inclusive quando volta com erro de validação —
 // e tudo que a pessoa digitou e ainda não estava salvo sumia da tela (achado no teste de
 // 30/09/2026: modelo novo e Observações apagados depois de um "Liberar" com erro).
-export function FormFinalizado({ doc }: { doc: OrcamentoComAnexos }) {
+// `voltarPara`: quadro pra onde a gaveta volta depois do desfecho (o Atendimento ao Cliente abre
+// esta mesma gaveta; sem ele, volta pro Painel).
+export function FormFinalizado({ doc, voltarPara }: { doc: OrcamentoComAnexos; voltarPara?: string }) {
   const [state, onSubmit, pending] = useFormActionSemReset(registrarDesfecho, undefined);
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
   const modelos = modelosDoDoc(doc);
@@ -60,6 +62,7 @@ export function FormFinalizado({ doc }: { doc: OrcamentoComAnexos }) {
 
       <form onSubmit={onSubmit} className="mt-4">
         <input type="hidden" name="id" value={doc.id} />
+        {voltarPara && <input type="hidden" name="voltarPara" value={voltarPara} />}
         <FormSection title="Retorno do cliente">
           <Field label="Desfecho">
             {/* Valor por campo escondido, não pelo `name` do Select: o React limpa o formulário
