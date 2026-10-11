@@ -14,6 +14,8 @@ export type ItemAceite = {
   codInterno: string;
   // Quantidade que o cliente pediu deste modelo (Vendas).
   quantidade: number | null;
+  // Quanto do pedido sai do produto acabado em estoque (sobra na expedição); só o resto é produzido.
+  emEstoque?: number | null;
   // Grupo de montagem e posições deste modelo na folha (Engenharia).
   montagem: number | null;
   posicoes: number | null;
@@ -35,6 +37,15 @@ export function itensIniciais(modelos: Modelo[], so: PrecificacaoTier | null, qt
 
 export function lerItens(json: unknown): ItemAceite[] {
   return Array.isArray(json) ? (json as ItemAceite[]) : [];
+}
+
+// Quantidade a produzir de um modelo: o pedido menos o que sai do estoque de produto acabado.
+export function aProduzir(i: Pick<ItemAceite, "quantidade" | "emEstoque">): number {
+  return Math.max(0, (i.quantidade ?? 0) - (i.emEstoque ?? 0));
+}
+
+export function producaoTotal(itens: ItemAceite[]): number {
+  return itens.reduce((s, i) => s + aProduzir(i), 0);
 }
 
 // Folhas de papel pela conta do formulário: quantidade ÷ quantidade por folha, arredondado pra cima.
@@ -65,14 +76,14 @@ export function calcularMontagens(itens: ItemAceite[]): Montagem[] {
   return [...grupos.entries()]
     .sort(([a], [b]) => a - b)
     .map(([grupo, lista]) => {
-      const folhas = Math.max(0, ...lista.map((i) => (i.quantidade && i.posicoes ? Math.ceil(i.quantidade / i.posicoes) : 0)));
+      const folhas = Math.max(0, ...lista.map((i) => (aProduzir(i) && i.posicoes ? Math.ceil(aProduzir(i) / i.posicoes) : 0)));
       return {
         grupo,
         folhas,
         posicoesUsadas: lista.reduce((s, i) => s + (i.posicoes ?? 0), 0),
         itens: lista.map((i) => {
           const produzido = folhas * (i.posicoes ?? 0);
-          return { ...i, produzido, excedente: Math.max(0, produzido - (i.quantidade ?? 0)) };
+          return { ...i, produzido, excedente: Math.max(0, produzido - aProduzir(i)) };
         }),
       };
     });

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
 import { salvarVendas } from "@/app/(app)/aceite/actions";
 import { lerQuantidade, fmtQuantidade, paraInputData } from "@/lib/aceite/constantes";
-import { folhasEstimadas, type ItemAceite } from "@/lib/aceite/montagem";
+import { folhasEstimadas, aProduzir, type ItemAceite } from "@/lib/aceite/montagem";
 import { SITUACOES_SUPORTE, textoSuporte, type SuporteAceite } from "@/lib/aceite/suportes";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { FormSection, Field, AcoesBar } from "@/components/form-section";
@@ -42,7 +42,15 @@ export function FormVendas({ aceite, papeisSemPM, qtdSO }: { aceite: AceiteVenda
   );
   const state = stateLiberar?.erro ? stateLiberar : (stateSalvar ?? stateLiberar);
   const pending = pendSalvar || pendLiberar;
+  const [estoques, setEstoques] = useState<Record<string, string>>(
+    Object.fromEntries(aceite.itens.map((i) => [i.modeloId, i.emEstoque ? i.emEstoque.toLocaleString("pt-BR") : ""])),
+  );
   const total = aceite.itens.reduce((s, i) => s + (lerQuantidade(qtds[i.modeloId] ?? "") ?? 0), 0);
+  // A produzir = pedido menos o que sai do estoque de produto acabado (só conta se há sobra).
+  const produzir = aceite.itens.reduce(
+    (s, i) => s + aProduzir({ quantidade: lerQuantidade(qtds[i.modeloId] ?? ""), emEstoque: acabado === "sim" ? lerQuantidade(estoques[i.modeloId] ?? "") : null }),
+    0,
+  );
   const muda = (id: string, campo: keyof SuporteAceite, valor: string | number | null) =>
     setSuportes((lista) => lista.map((x) => (x.id === id ? { ...x, [campo]: valor } : x)));
   const numero = (v: string) => (v ? Number(v.replace(/[^0-9]/g, "")) || null : null);
@@ -130,13 +138,39 @@ export function FormVendas({ aceite, papeisSemPM, qtdSO }: { aceite: AceiteVenda
         </div>
         {/* A versão só importa quando há produto pronto que pode ser usado no pedido. */}
         {acabado === "sim" && (
-          <Marcar name="versaoVerificada" defaultChecked={!!aceite.versaoVerificadaEm} texto="Conferi que a versão do produto em estoque está atualizada" />
+          <>
+            <Marcar name="versaoVerificada" defaultChecked={!!aceite.versaoVerificadaEm} texto="Conferi que a versão do produto em estoque está atualizada" />
+            <span className="text-sm text-foreground">Quanto de cada modelo sai do estoque (o resto é produzido):</span>
+            <div className={`grid grid-cols-1 gap-1.5 ${aceite.itens.length > 1 ? "md:grid-cols-2" : ""}`}>
+              {aceite.itens.map((i) => (
+                <label key={i.modeloId} className="grid grid-cols-[1fr_7.5rem] items-center gap-3 rounded-md border border-border px-3 py-1.5">
+                  <span className="min-w-0 text-sm leading-tight">
+                    <span className="block truncate text-foreground">{i.descricao || "Modelo sem descrição"}</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      pedido {fmtQuantidade(lerQuantidade(qtds[i.modeloId] ?? ""))} · produzir{" "}
+                      <b className="text-foreground">{fmtQuantidade(aProduzir({ quantidade: lerQuantidade(qtds[i.modeloId] ?? ""), emEstoque: lerQuantidade(estoques[i.modeloId] ?? "") }))}</b>
+                    </span>
+                  </span>
+                  <Input
+                    name={`estoque_${i.modeloId}`}
+                    inputMode="numeric"
+                    aria-label={`Do estoque: ${i.descricao}`}
+                    value={estoques[i.modeloId] ?? ""}
+                    onChange={(e) => setEstoques((q) => ({ ...q, [i.modeloId]: e.target.value }))}
+                  />
+                </label>
+              ))}
+            </div>
+            <span className="text-xs text-muted-foreground">
+              Total a produzir: <b className="text-foreground">{fmtQuantidade(produzir)}</b> de {fmtQuantidade(total)} pedidos.
+            </span>
+          </>
         )}
       </FormSection>
 
       <FormSection title="Papéis do pedido" denso>
         {suportes.map((x, n) => {
-          const sugestao = n === 0 ? folhasEstimadas(total || null, x.qtdFolha) : null;
+          const sugestao = n === 0 ? folhasEstimadas(produzir || null, x.qtdFolha) : null;
           const d = x.doOrcamento;
           const trocou = !!d && (d.codigo !== x.codigo || d.descricao !== x.descricao || d.formato !== x.formato || d.gramatura !== x.gramatura);
           return (

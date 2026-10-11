@@ -40,7 +40,9 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
   // Quantidade de cada modelo que o cliente pediu (campo "qtd_" + id do modelo).
   const itens: ItemAceite[] = lerItens(a.itens).map((i) => {
     const q = lerQuantidade(formData.get(`qtd_${i.modeloId}`));
-    return { ...i, quantidade: q === null ? null : Math.round(q) };
+    // Quanto sai do estoque de produto acabado: só vale quando Vendas marcou que há sobra.
+    const e = temProdutoAcabado ? lerQuantidade(formData.get(`estoque_${i.modeloId}`)) : null;
+    return { ...i, quantidade: q === null ? null : Math.round(q), emEstoque: e === null || e <= 0 ? null : Math.round(e) };
   });
   // Nº do Aceite vem do ERP (Vendas digita). Não pode repetir em outro Aceite.
   const numero = String(formData.get("numero") ?? "").trim() || null;
@@ -54,6 +56,9 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
     const semQtd = itens.find((i) => !i.quantidade);
     if (semQtd) return { erro: `Informe a quantidade pedida de ${semQtd.descricao || "cada modelo"}.` };
     if (!estoque) return { erro: "Informe se há produto acabado em estoque (sobra na expedição), conferido no ERP." };
+    const passou = itens.find((i) => (i.emEstoque ?? 0) > (i.quantidade ?? 0));
+    if (passou) return { erro: `${passou.descricao || "O modelo"}: o estoque usado não pode passar do pedido.` };
+    if (temProdutoAcabado && !itens.some((i) => (i.emEstoque ?? 0) > 0)) return { erro: "Há produto acabado em estoque: informe quanto de cada modelo será usado no pedido." };
     if (temProdutoAcabado && !versao) return { erro: "Há produto acabado em estoque: confira se a versão dele está atualizada." };
     if (!suportes.length) return { erro: "Informe ao menos um papel do pedido." };
     const semSituacao = suportes.find((x) => x.situacao === "NAO_VERIFICADO");
