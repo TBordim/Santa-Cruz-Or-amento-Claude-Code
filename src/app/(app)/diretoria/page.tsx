@@ -17,19 +17,60 @@ export const dynamic = "force-dynamic";
 export default async function DiretoriaPage() {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
-  await exigirModulo("orcamento");
+  await exigirModulo("diretoria");
 
-  const decididos = await prisma.orcamento.findMany({
+  const [pendentes, decididos] = await Promise.all([
+    prisma.orcamento.findMany({
+      where: { origem: "NOVO", etapa: "DIRETORIA", statusDiretoria: "PENDENTE" },
+      orderBy: { atualizadoEm: "asc" },
+    }),
+    prisma.orcamento.findMany({
     where: { origem: "NOVO", statusDiretoria: { in: ["APROVADO", "AUTO_APROVADO"] } },
     orderBy: { atualizadoEm: "desc" },
-  });
+    }),
+  ]);
 
   return (
     <>
       <PageHeader
-        title="Painel Diretoria"
-        description={'Registro dos orçamentos já decididos: aprovados por você e os aprovados automaticamente. O que ainda aguarda decisão fica no Painel, coluna "4. Diretoria".'}
+        title="Diretoria"
+        description="Orçamentos esperando a decisão da Diretoria e o registro dos já decididos (aprovados por você e automáticos)."
       />
+
+      <section className="mb-6 flex flex-col gap-2.5">
+        <h3 className="text-sm font-semibold text-foreground">Aguardando decisão ({pendentes.length})</h3>
+        {pendentes.length === 0 ? (
+          <div className="empty-state">Nada esperando a Diretoria agora.</div>
+        ) : (
+          pendentes.map((d) => {
+            const tiers = (d.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
+            return (
+              <Card key={d.id}>
+                <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {d.cliente} — <span className="font-normal text-muted-foreground">{d.produtoDescricao}</span>
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      Enviado em {fmtDateTime(d.atualizadoEm)}
+                      {tiers[0]?.precoFinal != null ? ` · ${fmtMoney(tiers[0].precoFinal)}` : ""}
+                      {tiers.length > 1 ? ` (${tiers.length} opções)` : ""}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className="border-0 bg-warn-soft text-warn">Aguarda diretoria</Badge>
+                    <Button asChild size="sm">
+                      <Link href={`/painel/${d.id}`}>Decidir</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </section>
+
+      <h3 className="mb-2.5 text-sm font-semibold text-foreground">Já decididos</h3>
 
       {decididos.length === 0 ? (
         <div className="empty-state">Nenhum orçamento aprovado ainda.</div>

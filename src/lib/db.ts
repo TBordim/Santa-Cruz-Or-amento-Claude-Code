@@ -12,8 +12,24 @@ function createPrismaClient() {
   // DATABASE_URL de Production o banco de demonstração, e essa variável não é editável; com
   // APP_DATABASE_URL apontamos Production pro banco certo sem depender dela. Sem APP_*, tudo
   // segue como sempre (DATABASE_URL).
-  const adapter = new PrismaPg({ connectionString: process.env.APP_DATABASE_URL || process.env.DATABASE_URL });
+  const connectionString = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
+  // O Postgres local do `npx prisma dev` derruba conexões quando recebe várias ao mesmo tempo
+  // ("Server has closed the connection" em telas com consultas em paralelo, achado nas telas do
+  // Aceite em 08/10/2026: 5 de 12 consultas falhavam com o pool padrão, 0 com uma conexão só).
+  // Só no banco local: o pool fica com uma conexão e as consultas fazem fila. Neon segue igual.
+  const local = bancoLocal(connectionString);
+  const adapter = new PrismaPg({ connectionString, ...(local ? { max: 1 } : {}) });
   return new PrismaClient({ adapter });
+}
+
+function bancoLocal(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
 }
 
 // Cache no globalThis para não recriar o client (e o pool de conexões) a cada hot-reload do

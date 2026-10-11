@@ -1,0 +1,60 @@
+import "server-only";
+import { prisma } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
+import { listarAceitesComAlerta } from "./dados";
+
+// Filas de trabalho dos setores do Aceite e das telas do Aceite nos módulos Compras e PCP. Ficam
+// juntas pra todas as telas contarem do mesmo jeito.
+
+export const FILAS = {
+  vendas: {
+    preencher: { etapa: "VENDAS" },
+    // Aceites que ainda não terminaram (a tabela "Aceites em andamento").
+    pedido: { etapa: "PEDIDO" },
+    andamento: { etapa: { in: ["ENGENHARIA_MATERIAL", "PCP", "ATENDIMENTO", "ENTREGA"] } },
+    concluidos: { etapa: "CONCLUIDO" },
+    // Pedido já cadastrado e OF ainda não registrada: pendência de Vendas até registrar (a OF pode
+    // ser aberta depois, mas não pode ser esquecida — pedido do Thiago em 11/10/2026).
+    of: { etapa: { in: ["ATENDIMENTO", "ENTREGA", "CONCLUIDO"] }, pedidoCadastradoEm: { not: null }, numeroOF: null },
+  },
+  engenharia: {
+    conferir: { etapa: "ENGENHARIA_MATERIAL", engenhariaEm: null },
+    confirmados: { engenhariaEm: { not: null } },
+  },
+  pcp: {
+    data: { etapa: "PCP" },
+    chegando: { etapa: "ENGENHARIA_MATERIAL" },
+    carteira: { etapa: { in: ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"] }, dataEntrega: { not: null } },
+    // Cliente avisado, falta o PCP confirmar a entrega.
+    entregar: { etapa: "ENTREGA" },
+  },
+} satisfies Record<string, Record<string, Prisma.AceiteWhereInput>>;
+
+// "Aguardando prazo" = ainda sem data de chegada; "Com data" = data definida, ainda não recebido.
+export const FILAS_PM = {
+  prazo: { status: { in: ["SOLICITADO", "EM_COMPRA", "PRAZO_CONFIRMADO"] }, prazoPrevisto: null },
+  confirmados: { status: { in: ["SOLICITADO", "EM_COMPRA", "PRAZO_CONFIRMADO"] }, prazoPrevisto: { not: null } },
+  sobras: { status: { not: "CANCELADO" }, sobraPrevista: { gt: 0 }, sobraEncerradaEm: null },
+  encerrados: { status: { in: ["RECEBIDO", "CANCELADO"] } },
+} satisfies Record<string, Prisma.PedidoMaterialWhereInput>;
+
+// Alertas de mudança do fornecedor que importam pra cada setor: Vendas vê todos os Aceites em
+// andamento; o PCP, os que já passaram por ele ou estão nele.
+export const ALERTAS_ONDE: Record<"vendas" | "pcp", Prisma.AceiteWhereInput> = {
+  vendas: { etapa: { not: "CONCLUIDO" } },
+  pcp: { etapa: { in: ["PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"] } },
+};
+
+// Pendências de Vendas no Aceite (tela inicial do módulo e página de entrada).
+export async function contarPendenciasVendas() {
+  const [vPreencher, vPedido, vOF, alertasVendas] = await Promise.all([
+    prisma.aceite.count({ where: FILAS.vendas.preencher }),
+    prisma.aceite.count({ where: FILAS.vendas.pedido }),
+    prisma.aceite.count({ where: FILAS.vendas.of }),
+    listarAceitesComAlerta(ALERTAS_ONDE.vendas),
+  ]);
+  return vPreencher + vPedido + vOF + alertasVendas.length;
+}
+
+// Atendimento ao Cliente: Aceites esperando a data ser enviada ao cliente/representante.
+export const FILA_ATENDIMENTO = { etapa: "ATENDIMENTO" } satisfies Prisma.AceiteWhereInput;
