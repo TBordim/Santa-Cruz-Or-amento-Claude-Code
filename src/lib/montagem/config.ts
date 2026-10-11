@@ -1,0 +1,76 @@
+// Configuração da Pré-montagem — tudo que muda por máquina, papel ou regra da casa fica aqui,
+// nunca dentro do algoritmo. Valores marcados EXEMPLO ainda não foram confirmados pela
+// Engenharia e devem ser trocados pelos reais. Medidas em milímetros.
+
+export type Maquina = {
+  id: string;
+  nome: string;
+  // Até quantas cores de impressão cabem numa passada (o verniz é à parte: as duas têm verniz).
+  coresMax: number;
+  // Espessura máxima do cartão que a máquina aceita.
+  espessuraMaxMm: number;
+};
+
+export type FormatoFolha = {
+  // Folha inteira comprada: o segundo número é o sentido da fibra (66×96 → fibra no 96).
+  w: number;
+  h: number;
+  // 3 = muita oferta no fornecedor, 1 = pouca. Só desempata opções de mesmo aproveitamento.
+  oferta: number;
+};
+
+export const CONFIG = {
+  // Roland 505 e 507: formato 53×74, mesma família, sem opção Plus (informado pelo Thiago).
+  maquinas: [
+    { id: "roland-505", nome: "Roland 505", coresMax: 5, espessuraMaxMm: 0.8 },
+    { id: "roland-507", nome: "Roland 507", coresMax: 7, espessuraMaxMm: 0.6 },
+  ] satisfies Maquina[],
+
+  // O fator (pedaço da folha depois do corte) passa na máquina pelo lado de 53, e o 74 fica
+  // transversal. O mínimo vem da internet (Roland 500) e precisa ser confirmado.
+  fator: { passagemMax: 530, transversalMax: 740, passagemMin: 260, transversalMin: 400 },
+
+  // Faixas das bordas de 74, descontadas da dimensão de passagem (53).
+  pincaMm: 13, // limitada pela Bobst SP 102
+  barraControleMm: 15, // opcional por pedido
+
+  // EXEMPLO: margem das bordas e espaço entre facas ainda não foram informados.
+  margemMm: 8,
+  espacoFacasMm: 4,
+
+  // Produzir de 100% a 110% do pedido, nunca menos.
+  toleranciaAcima: 0.1,
+
+  // EXEMPLO: lista de formatos e ofertas. Os formatos são os mesmos para qualquer papel.
+  formatosFolha: [
+    { w: 660, h: 960, oferta: 3 },
+    { w: 960, h: 660, oferta: 3 },
+    { w: 770, h: 1130, oferta: 2 },
+    { w: 1020, h: 720, oferta: 2 },
+  ] satisfies FormatoFolha[],
+
+  // Cortes testados: [partes na largura, partes na altura] da folha inteira.
+  cortes: [
+    [1, 1],
+    [2, 1],
+    [1, 2],
+    [3, 1],
+    [1, 3],
+    [2, 2],
+    [4, 1],
+    [1, 4],
+    [3, 2],
+    [2, 3],
+  ] satisfies [number, number][],
+
+  // Formato ideal de compra: o fornecedor produz em bobinas e corta no formato pedido, sem limite de
+  // tamanho, mas leva cerca de 10 dias. O formato padrão em estoque é só carregar e entregar.
+  // A folha sob medida tem de ter centímetros inteiros (83 ou 84, nunca 83,4): o fator é arredondado
+  // para cima em múltiplos de `multiploMm` (10 mm = 1 cm) e a folha é o fator vezes o nº de partes.
+  formatoIdeal: { multiploMm: 10, prazoDias: 10 },
+
+  // Lâmina da faca, cobrada por metro desenhado (corte e vinco pelo mesmo preço).
+  precoMetroLaminaReais: 50,
+};
+
+export type Config = typeof CONFIG;

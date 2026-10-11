@@ -5,6 +5,7 @@ import { CLASSIFICACOES_MODELO, resumoDosModelos } from "./modelos";
 import { normalizarCores } from "./cores";
 import { normalizarLink } from "./link";
 import type { ClassificacaoModelo, Modelo, ReqCliente, ReqTecnicos, Suporte, SuporteTecnico } from "./types";
+import { ehPreMontagemSalva } from "@/lib/montagem/salva";
 
 function str(fd: FormData, nome: string): string {
   return String(fd.get(nome) ?? "").trim();
@@ -124,6 +125,17 @@ export function lerReqTecnicos(fd: FormData, anterior: ReqTecnicos | null): ReqT
     infoComplementares: str(fd, "infoComplementares"),
   };
   for (const campo of CAMPOS_SOLTOS_ANTIGOS) delete r[campo];
+  // Pré-montagem aprovada na Engenharia: o formulário manda a do material que acabou de ser
+  // aprovado; as dos outros materiais continuam como estavam (vêm de `anterior`).
+  const bruto = str(fd, "preMontagem");
+  if (bruto && bruto.length < 300_000) {
+    try {
+      const nova: unknown = JSON.parse(bruto);
+      if (ehPreMontagemSalva(nova)) r.preMontagem = { ...(anterior?.preMontagem ?? {}), [String(nova.materialIdx)]: nova };
+    } catch {
+      // JSON inválido: ignora e mantém o que já estava gravado.
+    }
+  }
   return r;
 }
 
