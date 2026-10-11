@@ -320,6 +320,7 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
             linhas: [
               { label: "Desfecho", value: doc.desfecho && desfechoInfo(doc.desfecho).label },
               { label: "SO fechada pelo cliente", value: tiers.length > 1 && escolhida && tituloSO(escolhida) },
+              { label: "Nº do pedido do cliente", value: escolhida?.pedidoCliente },
               { label: "Motivo", value: doc.desfechoMotivo },
               {
                 label: "Registrado por",

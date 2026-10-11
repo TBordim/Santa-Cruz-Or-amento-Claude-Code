@@ -159,6 +159,9 @@ export type PrecificacaoTier = {
   // Cliente junto do desfecho positivo; é o valor dela que conta no Histórico e na comparação
   // do próximo orçamento (último fornecimento).
   escolhidaPeloCliente?: boolean;
+  // Nº do pedido do cliente (a ordem de compra dele), exigido ao registrar o desfecho positivo.
+  // Fica na SO que ele fechou.
+  pedidoCliente?: string;
 };
 
 // Leitura automática por IA do Arquivo legado — fica deste tipo pronto, mas a Fase 2 não

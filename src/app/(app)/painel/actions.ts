@@ -607,7 +607,15 @@ export async function registrarDesfecho(_prev: FormState, formData: FormData): P
     escolhida = tiers.length === 1 ? 0 : parseInt(String(formData.get("soEscolhida") ?? ""), 10);
     if (!tiers[escolhida]) return { erro: "Indique qual SO o cliente fechou." };
   }
-  const precificacao = tiers.map((t, i) => ({ ...t, escolhidaPeloCliente: i === escolhida }));
+  // Aprovado: o Nº do pedido do cliente é obrigatório e fica na SO fechada (pedido do Thiago em
+  // 11/10/2026). Nos outros desfechos nenhum número é guardado.
+  const pedidoCliente = String(formData.get("pedidoCliente") ?? "").trim();
+  if (desfecho === "POSITIVO" && !pedidoCliente) return { erro: "Informe o Nº do pedido do cliente." };
+  const precificacao = tiers.map((t, i) => {
+    const resto: PrecificacaoTier = { ...t, escolhidaPeloCliente: i === escolhida };
+    delete resto.pedidoCliente;
+    return i === escolhida && pedidoCliente ? { ...resto, pedidoCliente } : resto;
+  });
 
   // Modelo novo que o cliente aprovou e ainda não tem Nº de Cadastro de Produto manda o card pra
   // etapa 7 esperar o número. Os demais (negativo, sem retorno, ou positivo com todos os
@@ -687,7 +695,11 @@ export async function voltarEtapa(formData: FormData) {
       ...(doc.etapa === "CADASTRO_PRODUTO"
         ? {
             desfecho: "AGUARDANDO" as const,
-            precificacao: ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => ({ ...t, escolhidaPeloCliente: false })),
+            precificacao: ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => {
+              const limpa: PrecificacaoTier = { ...t, escolhidaPeloCliente: false };
+              delete limpa.pedidoCliente;
+              return limpa;
+            }),
           }
         : {}),
     },

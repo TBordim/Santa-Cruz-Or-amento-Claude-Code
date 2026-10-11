@@ -77,7 +77,7 @@ export function FormFinalizado({ doc }: { doc: OrcamentoComAnexos }) {
               Histórico e na comparação do próximo orçamento. Resposta do Thiago em 30/09/2026. */}
           {desfecho === "POSITIVO" && tiers.length > 1 && (
             <fieldset className="flex flex-col gap-1.5">
-              <legend className="mb-1.5 text-sm font-medium text-foreground">Qual SO o cliente fechou?</legend>
+              <legend className="mb-1.5 text-sm font-medium text-foreground">Qual linha (SO) o cliente aprovou?</legend>
               {tiers.map((t, i) => (
                 <label key={i} className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-md border border-border px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-muted/50">
                   <input type="radio" name="soEscolhida" value={i} defaultChecked={t === escolhidaAtual} className="accent-primary" />
@@ -90,6 +90,11 @@ export function FormFinalizado({ doc }: { doc: OrcamentoComAnexos }) {
                 </label>
               ))}
             </fieldset>
+          )}
+          {desfecho === "POSITIVO" && (
+            <Field label="Nº do pedido do cliente (obrigatório)" hint="A ordem de compra que o cliente enviou para a SO aprovada.">
+              <Input name="pedidoCliente" required defaultValue={escolhidaAtual?.pedidoCliente ?? ""} />
+            </Field>
           )}
           <Field label="Motivo (opcional)">
             <Input name="motivo" defaultValue={doc.desfechoMotivo ?? ""} />
