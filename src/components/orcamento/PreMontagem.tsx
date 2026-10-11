@@ -19,6 +19,7 @@ import { CONFIG } from "@/lib/montagem/config";
 import { svgDaPreMontagem, svgParaImagem } from "@/lib/montagem/imagem";
 import { adicionarAnexo, excluirAnexo } from "@/components/anexos/actions";
 import { modelosDoDoc, textoMaterial } from "@/lib/orcamentos/modelos";
+import { OPCOES_ANEXOS_ENGENHARIA } from "@/lib/orcamentos/constantes";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
 
@@ -44,6 +45,14 @@ function preencher(nome: string, indice: number, valor: string) {
   if (!el) return;
   el.value = valor;
   el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+// Marca "Especificação GSC Montagem" em "Anexos previstos" do formulário da Engenharia (a caixa é
+// um Checkbox: o clique atualiza o campo que vai junto com o formulário). Já marcada, não mexe.
+function marcarMontagemEmAnexosPrevistos() {
+  const alvo = OPCOES_ANEXOS_ENGENHARIA[0];
+  const caixa = Array.from(document.querySelectorAll<HTMLButtonElement>('button[role="checkbox"]')).find((b) => b.value === alvo);
+  if (caixa && caixa.getAttribute("aria-checked") !== "true") caixa.click();
 }
 
 // Lê uma imagem do computador e reduz para a prévia (a arte não sobe para lugar nenhum).
@@ -253,7 +262,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
 
   // Gera a imagem da pré-montagem aprovada e a anexa ao card (Anexos da Engenharia), para os outros
   // setores verem. A imagem anterior do mesmo material é trocada pela nova.
-  async function anexarImagem(o: Opcao, f: Faca, ent: Omit<Entrada, "faca">, maquinas: string[], idxMaterial: number) {
+  async function anexarImagem(o: Opcao, f: Faca, ent: Omit<Entrada, "faca">, maquinas: string[], idxMaterial: number): Promise<boolean> {
     setAnexando(true);
     try {
       const mat = materiais[idxMaterial];
@@ -309,7 +318,8 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
       fd.set("caminho", pathname);
       fd.set("arquivo", new File([blob], `${nomeBase}.${extensao}`, { type: blob.type }));
       await adicionarAnexo(fd);
-      setAviso(`Pré-montagem aprovada: campos do Material ${idxMaterial + 1} preenchidos, gravados no card e a imagem anexada em "Anexos da Engenharia".`);
+      setAviso(`Pré-montagem aprovada: campos do Material ${idxMaterial + 1} preenchidos, imagem anexada em "Anexos da Engenharia" e "${OPCOES_ANEXOS_ENGENHARIA[0]}" marcada em Anexos previstos. Gravando o card…`);
+      return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "erro desconhecido";
       const semArmazenamento = /blob|credential|token/i.test(msg);
@@ -318,6 +328,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
           ? 'Pré-montagem aprovada e gravada, mas a imagem não foi anexada: o armazenamento de arquivos (Vercel Blob) não está configurado neste ambiente (falta o BLOB_READ_WRITE_TOKEN). Baixe a imagem abaixo e anexe em "Anexos da Engenharia" quando o armazenamento estiver ativo.'
           : `Pré-montagem aprovada e gravada, mas a imagem não foi anexada: ${msg}. Baixe a imagem abaixo e anexe manualmente em "Anexos da Engenharia".`,
       );
+      return false;
     } finally {
       setAnexando(false);
     }
@@ -337,11 +348,15 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
       preencher("suporteTecIdealL", material, fmt(Math.min(op.formato.w, op.formato.h) / 10));
     }
     const salva = montarPreMontagemSalva({ materialIdx: material, entrada: { ...entrada, faca }, op, maquinas: resultado.maquinas.map((m) => m.nome) });
-    salvarAoRenderizar.current = true;
-    setPendente(JSON.stringify(salva));
-    setAviso(`Pré-montagem aprovada: campos do Material ${material + 1} preenchidos e gravados no card. Gerando a imagem para os anexos…`);
+    const json = JSON.stringify(salva);
+    setAviso(`Pré-montagem aprovada: campos do Material ${material + 1} preenchidos. Gerando a imagem para os anexos…`);
     setAberto(false);
-    void anexarImagem(op, faca, entrada, resultado.maquinas.map((m) => m.nome), material);
+    // O card só é gravado depois do anexo: se a imagem foi anexada, "Anexos previstos" já vai marcado.
+    void anexarImagem(op, faca, entrada, resultado.maquinas.map((m) => m.nome), material).then((anexou) => {
+      if (anexou) marcarMontagemEmAnexosPrevistos();
+      salvarAoRenderizar.current = true;
+      setPendente(json);
+    });
   }
 
   const abaCls = (a: Aba) => `rounded-lg border px-3 py-1.5 text-sm ${aba === a ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary/60"}`;
