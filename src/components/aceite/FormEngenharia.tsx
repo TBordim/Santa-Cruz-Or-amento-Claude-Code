@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
 import { confirmarEngenharia } from "@/app/(app)/aceite/actions";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
-import { calcularMontagens, type ItemAceite } from "@/lib/aceite/montagem";
+import { calcularMontagens, aProduzir, type ItemAceite } from "@/lib/aceite/montagem";
 import { fmtQuantidade } from "@/lib/aceite/constantes";
 import type { Modelo } from "@/lib/orcamentos/types";
 import { FormSection, Field, DiretrizBlock, AcoesBar } from "@/components/form-section";
@@ -75,6 +75,7 @@ export function FormEngenharia({
               <tr className="border-b border-border">
                 <th className="px-3 py-2 text-left font-medium">Modelo</th>
                 <th className="px-3 py-2 text-right font-medium">Pedido</th>
+                <th className="px-3 py-2 text-right font-medium">Produzir</th>
                 <th className="w-24 px-3 py-2 text-left font-medium">Montagem</th>
                 <th className="w-24 px-3 py-2 text-left font-medium">Posições</th>
               </tr>
@@ -87,6 +88,9 @@ export function FormEngenharia({
                     {i.codInterno && <span className="font-mono text-xs text-muted-foreground">{formatarCodigoInterno(i.codInterno)}</span>}
                   </td>
                   <td className="px-3 py-2 text-right font-mono">{fmtQuantidade(i.quantidade)}</td>
+                  <td className="px-3 py-2 text-right font-mono" title={i.emEstoque ? `${fmtQuantidade(i.emEstoque)} saem do estoque de produto acabado` : undefined}>
+                    {fmtQuantidade(aProduzir(i))}
+                  </td>
                   <td className="px-3 py-2">
                     <Input
                       name={`montagem_${i.modeloId}`}

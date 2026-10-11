@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { modelosDoDoc, soEscolhida } from "@/lib/orcamentos/modelos";
 import type { PrecificacaoTier, ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
-import { itensIniciais, folhasEstimadas, quantidadeTotal } from "./montagem";
+import { itensIniciais, folhasEstimadas, producaoTotal } from "./montagem";
 import { suportesDoOrcamento } from "./suportes";
 
 // Abre o Aceite de Pedido de um orçamento que o cliente aprovou, guardando a SO fechada, um item
@@ -16,7 +16,7 @@ export async function abrirAceite(orcamentoId: string) {
   const suportes = suportesDoOrcamento(doc.reqCliente as ReqCliente | null, doc.reqTecnicos as ReqTecnicos | null, so);
   const itens = itensIniciais(modelosDoDoc(doc), so, suportes[0]?.qtdFolha ?? null);
   // Folhas do papel principal pela conta do formulário (quantidade ÷ quantidade por folha).
-  if (suportes[0]) suportes[0].folhas = folhasEstimadas(quantidadeTotal(itens) || null, suportes[0].qtdFolha);
+  if (suportes[0]) suportes[0].folhas = folhasEstimadas(producaoTotal(itens) || null, suportes[0].qtdFolha);
   await prisma.aceite.upsert({
     where: { orcamentoId },
     create: {
