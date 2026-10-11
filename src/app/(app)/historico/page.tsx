@@ -89,6 +89,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
       else if (tiers.length > 1) linhas.push({ k: "Valor", v: `maior entre ${tiers.length} SOs (nenhuma fechada)` });
       if (t0?.custoPrimarioPct != null) linhas.push({ k: "Custo primário", v: fmtPct(t0.custoPrimarioPct) });
       if (t0?.margemP2Pct != null) linhas.push({ k: "Margem P2", v: fmtPct(t0.margemP2Pct) });
+      if (soEscolhida(tiers)?.pedidoCliente) linhas.push({ k: "Pedido do cliente", v: soEscolhida(tiers)!.pedidoCliente! });
       if (t0?.decididoPor) linhas.push({ k: "Decidido por", v: t0.decididoPor + (t0.decididoEm ? ` · ${fmtDateTime(new Date(t0.decididoEm))}` : "") });
       if (t0?.comentarioDiretoria) linhas.push({ k: "Comentário", v: t0.comentarioDiretoria });
     } else if (d.quantidade) {
