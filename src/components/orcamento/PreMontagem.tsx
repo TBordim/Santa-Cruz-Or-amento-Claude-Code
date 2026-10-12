@@ -691,7 +691,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                             <>
                               <strong>Folha sob medida:</strong> {fmt(op.formato.w / 10)} × {fmt(op.formato.h / 10)} cm, fator {fmt(op.wf / 10)} × {fmt(op.hf / 10)} cm, com{" "}
                               {fmt(op.aproveitamento * 100)}% de aproveitamento (+{fmt(op.ganhoPontos ?? 0)} pontos sobre o formato padrão da mesma montagem). O fornecedor corta da bobina no tamanho pedido, sem limite de
-                              tamanho, mas leva cerca de {op.prazoDias} dias. Ao aprovar, o Formato Ideal do card também é preenchido.
+                              tamanho, então a folha já vem no tamanho do fator, sem corte (corte 1), mas leva cerca de {op.prazoDias} dias. Ao aprovar, o Formato Ideal do card também é preenchido.
                             </>
                           ) : (
                             <>

@@ -77,7 +77,8 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
   const { fator } = cfg;
   const mult = cfg.formatoIdeal.multiploMm;
   const acima = (x: number) => Math.ceil(x / mult - 1e-9) * mult;
-  const vistas = new Set<string>();
+  // Folhas sob medida já geradas (uma por montagem e tamanho), para não repetir.
+  const sobMedidas = new Map<string, Opcao>();
 
   for (const f of cfg.formatosFolha) {
     for (const [a, b] of cfg.cortes) {
@@ -137,7 +138,9 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
           opcoes.push(base);
 
           if (e.incluirSobMedida === false) continue;
-          // Folha sob medida: a menor folha que contém exatamente esta montagem.
+          // Folha sob medida: a menor folha que contém exatamente esta montagem, em centímetros
+          // inteiros. Como o fornecedor corta no tamanho pedido, a folha já vem no tamanho do fator:
+          // sem corte (corte 1), seja qual for o corte da folha padrão que serviu de ponto de partida.
           const usoW = gira ? arranjo.alturaUsada : arranjo.larguraUsada;
           const usoH = gira ? arranjo.larguraUsada : arranjo.alturaUsada;
           let wMin = usoW + 2 * cfg.margemMm + (m74 ? faixa : 0);
@@ -149,24 +152,37 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
             hMin = Math.max(hMin, fator.passagemMin);
             wMin = Math.max(wMin, fator.transversalMin);
           }
-          wMin = Math.min(acima(wMin), wf);
-          hMin = Math.min(acima(hMin), hf);
+          wMin = acima(wMin);
+          hMin = acima(hMin);
+          // O arredondamento não pode estourar o limite da máquina.
+          if ((m74 ? wMin : hMin) > fator.passagemMax || (m74 ? hMin : wMin) > fator.transversalMax) continue;
           const aprovIdeal = (arranjo.n * e.faca.area) / (wMin * hMin);
           const ganho = (aprovIdeal - aproveitamento) * 100;
-          if (ganho < 0.5) continue;
-          // Várias folhas padrão podem levar à mesma folha sob medida: fica uma só.
-          const chave = `${a}x${b}|${gira}|${arranjo.estrategia}|${arranjo.cols}x${arranjo.rows}|${wMin}x${hMin}`;
-          if (vistas.has(chave)) continue;
-          vistas.add(chave);
+          const chave = `${gira}|${arranjo.estrategia}|${arranjo.cols}x${arranjo.rows}|${wMin}x${hMin}`;
+          const ja = sobMedidas.get(chave);
+          if (ja) {
+            // Mesma folha sob medida vinda de outra folha padrão: o ganho informado é o menor (o mais prudente).
+            ja.ganhoPontos = Math.min(ja.ganhoPontos ?? ganho, ganho);
+            continue;
+          }
           const uwI = wMin - 2 * cfg.margemMm - (m74 ? faixa : 0);
           const uhI = hMin - 2 * cfg.margemMm - (m74 ? 0 : faixa);
-          opcoes.push({
+          const folhasI = Math.ceil(e.quantidade / arranjo.n);
+          const produzidasI = folhasI * arranjo.n;
+          sobMedidas.set(chave, {
             ...base,
-            formato: { w: wMin * a, h: hMin * b, oferta: 0 },
+            formato: { w: wMin, h: hMin, oferta: 0 },
+            corte: 1,
+            cortesLargura: 1,
+            cortesAltura: 1,
             wf: wMin,
             hf: hMin,
             arranjo: { ...arranjo, wp: gira ? uhI : uwI, hp: gira ? uwI : uhI },
+            pecasPorFolha: arranjo.n,
             aproveitamento: aprovIdeal,
+            folhas: folhasI,
+            pecasProduzidas: produzidasI,
+            excesso: produzidasI / e.quantidade - 1,
             sobMedida: true,
             prazoDias: cfg.formatoIdeal.prazoDias,
             ganhoPontos: ganho,
@@ -175,6 +191,8 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
       }
     }
   }
+
+  for (const o of sobMedidas.values()) if ((o.ganhoPontos ?? 0) >= 0.5) opcoes.push(o);
 
   // Quem passa de +10% da quantidade vai para o fim; depois, maior aproveitamento, formato de
   // maior oferta e menos folhas.
