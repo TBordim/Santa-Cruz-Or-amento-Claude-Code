@@ -79,6 +79,10 @@ export const CONFIG = {
   // para cima em múltiplos de `multiploMm` (10 mm = 1 cm) e a folha é o fator vezes o nº de partes.
   formatoIdeal: { multiploMm: 10, prazoDias: 10 },
 
+  // Busca de blocos exatos para a folha sob medida: até quantas colunas e linhas testar e quantas opções
+  // sob medida manter (as de melhor aproveitamento, uma por número de poses).
+  sobMedida: { maxColunas: 10, maxLinhas: 10, manter: 6 },
+
   // Lâmina da faca, cobrada por metro desenhado (corte e vinco pelo mesmo preço).
   precoMetroLaminaReais: 50,
 };

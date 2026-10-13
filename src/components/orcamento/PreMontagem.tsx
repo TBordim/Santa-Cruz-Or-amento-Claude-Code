@@ -184,7 +184,13 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
   }, [quantidade, cores, espessura, fibra, fibraMaq, barra, seco, sobMedida, manual, pinca]);
 
   const resultado = useMemo(() => (faca && entrada ? calcularOpcoes({ ...entrada, faca }) : null), [faca, entrada]);
-  const opcoes = resultado?.opcoes ?? [];
+  // Mostra as 5 melhores folhas sob medida e as 4 melhores em estoque, na ordem de aproveitamento.
+  const opcoes = useMemo(() => {
+    const todas = resultado?.opcoes ?? [];
+    let sob = 0;
+    let est = 0;
+    return todas.filter((o) => (o.sobMedida ? sob++ < 5 : est++ < 4));
+  }, [resultado]);
   const op: Opcao | undefined = opcoes[Math.min(sel, Math.max(opcoes.length - 1, 0))];
 
   const conjugado = useMemo(() => {
@@ -295,7 +301,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         ["Quantidade pedida", fmt(ent.quantidade, 0)],
         ["Peças produzidas", `${fmt(o.pecasProduzidas, 0)} (${o.excesso >= 0 ? "+" : ""}${fmt(o.excesso * 100, 2)}%)`],
         ["Aproveitamento do fator", `${fmt(o.aproveitamento * 100)}%`],
-        ["Encaixe", `${o.arranjo.estrategia === "virada" ? "linhas viradas 180°" : o.arranjo.estrategia === "deslocada" ? "linhas deslocadas" : "grade simples"}${o.girada90 ? " · girada 90°" : ""}`],
+        ["Encaixe", `${o.arranjo.estrategia === "virada" ? "tampa com tampa (linhas viradas 180°)" : o.arranjo.estrategia === "deslocada" ? "linhas deslocadas" : "grade simples"}${o.arranjo.tijolo ? ", em tijolo" : ""}${o.girada90 ? " · girada 90°" : ""}`],
         ["Corte entre peças", ent.corteSeco ? "seco (lâmina compartilhada)" : "duplo (lâminas separadas)"],
         ["Fibra do papel na máquina", ent.fibraMaquina === "74" ? "no sentido do 74" : "no sentido do 53"],
         ["Fibra pedida pelo cliente", ent.fibraCartucho === "livre" ? "livre" : ent.fibraCartucho === "altura" ? "paralela à altura" : "paralela à largura"],
@@ -662,7 +668,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                   {opcoes.length > 0 && faca && op && (
                     <>
                       <div className="flex flex-col gap-2">
-                        {opcoes.slice(0, 8).map((o, i) => (
+                        {opcoes.map((o, i) => (
                           <button
                             key={i}
                             type="button"
@@ -682,7 +688,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                               <br />
                               <span className="text-xs text-muted-foreground">
                                 {o.posesPorFator} poses/fator · {o.pecasPorFolha} peças/folha · {fmt(o.folhas, 0)} folhas · faca {brl(o.custoFaca)}
-                                {o.arranjo.estrategia === "virada" ? " · linhas viradas 180°" : o.arranjo.estrategia === "deslocada" ? " · linhas deslocadas" : ""}
+                                {o.arranjo.estrategia === "virada" ? " · tampa com tampa" : o.arranjo.estrategia === "deslocada" ? " · linhas deslocadas" : ""}{o.arranjo.tijolo ? " em tijolo" : ""}
                                 {o.girada90 ? " · girada 90°" : ""}
                                 {o.excesso > CONFIG.toleranciaAcima ? " · passa de +10%" : ""}
                                 {o.exigeCorteManual ? " · exige corte e vinco manual" : ""}
@@ -719,7 +725,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                           {op.sobMedida ? (
                             <>
                               <strong>Folha sob medida:</strong> {fmt(op.formato.w / 10)} × {fmt(op.formato.h / 10)} cm, fator {fmt(op.wf / 10)} × {fmt(op.hf / 10)} cm, com{" "}
-                              {fmt(op.aproveitamento * 100)}% de aproveitamento (+{fmt(op.ganhoPontos ?? 0)} pontos sobre o formato padrão da mesma montagem). O fornecedor corta da bobina no tamanho pedido, sem limite de
+                              {fmt(op.aproveitamento * 100)}% de aproveitamento (+{fmt(op.ganhoPontos ?? 0)} pontos sobre a melhor folha em estoque). O fornecedor corta da bobina no tamanho pedido, sem limite de
                               tamanho, então a folha já vem no tamanho do fator, sem corte (corte 1), mas leva cerca de {op.prazoDias} dias. Ao aprovar, o Formato Ideal do card também é preenchido.
                             </>
                           ) : (
