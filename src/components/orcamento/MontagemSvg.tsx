@@ -1,7 +1,6 @@
 "use client";
 
 import { useId } from "react";
-import { CONFIG } from "@/lib/montagem/config";
 import { caminhoSvg, retanguloDaArte, type Arte, type Faca } from "@/lib/montagem/geometria";
 import type { Opcao } from "@/lib/montagem/calcular";
 
@@ -55,8 +54,8 @@ export function MontagemSvg({
   const fs = Math.max(W, H) / 38;
   const arr = op.arranjo;
   const m74 = op.fibraMaquina === "74";
-  const pinca = CONFIG.pincaMm;
-  const barra = barraControle ? CONFIG.barraControleMm : 0;
+  const pinca = op.pincaMm;
+  const barra = barraControle ? op.barraMm : 0;
   const vb = `${-pad} ${-pad} ${W + 2 * pad + (detalhe ? pad * 1.2 : 0)} ${H + 2 * pad}`;
   const ou = (arr.wp - arr.larguraUsada) / 2;
   const ov = (arr.hp - arr.alturaUsada) / 2;

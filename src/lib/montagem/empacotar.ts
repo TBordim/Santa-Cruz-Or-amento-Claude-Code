@@ -3,9 +3,13 @@
 // cima. A distância entre linhas é medida pelos perfis (topo e base de cada coluna de 0,5 mm).
 // O espaço entre facas é medido na vertical, então na diagonal pode ficar um pouco menor.
 //
-// Corte seco: as peças ficam encostadas (espaço 0) e a lâmina dos trechos de contorno que coincidem
-// entre duas peças vizinhas é contada uma vez só (ver `compartilhado`). Corte duplo: espaço entre
-// facas e lâminas separadas, para não contaminar a impressão entre produtos.
+// Lado a lado (no sentido da aba de cola) os cartuchos sempre se encostam, uma aba contra o outro, e
+// a lâmina desse encontro vale uma só vez, nos dois tipos de corte.
+// No sentido da tampa e do fundo:
+// - Corte duplo (lâminas separadas): espaço mínimo de `espaco` mm entre os cartuchos; tampa pode
+//   encontrar fundo ou tampa (qualquer encaixe).
+// - Corte seco (lâmina compartilhada): sem espaço, só onde o mesmo lado encontra o mesmo lado (tampa com
+//   tampa, fundo com fundo): as linhas alternam viradas 180°. Tampa com fundo exige corte duplo.
 import type { Faca, Pt } from "./geometria";
 
 const RES = 0.5;
@@ -45,6 +49,9 @@ export type Arranjo = {
   wp: number;
   hp: number;
   estrategia: Estrategia;
+  // Linhas deslocadas alternam entre `cols` e `cols - 1` peças (padrão de tijolo), em vez de todas terem o
+  // mesmo número de peças com a largura aumentada pelo deslocamento.
+  tijolo: boolean;
   seco: boolean;
   // Milímetros de lâmina que duas peças vizinhas dividem (só no corte seco).
   compartilhado: number;
@@ -220,7 +227,7 @@ function porEspaco(c: CacheFaca, espaco: number): PorEspaco {
   if (!t) {
     let pitchX = 0;
     for (let j = 0; j < c.A.ny; j++) if (!Number.isNaN(c.A.lef[j])) pitchX = Math.max(pitchX, c.A.rig[j] - c.A.lef[j]);
-    pitchX += espaco;
+    // No sentido da aba de cola os cartuchos se encostam: o passo é a largura da faca, sem espaço.
     const volta = (dx: number) => (pitchX - dx) % pitchX; // desloca de volta, para a próxima linha voltar ao alinhamento
     const D1 = melhorLinha(c.A, c.A, pitchX, espaco);
     const AB = melhorLinha(c.A, c.B, pitchX, espaco);
@@ -249,10 +256,53 @@ function coincide(c: CacheFaca, cimaGira: boolean, baixoGira: boolean, sx: numbe
 }
 
 type LinhaPos = { gira: boolean; o: number; v: number };
-type Candidato = { rows: LinhaPos[]; mn: number; ex: number; cols: number; n: number; alturaUsada: number };
+type Linha = { gira: boolean; v: number; us: number[] };
+type Montagem = { linhas: Linha[]; n: number; larguraUsada: number; alturaUsada: number; tijolo: boolean };
+
+// Transforma as linhas (deslocamento acumulado `o` de cada uma) em posições de peças.
+// - Em "reta" todas as linhas têm o mesmo número de peças e a largura cresce com o deslocamento.
+// - Em "tijolo" cada linha começa em seu deslocamento (dentro de um passo) e leva quantas peças couberem
+//   na largura: linhas deslocadas ficam com uma peça a menos, mas a largura não cresce.
+// `limite` é a largura disponível; sem ele, `colsFixas` define a largura de `colsFixas` peças lado a lado.
+function gerarLinhas(rows: LinhaPos[], P: number, W: number, limite: number | null, colsFixas: number | null, modo: "reta" | "tijolo", altura: number): Montagem | null {
+  const alturaUsada = rows[rows.length - 1].v + altura;
+  if (modo === "reta") {
+    const os = rows.map((r) => r.o);
+    const mn = Math.min(...os);
+    const ex = Math.max(...os) - mn;
+    const cols = colsFixas ?? Math.floor(((limite as number) - ex - W) / P) + 1;
+    if (cols < 1) return null;
+    const linhas = rows.map((r) => ({ gira: r.gira, v: r.v, us: Array.from({ length: cols }, (_, k) => r.o - mn + k * P) }));
+    return { linhas, n: cols * rows.length, larguraUsada: (cols - 1) * P + W + ex, alturaUsada, tijolo: false };
+  }
+  const Wb = limite ?? ((colsFixas as number) - 1) * P + W;
+  const mod = (x: number) => ((x % P) + P) % P;
+  // Todas as linhas deslocam juntas: tenta alinhar cada deslocamento diferente à borda esquerda.
+  const base = [...new Set(rows.map((r) => Math.round(mod(r.o) * 2) / 2))];
+  let melhor: Montagem | null = null;
+  for (const b of base) {
+    const linhas: Linha[] = [];
+    let ok = true;
+    for (const r of rows) {
+      const off = mod(r.o - b);
+      const cnt = Math.floor((Wb - off - W) / P + 1e-9) + 1;
+      if (cnt < 1) {
+        ok = false;
+        break;
+      }
+      linhas.push({ gira: r.gira, v: r.v, us: Array.from({ length: cnt }, (_, k) => off + k * P) });
+    }
+    if (!ok) continue;
+    const n = linhas.reduce((s, l) => s + l.us.length, 0);
+    const larguraUsada = Math.max(...linhas.map((l) => l.us[l.us.length - 1] + W));
+    if (!melhor || n > melhor.n || (n === melhor.n && larguraUsada < melhor.larguraUsada)) melhor = { linhas, n, larguraUsada, alturaUsada, tijolo: true };
+  }
+  return melhor;
+}
 
 // Distribui a faca numa região wp × hp (referencial da peça, sem girar a região).
-// tentarEncaixe = false: grade simples; true: também testa linhas deslocadas e viradas 180°.
+// tentarEncaixe = false: grade simples; true: também testa linhas deslocadas e viradas 180°, em linhas
+// retas e em tijolo.
 export function empacotar(faca: Faca, wp: number, hp: number, espaco: number, tentarEncaixe: boolean, seco = false): Arranjo | null {
   const { W, H } = faca;
   if (hp < H || wp < W) return null;
@@ -261,7 +311,7 @@ export function empacotar(faca: Faca, wp: number, hp: number, espaco: number, te
   const T = porEspaco(c, esp);
   const pitchX = T.pitchX;
 
-  const montar = (giras: boolean[], trs: Transicao[]): Candidato | null => {
+  const linhasAte = (giras: boolean[], trs: Transicao[]): LinhaPos[] | null => {
     const rows: LinhaPos[] = [{ gira: giras[0], o: 0, v: 0 }];
     for (let r = 0; ; r++) {
       const t = trs[r % trs.length];
@@ -271,55 +321,83 @@ export function empacotar(faca: Faca, wp: number, hp: number, espaco: number, te
       if (v + H > hp) break;
       rows.push({ gira: giras[(r + 1) % giras.length], o: ult.o + (t.dx > pitchX / 2 ? t.dx - pitchX : t.dx), v });
     }
-    const os = rows.map((r) => r.o);
-    const mn = Math.min(...os);
-    const ex = Math.max(...os) - mn;
-    const cols = Math.floor((wp - ex - W) / pitchX) + 1;
-    if (cols < 1) return null;
-    return { rows, mn, ex, cols, n: cols * rows.length, alturaUsada: rows[rows.length - 1].v + H };
+    return rows;
   };
 
-  const candidatos: { estrategia: Estrategia; m: Candidato | null }[] = [{ estrategia: "grade", m: montar([false], [T.G]) }];
+  const candidatos: { estrategia: Estrategia; m: Montagem }[] = [];
+  const tentar = (estrategia: Estrategia, giras: boolean[], trs: Transicao[], modos: ("reta" | "tijolo")[]) => {
+    const rows = linhasAte(giras, trs);
+    if (!rows) return;
+    for (const modo of modos) {
+      const m = gerarLinhas(rows, pitchX, W, wp, null, modo, H);
+      if (m) candidatos.push({ estrategia, m });
+    }
+  };
+  tentar("grade", [false], [T.G], ["reta"]);
   if (tentarEncaixe) {
-    candidatos.push({ estrategia: "deslocada", m: montar([false, false], [T.D1, T.D2]) });
-    candidatos.push({ estrategia: "virada", m: montar([false, true], [T.AB, T.BA]) });
+    tentar("deslocada", [false, false], [T.D1, T.D2], ["reta", "tijolo"]);
+    tentar("virada", [false, true], [T.AB, T.BA], ["reta", "tijolo"]);
   }
-  const bons = candidatos.filter((x): x is { estrategia: Estrategia; m: Candidato } => x.m !== null);
+  // Corte seco: com mais de uma linha, só tampa com tampa (linhas alternadas viradas 180°).
+  const bons = seco ? candidatos.filter((x) => x.m.linhas.length === 1 || x.estrategia === "virada") : candidatos;
   if (!bons.length) return null;
-  bons.sort((a, b) => b.m.n - a.m.n || a.m.alturaUsada - b.m.alturaUsada);
-  const { estrategia, m } = bons[0];
-  const itens: Posicao[] = [];
-  for (const r of m.rows) for (let k = 0; k < m.cols; k++) itens.push({ u: r.o - m.mn + k * pitchX, v: r.v, gira: r.gira });
+  bons.sort((a, b) => b.m.n - a.m.n || a.m.alturaUsada - b.m.alturaUsada || a.m.larguraUsada - b.m.larguraUsada);
+  return montarArranjo(faca, c, pitchX, bons[0].m, bons[0].estrategia, seco, wp, hp);
+}
 
-  let compartilhado = 0;
+// Monta o arranjo a partir das linhas: peças, tamanho usado e lâmina compartilhada.
+function montarArranjo(faca: Faca, c: CacheFaca, pitchX: number, m: Montagem, estrategia: Estrategia, seco: boolean, wp?: number, hp?: number): Arranjo {
+  const itens: Posicao[] = [];
+  for (const l of m.linhas) for (const u of l.us) itens.push({ u, v: l.v, gira: l.gira });
+
+  // Vizinhas lado a lado na mesma linha (aba de cola contra aba): lâmina dividida nos dois cortes.
+  let compartilhado = m.linhas.reduce((s, l) => s + (l.us.length - 1), 0) * coincide(c, false, false, pitchX, 0);
   if (seco) {
-    // Vizinhas lado a lado na mesma linha.
-    compartilhado += m.rows.length * (m.cols - 1) * coincide(c, false, false, pitchX, 0);
-    // Cada peça de uma linha contra as da linha de baixo: o par (i, j) com j - i = k fica
-    // deslocado em (o2 - o1) + k * pitchX.
-    for (let r = 0; r + 1 < m.rows.length; r++) {
-      const cima = m.rows[r];
-      const baixo = m.rows[r + 1];
-      const s0 = baixo.o - cima.o;
+    // Cada peça de uma linha contra as da linha de baixo que a tocam.
+    for (let r = 0; r + 1 < m.linhas.length; r++) {
+      const cima = m.linhas[r];
+      const baixo = m.linhas[r + 1];
       const dy = baixo.v - cima.v;
-      for (let k = -2; k <= 2; k++) {
-        const pares = m.cols - Math.abs(k);
-        if (pares > 0) compartilhado += pares * coincide(c, cima.gira, baixo.gira, s0 + k * pitchX, dy);
-      }
+      for (const u1 of cima.us) for (const u2 of baixo.us) if (Math.abs(u2 - u1) < faca.W) compartilhado += coincide(c, cima.gira, baixo.gira, u2 - u1, dy);
     }
   }
-
+  const cols = Math.max(...m.linhas.map((l) => l.us.length));
   return {
-    cols: m.cols,
-    rows: m.rows.length,
+    cols,
+    rows: m.linhas.length,
     n: m.n,
     itens,
-    larguraUsada: (m.cols - 1) * pitchX + W + m.ex,
+    larguraUsada: m.larguraUsada,
     alturaUsada: m.alturaUsada,
-    wp,
-    hp,
+    wp: wp ?? m.larguraUsada,
+    hp: hp ?? m.alturaUsada,
     estrategia,
+    tijolo: m.tijolo,
     seco,
     compartilhado,
   };
+}
+
+// Bloco exato de `cols` × `rows` peças com o encaixe pedido, do tamanho mínimo que o contém (sem uma
+// região de partida). Serve para a folha sob medida, que não depende dos tamanhos das folhas padrão.
+// Em "tijolo" as linhas deslocadas ficam com uma peça a menos. Corte seco: com mais de uma linha, só
+// tampa com tampa ("virada").
+export function blocoExato(faca: Faca, cols: number, rows: number, espaco: number, estrategia: Estrategia, seco: boolean, modo: "reta" | "tijolo" = "reta"): Arranjo | null {
+  if (cols < 1 || rows < 1) return null;
+  if (rows === 1 && (estrategia !== "grade" || modo !== "reta")) return null; // com uma linha todos os encaixes são iguais
+  if (estrategia === "grade" && modo !== "reta") return null;
+  if (seco && rows > 1 && estrategia !== "virada") return null;
+  const c = cacheDe(faca);
+  const T = porEspaco(c, seco ? 0 : espaco);
+  const giras = estrategia === "virada" ? [false, true] : [false, false];
+  const trs: Transicao[] = estrategia === "grade" ? [T.G] : estrategia === "deslocada" ? [T.D1, T.D2] : [T.AB, T.BA];
+  const linhasPos: LinhaPos[] = [{ gira: giras[0], o: 0, v: 0 }];
+  for (let r = 0; r < rows - 1; r++) {
+    const t = trs[r % trs.length];
+    if (!t) return null;
+    const ult = linhasPos[linhasPos.length - 1];
+    linhasPos.push({ gira: giras[(r + 1) % giras.length], o: ult.o + (t.dx > T.pitchX / 2 ? t.dx - T.pitchX : t.dx), v: ult.v + t.dy });
+  }
+  const m = gerarLinhas(linhasPos, T.pitchX, faca.W, null, cols, modo, faca.H);
+  return m ? montarArranjo(faca, c, T.pitchX, m, estrategia, seco) : null;
 }
