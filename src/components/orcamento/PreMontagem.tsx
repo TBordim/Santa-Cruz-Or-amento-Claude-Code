@@ -120,6 +120,8 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
   const [fibra, setFibra] = useState<FibraCartucho>("livre");
   const [fibraMaq, setFibraMaq] = useState<FibraMaquina>("74");
   const [barra, setBarra] = useState(true);
+  const [pinca, setPinca] = useState(String(CONFIG.pincaMm));
+  const [manual, setManual] = useState(false);
   const [seco, setSeco] = useState(false);
   const [acerto, setAcerto] = useState("");
   const [material, setMaterial] = useState(0);
@@ -167,8 +169,19 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     const nCores = Number(cores);
     const esp = mm(espessura);
     if (!(q > 0) || !(nCores > 0) || !(esp > 0)) return null;
-    return { quantidade: q, cores: nCores, espessuraMm: esp, fibraCartucho: fibra, fibraMaquina: fibraMaq, barraControle: barra, corteSeco: seco, incluirSobMedida: sobMedida };
-  }, [quantidade, cores, espessura, fibra, fibraMaq, barra, seco, sobMedida]);
+    return {
+      quantidade: q,
+      cores: nCores,
+      espessuraMm: esp,
+      fibraCartucho: fibra,
+      fibraMaquina: fibraMaq,
+      barraControle: barra,
+      corteSeco: seco,
+      incluirSobMedida: sobMedida,
+      permitirCorteManual: manual,
+      pincaMm: mm(pinca) > 0 ? mm(pinca) : undefined,
+    };
+  }, [quantidade, cores, espessura, fibra, fibraMaq, barra, seco, sobMedida, manual, pinca]);
 
   const resultado = useMemo(() => (faca && entrada ? calcularOpcoes({ ...entrada, faca }) : null), [faca, entrada]);
   const opcoes = resultado?.opcoes ?? [];
@@ -240,6 +253,8 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     setFibraMaq(s.entrada.fibraMaquina);
     setBarra(s.entrada.barraControle);
     setSeco(s.entrada.corteSeco);
+    setManual(s.entrada.permitirCorteManual === true);
+    setPinca(String(s.entrada.pincaMm ?? CONFIG.pincaMm));
     setSobMedida(s.entrada.incluirSobMedida !== false);
     const f = facaDaSalva(s);
     if (f.origem === "pdf") {
@@ -284,7 +299,8 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         ["Corte entre peças", ent.corteSeco ? "seco (lâmina compartilhada)" : "duplo (lâminas separadas)"],
         ["Fibra do papel na máquina", ent.fibraMaquina === "74" ? "no sentido do 74" : "no sentido do 53"],
         ["Fibra pedida pelo cliente", ent.fibraCartucho === "livre" ? "livre" : ent.fibraCartucho === "altura" ? "paralela à altura" : "paralela à largura"],
-        ["Pinça / barra de controle", `${CONFIG.pincaMm} mm / ${ent.barraControle ? `${CONFIG.barraControleMm} mm` : "sem barra"}`],
+        ["Pinça / barra de controle", `${o.pincaMm} mm / ${ent.barraControle ? `${o.barraMm} mm` : "sem barra"}`],
+        ["Corte e vinco", o.exigeCorteManual ? "manual ou guilhotina (fator menor que 32 × 40 cm)" : "automática (Bobst)"],
         ["Lâmina da faca (estim.)", `${fmt(o.laminaMm / 1000, 2)} m · ${brl(o.custoFaca)}`],
         ["Máquina", maquinas.join(" ou ") || "—"],
         ["Cores · espessura", `${ent.cores} · ${fmt(ent.espessuraMm, 2)} mm`],
@@ -484,7 +500,10 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                   <option value="53">No sentido do 53 (passagem)</option>
                 </select>
               </Field>
-              <Field label="Corte entre peças vizinhas" hint="Duplo evita contaminação de impressão entre produtos; seco encosta as peças e economiza lâmina.">
+              <Field
+                label="Corte entre peças vizinhas"
+                hint={`No sentido da aba de cola os cartuchos sempre se encostam. Duplo: ${CONFIG.espacoFacasMm} mm entre as facas, e a tampa pode encontrar o fundo ou outra tampa. Seco: lâmina compartilhada, só tampa com tampa (linhas viradas 180°).`}
+              >
                 <select className={selectCls} value={seco ? "seco" : "duplo"} onChange={(e) => setSeco(e.target.value === "seco")}>
                   <option value="duplo">Corte duplo (lâminas separadas)</option>
                   <option value="seco">Corte seco (lâmina compartilhada)</option>
@@ -497,6 +516,15 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={barra} onChange={(e) => setBarra(e.target.checked)} className="size-4" />
                 Barra de controle de cores ({CONFIG.barraControleMm} mm)
+              </label>
+              <Field label="Pinça (mm)" hint={`Mínima ${CONFIG.pincaMm} mm. Aumente se a Engenharia pedir mais.`}>
+                <Input inputMode="decimal" value={pinca} onChange={(e) => setPinca(e.target.value)} />
+              </Field>
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={manual} onChange={(e) => setManual(e.target.checked)} className="mt-0.5 size-4" />
+                <span>
+                  Aceitar fator menor que {CONFIG.bobstAutomatica.passagemMin / 10} × {CONFIG.bobstAutomatica.transversalMin / 10} cm (só corte e vinco manual ou guilhotina)
+                </span>
               </label>
               {origem !== "pdf" && (
                 <Field label="Arte do cliente (opcional)" hint="Imagem PNG ou JPG, só para ver a arte nas peças e na caixa 3D. Fica no seu computador.">
@@ -657,6 +685,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                                 {o.arranjo.estrategia === "virada" ? " · linhas viradas 180°" : o.arranjo.estrategia === "deslocada" ? " · linhas deslocadas" : ""}
                                 {o.girada90 ? " · girada 90°" : ""}
                                 {o.excesso > CONFIG.toleranciaAcima ? " · passa de +10%" : ""}
+                                {o.exigeCorteManual ? " · exige corte e vinco manual" : ""}
                                 {o.sobMedida ? ` · entrega em cerca de ${o.prazoDias} dias` : " · em estoque"}
                               </span>
                             </span>
@@ -701,7 +730,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                         </div>
 
                         <p className="mt-2 text-xs text-muted-foreground">
-                          Margem ({CONFIG.margemMm} mm) e espaço entre facas ({CONFIG.espacoFacasMm} mm) ainda são valores de exemplo.
+                          Margem lateral de {CONFIG.margemLateralMm} mm; pinça de {op.pincaMm} mm; margem depois da barra de controle ainda não informada (considerada {CONFIG.margemTraseiraMm} mm).
                           {faca.origem === "retangulo" ? " A lâmina de uma faca retangular conta só o contorno de corte." : ""}
                         </p>
                         <div className="mt-3 flex flex-wrap items-center gap-3">

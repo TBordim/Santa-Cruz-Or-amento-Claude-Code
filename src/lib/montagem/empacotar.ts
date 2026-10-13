@@ -3,9 +3,13 @@
 // cima. A distância entre linhas é medida pelos perfis (topo e base de cada coluna de 0,5 mm).
 // O espaço entre facas é medido na vertical, então na diagonal pode ficar um pouco menor.
 //
-// Corte seco: as peças ficam encostadas (espaço 0) e a lâmina dos trechos de contorno que coincidem
-// entre duas peças vizinhas é contada uma vez só (ver `compartilhado`). Corte duplo: espaço entre
-// facas e lâminas separadas, para não contaminar a impressão entre produtos.
+// Lado a lado (no sentido da aba de cola) os cartuchos sempre se encostam, uma aba contra o outro, e
+// a lâmina desse encontro vale uma só vez, nos dois tipos de corte.
+// No sentido da tampa e do fundo:
+// - Corte duplo (lâminas separadas): espaço mínimo de `espaco` mm entre os cartuchos; tampa pode
+//   encontrar fundo ou tampa (qualquer encaixe).
+// - Corte seco (lâmina compartilhada): sem espaço, só onde o mesmo lado encontra o mesmo lado (tampa com
+//   tampa, fundo com fundo): as linhas alternam viradas 180°. Tampa com fundo exige corte duplo.
 import type { Faca, Pt } from "./geometria";
 
 const RES = 0.5;
@@ -220,7 +224,7 @@ function porEspaco(c: CacheFaca, espaco: number): PorEspaco {
   if (!t) {
     let pitchX = 0;
     for (let j = 0; j < c.A.ny; j++) if (!Number.isNaN(c.A.lef[j])) pitchX = Math.max(pitchX, c.A.rig[j] - c.A.lef[j]);
-    pitchX += espaco;
+    // No sentido da aba de cola os cartuchos se encostam: o passo é a largura da faca, sem espaço.
     const volta = (dx: number) => (pitchX - dx) % pitchX; // desloca de volta, para a próxima linha voltar ao alinhamento
     const D1 = melhorLinha(c.A, c.A, pitchX, espaco);
     const AB = melhorLinha(c.A, c.B, pitchX, espaco);
@@ -284,17 +288,18 @@ export function empacotar(faca: Faca, wp: number, hp: number, espaco: number, te
     candidatos.push({ estrategia: "deslocada", m: montar([false, false], [T.D1, T.D2]) });
     candidatos.push({ estrategia: "virada", m: montar([false, true], [T.AB, T.BA]) });
   }
-  const bons = candidatos.filter((x): x is { estrategia: Estrategia; m: Candidato } => x.m !== null);
+  let bons = candidatos.filter((x): x is { estrategia: Estrategia; m: Candidato } => x.m !== null);
+  // Corte seco: com mais de uma linha, só tampa com tampa (linhas alternadas viradas 180°).
+  if (seco) bons = bons.filter((x) => x.m.rows.length === 1 || x.estrategia === "virada");
   if (!bons.length) return null;
   bons.sort((a, b) => b.m.n - a.m.n || a.m.alturaUsada - b.m.alturaUsada);
   const { estrategia, m } = bons[0];
   const itens: Posicao[] = [];
   for (const r of m.rows) for (let k = 0; k < m.cols; k++) itens.push({ u: r.o - m.mn + k * pitchX, v: r.v, gira: r.gira });
 
-  let compartilhado = 0;
+  // Vizinhas lado a lado na mesma linha (aba de cola contra aba): lâmina dividida nos dois cortes.
+  let compartilhado = m.rows.length * (m.cols - 1) * coincide(c, false, false, pitchX, 0);
   if (seco) {
-    // Vizinhas lado a lado na mesma linha.
-    compartilhado += m.rows.length * (m.cols - 1) * coincide(c, false, false, pitchX, 0);
     // Cada peça de uma linha contra as da linha de baixo: o par (i, j) com j - i = k fica
     // deslocado em (o2 - o1) + k * pitchX.
     for (let r = 0; r + 1 < m.rows.length; r++) {

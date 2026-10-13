@@ -17,10 +17,15 @@ export type Entrada = {
   fibraCartucho: FibraCartucho;
   fibraMaquina: FibraMaquina;
   barraControle: boolean;
-  // Corte seco: peças encostadas e lâmina compartilhada. Corte duplo: lâminas separadas.
+  // Corte seco: lâmina compartilhada, só tampa com tampa. Corte duplo: lâminas separadas (4 mm).
   corteSeco: boolean;
   // Considerar também a folha sob medida (formato ideal de compra). Padrão: sim.
   incluirSobMedida?: boolean;
+  // Aceitar fatores menores que o mínimo da corte e vinco automática (32 × 40 cm), que só dá para
+  // cortar na manual ou na guilhotina. Padrão: não.
+  permitirCorteManual?: boolean;
+  // Pinça maior que a mínima da configuração. Padrão: a mínima.
+  pincaMm?: number;
 };
 
 export type Opcao = {
@@ -38,6 +43,9 @@ export type Opcao = {
   // Origem da região de impressão dentro do fator (mm).
   ox0: number;
   oy0: number;
+  // Faixas usadas nesta opção (mm): pinça num lado e barra de controle (0 se não houver) no oposto.
+  pincaMm: number;
+  barraMm: number;
   posesPorFator: number;
   pecasPorFolha: number;
   aproveitamento: number;
@@ -52,6 +60,8 @@ export type Opcao = {
   prazoDias: number | null;
   // Só nas opções sob medida: ganho de aproveitamento sobre o formato padrão da mesma montagem.
   ganhoPontos: number | null;
+  // Fator menor que o mínimo da corte e vinco automática: só dá para fazer na manual ou na guilhotina.
+  exigeCorteManual: boolean;
 };
 
 export type Resultado = {
@@ -72,9 +82,19 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
   if (!(e.quantidade > 0) || !(e.faca.W > 0) || !(e.faca.H > 0)) return { opcoes, maquinas, avisos };
 
   const m74 = e.fibraMaquina === "74";
-  const faixa = cfg.pincaMm + (e.barraControle ? cfg.barraControleMm : 0);
+  const { fator, bobstAutomatica } = cfg;
+  const pinca = Math.max(cfg.pincaMm, e.pincaMm ?? cfg.pincaMm);
   const barra = e.barraControle ? cfg.barraControleMm : 0;
-  const { fator } = cfg;
+  // Na direção da passagem descontam a pinça, a barra de controle (borda oposta) e a margem traseira;
+  // na transversal, a margem lateral nos dois lados.
+  const descPassagem = pinca + barra + cfg.margemTraseiraMm;
+  const descTransversal = 2 * cfg.margemLateralMm;
+  // Menor fator aceito: o da corte e vinco automática, ou o da impressora se a manual for permitida.
+  const manualOk = e.permitirCorteManual === true;
+  const minPassagem = manualOk ? fator.passagemMin : Math.max(fator.passagemMin, bobstAutomatica.passagemMin);
+  const minTransversal = manualOk ? fator.transversalMin : Math.max(fator.transversalMin, bobstAutomatica.transversalMin);
+  const precisaManual = (passagem: number, transversal: number) => passagem < bobstAutomatica.passagemMin || transversal < bobstAutomatica.transversalMin;
+
   const mult = cfg.formatoIdeal.multiploMm;
   const acima = (x: number) => Math.ceil(x / mult - 1e-9) * mult;
   // Folhas sob medida já geradas (uma por montagem e tamanho), para não repetir.
@@ -87,12 +107,12 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
       const passagem = m74 ? wf : hf;
       const transversal = m74 ? hf : wf;
       if (passagem > fator.passagemMax || transversal > fator.transversalMax) continue;
-      if (Math.min(wf, hf) < fator.passagemMin || Math.max(wf, hf) < fator.transversalMin) continue;
-      // A pinça e a barra de controle ficam nas bordas de 74 e descontam da dimensão de 53.
-      const uw = wf - 2 * cfg.margemMm - (m74 ? faixa : 0);
-      const uh = hf - 2 * cfg.margemMm - (m74 ? 0 : faixa);
-      const ox0 = cfg.margemMm + (m74 ? barra : 0);
-      const oy0 = cfg.margemMm + (m74 ? 0 : barra);
+      if (passagem < minPassagem || transversal < minTransversal) continue;
+      const exigeCorteManual = precisaManual(passagem, transversal);
+      const uw = wf - (m74 ? descPassagem : descTransversal);
+      const uh = hf - (m74 ? descTransversal : descPassagem);
+      const ox0 = m74 ? barra + cfg.margemTraseiraMm : cfg.margemLateralMm;
+      const oy0 = m74 ? cfg.margemLateralMm : barra + cfg.margemTraseiraMm;
 
       const giros: boolean[] = [];
       if (e.fibraCartucho !== "largura") giros.push(false); // altura do cartucho ao longo da fibra
@@ -123,6 +143,8 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
             arranjo,
             ox0,
             oy0,
+            pincaMm: pinca,
+            barraMm: barra,
             posesPorFator: arranjo.n,
             pecasPorFolha,
             aproveitamento,
@@ -134,6 +156,7 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
             sobMedida: false,
             prazoDias: null,
             ganhoPontos: null,
+            exigeCorteManual,
           };
           opcoes.push(base);
 
@@ -143,19 +166,21 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
           // sem corte (corte 1), seja qual for o corte da folha padrão que serviu de ponto de partida.
           const usoW = gira ? arranjo.alturaUsada : arranjo.larguraUsada;
           const usoH = gira ? arranjo.larguraUsada : arranjo.alturaUsada;
-          let wMin = usoW + 2 * cfg.margemMm + (m74 ? faixa : 0);
-          let hMin = usoH + 2 * cfg.margemMm + (m74 ? 0 : faixa);
+          let wMin = usoW + (m74 ? descPassagem : descTransversal);
+          let hMin = usoH + (m74 ? descTransversal : descPassagem);
           if (m74) {
-            wMin = Math.max(wMin, fator.passagemMin);
-            hMin = Math.max(hMin, fator.transversalMin);
+            wMin = Math.max(wMin, minPassagem);
+            hMin = Math.max(hMin, minTransversal);
           } else {
-            hMin = Math.max(hMin, fator.passagemMin);
-            wMin = Math.max(wMin, fator.transversalMin);
+            hMin = Math.max(hMin, minPassagem);
+            wMin = Math.max(wMin, minTransversal);
           }
           wMin = acima(wMin);
           hMin = acima(hMin);
+          const passagemI = m74 ? wMin : hMin;
+          const transversalI = m74 ? hMin : wMin;
           // O arredondamento não pode estourar o limite da máquina.
-          if ((m74 ? wMin : hMin) > fator.passagemMax || (m74 ? hMin : wMin) > fator.transversalMax) continue;
+          if (passagemI > fator.passagemMax || transversalI > fator.transversalMax) continue;
           const aprovIdeal = (arranjo.n * e.faca.area) / (wMin * hMin);
           const ganho = (aprovIdeal - aproveitamento) * 100;
           const chave = `${gira}|${arranjo.estrategia}|${arranjo.cols}x${arranjo.rows}|${wMin}x${hMin}`;
@@ -165,8 +190,8 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
             ja.ganhoPontos = Math.min(ja.ganhoPontos ?? ganho, ganho);
             continue;
           }
-          const uwI = wMin - 2 * cfg.margemMm - (m74 ? faixa : 0);
-          const uhI = hMin - 2 * cfg.margemMm - (m74 ? 0 : faixa);
+          const uwI = wMin - (m74 ? descPassagem : descTransversal);
+          const uhI = hMin - (m74 ? descTransversal : descPassagem);
           const folhasI = Math.ceil(e.quantidade / arranjo.n);
           const produzidasI = folhasI * arranjo.n;
           sobMedidas.set(chave, {
@@ -186,6 +211,7 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
             sobMedida: true,
             prazoDias: cfg.formatoIdeal.prazoDias,
             ganhoPontos: ganho,
+            exigeCorteManual: precisaManual(passagemI, transversalI),
           });
         }
       }
