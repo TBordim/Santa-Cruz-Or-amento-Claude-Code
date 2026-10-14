@@ -307,7 +307,9 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         ["Fibra pedida pelo cliente", ent.fibraCartucho === "livre" ? "livre" : ent.fibraCartucho === "altura" ? "paralela à altura" : "paralela à largura"],
         ["Pinça / barra de controle", `${o.pincaMm} mm / ${ent.barraControle ? `${o.barraMm} mm` : "sem barra"}`],
         ["Corte e vinco", o.exigeCorteManual ? "manual ou guilhotina (fator menor que 32 × 40 cm)" : "automática (Bobst)"],
-        ["Lâmina da faca (estim.)", `${fmt(o.laminaMm / 1000, 2)} m · ${brl(o.custoFaca)}`],
+        ["Perda de papel no interior", `${fmt(o.perdaInterior * 100, 2)}%`],
+        ["Largura / altura corte a corte", `${fmt(o.corteACorteW / 10)} × ${fmt(o.corteACorteH / 10)} cm`],
+        ["Total de lâminas (estim.)", `${fmt(o.laminaMm / 1000, 2)} m · ${brl(o.custoFaca)}`],
         ["Máquina", maquinas.join(" ou ") || "—"],
         ["Cores · espessura", `${ent.cores} · ${fmt(ent.espessuraMm, 2)} mm`],
       ];
@@ -707,10 +709,12 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                             ["Poses por fator", String(op.posesPorFator)],
                             ["Peças por folha inteira", String(op.pecasPorFolha)],
                             ["Aproveitamento do fator", `${fmt(op.aproveitamento * 100)}%`],
+                            ["Perda de papel no interior", `${fmt(op.perdaInterior * 100, 2)}%`],
+                            ["Largura / altura corte a corte", `${fmt(op.corteACorteW / 10)} × ${fmt(op.corteACorteH / 10)} cm`],
                             ["Folhas de produção", fmt(op.folhas, 0)],
                             ["Peças produzidas", `${fmt(op.pecasProduzidas, 0)} (${op.excesso >= 0 ? "+" : ""}${fmt(op.excesso * 100, 2)}%)`],
                             [
-                              "Lâmina da faca (estim.)",
+                              "Total de lâminas (estim.)",
                               `${fmt(op.laminaMm / 1000, 2)} m · ${brl(op.custoFaca)}${op.arranjo.seco ? ` (−${fmt(op.arranjo.compartilhado / 1000, 2)} m compartilhados)` : ""}`,
                             ],
                           ].map(([k, v]) => (
