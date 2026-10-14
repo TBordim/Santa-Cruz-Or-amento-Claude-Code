@@ -54,6 +54,11 @@ export type Opcao = {
   excesso: number;
   laminaMm: number;
   custoFaca: number;
+  // Indicadores no estilo do ArtiosCAD: tamanho do conjunto de facas (mm, horizontal × vertical da
+  // folha) e perda de papel no interior do conjunto, sem contar as margens (0 a 1).
+  corteACorteW: number;
+  corteACorteH: number;
+  perdaInterior: number;
   // Folha pedida sob medida (formato ideal de compra): o fornecedor corta da bobina no tamanho
   // pedido, o que leva `prazoDias`. As outras usam um formato padrão em estoque.
   sobMedida: boolean;
@@ -112,6 +117,8 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
     const laminaMm = Math.max(0, arranjo.n * (e.faca.corte + e.faca.vinco) - arranjo.compartilhado);
     const passagem = m74 ? wf : hf;
     const transversal = m74 ? hf : wf;
+    const corteACorteW = gira ? arranjo.alturaUsada : arranjo.larguraUsada;
+    const corteACorteH = gira ? arranjo.larguraUsada : arranjo.alturaUsada;
     return {
       formato,
       corte,
@@ -134,6 +141,9 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
       excesso: pecasProduzidas / e.quantidade - 1,
       laminaMm,
       custoFaca: (laminaMm / 1000) * cfg.precoMetroLaminaReais,
+      corteACorteW,
+      corteACorteH,
+      perdaInterior: Math.max(0, 1 - (arranjo.n * e.faca.area) / (corteACorteW * corteACorteH)),
       sobMedida: false,
       prazoDias: null,
       ganhoPontos: null,
@@ -166,7 +176,7 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
 
   // ---- Folha sob medida: o fornecedor corta no tamanho pedido, então a folha é o próprio fator (corte 1) ----
   // Em vez de encolher o que coube nas folhas padrão, monta blocos exatos de colunas × linhas com cada
-  // encaixe (grade, linhas deslocadas e tampa com tampa) e pega a menor folha, em cm inteiros, que
+  // encaixe (grade, linhas deslocadas e tampa com tampa) e pega a menor folha, em múltiplos de 0,5 cm, que
   // contém cada bloco. Assim o ganho do encaixe aparece mesmo quando não fecha número inteiro numa
   // folha padrão.
   if (e.incluirSobMedida !== false) {
