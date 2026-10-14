@@ -356,6 +356,17 @@ function acharPaineis(secoes: Pt[][], ox: number, oy: number): { xs: number[]; y
   };
 }
 
+// Ponto dentro do polígono (traçado de raio, par-ímpar). Pontos sobre a borda podem cair de qualquer lado.
+function pontoDentro(p: Pt, poli: Pt[]): boolean {
+  let dentro = false;
+  for (let i = 0, j = poli.length - 1; i < poli.length; j = i++) {
+    const [xi, yi] = poli[i];
+    const [xj, yj] = poli[j];
+    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) dentro = !dentro;
+  }
+  return dentro;
+}
+
 // Escolhe os traços da faca (o grupo de cor e espessura que cobre a maior área, ignorando
 // legendas e cotas) e monta o contorno externo e os vincos.
 export function facaDosTracos(tracos: Traco[]): FacaDoPdf | null {
@@ -407,9 +418,13 @@ export function facaDosTracos(tracos: Traco[]): FacaDoPdf | null {
   const contorno = deslocar(simples);
   const W = Math.max(...contorno.map((p) => p[0]));
   const H = Math.max(...contorno.map((p) => p[1]));
-  const corte = perimetro(contorno);
-  const somaSecoes = secoes.reduce((s, p) => s + perimetro(p), 0);
-  const vinco = Math.max(0, (somaSecoes - corte) / 2 + linhas.reduce((s, l) => s + perimetro(l, false), 0));
+  // Janelas: seções fechadas inteiramente dentro de outra seção (recortes no meio da peça). São lâmina de
+  // corte inteira; as arestas entre seções vizinhas são compartilhadas e contam uma vez só.
+  const janelas = secoes.filter((s, i) => secoes.some((o, j) => j !== i && areaPoligono(o) > areaPoligono(s) && s.every((p) => pontoDentro(p, o))));
+  const perimJanelas = janelas.reduce((t, s) => t + perimetro(s), 0);
+  const corte = perimetro(contorno) + perimJanelas;
+  const somaSecoes = secoes.filter((s) => !janelas.includes(s)).reduce((t, s) => t + perimetro(s), 0);
+  const vinco = Math.max(0, (somaSecoes - perimetro(contorno)) / 2 + linhas.reduce((s, l) => s + perimetro(l, false), 0));
   const paineis = acharPaineis(secoes, ox, oy);
 
   const faca: Faca = {
