@@ -3,11 +3,12 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import type { AreaKey } from "@/lib/areas";
 import { modelosDoDoc, resumoDosModelos } from "@/lib/orcamentos/modelos";
 import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
 import { erroNosModelos } from "@/lib/orcamentos/validacao-modelos";
-import { ETAPAS_ACEITE, lerQuantidade, lerData, type EtapaAceiteKey } from "@/lib/aceite/constantes";
+import { ETAPAS_ACEITE, lerQuantidade, type EtapaAceiteKey } from "@/lib/aceite/constantes";
 import { lerSuportes, situacaoGeral, suportesSemPM, textoSuporte, type SuporteAceite, type SituacaoSuporte } from "@/lib/aceite/suportes";
 import { lerItens, erroNaMontagem, type ItemAceite } from "@/lib/aceite/montagem";
 import { exigirArea, nomeSePode, revalidarAceite, avancarSePronto, type FormState } from "@/lib/aceite/servidor";
@@ -80,7 +81,7 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
       numero,
       pedidoInterno: String(formData.get("pedidoInterno") ?? "").trim() || null,
       suportes: JSON.parse(JSON.stringify(suportes)),
-      dataCliente: lerData(formData.get("dataCliente")),
+      ...datasDoForm(formData.get("datasCliente")),
       ...(liberar ? { etapa: "ENGENHARIA_MATERIAL" as const, vendasLiberadoEm: agora, vendasLiberadoPor: nome } : {}),
     },
   });
@@ -231,11 +232,15 @@ export async function salvarPedido(_prev: FormState, formData: FormData): Promis
   if (a.etapa !== "PEDIDO") return { erro: "O Aceite não está na etapa Cadastro do pedido." };
   // O nº do pedido no ERP é o próprio Nº do Aceite, informado por Vendas no preenchimento.
   const numeroPedido = a.numero;
+  // O pedido interno precisa estar preenchido para cadastrar o pedido (pode ser informado aqui).
+  const pedidoInterno = String(formData.get("pedidoInterno") ?? "").trim() || a.pedidoInterno;
+  if (!pedidoInterno) return { erro: "Informe o pedido interno antes de cadastrar o pedido." };
   const agora = new Date();
   await prisma.aceite.update({
     where: { id },
     data: {
       numeroPedido,
+      pedidoInterno,
       pedidoCadastradoEm: a.pedidoCadastradoEm ?? agora,
       pedidoCadastradoPor: a.pedidoCadastradoPor ?? nome,
       numeroOF: String(formData.get("numeroOF") ?? "").trim() || null,
@@ -295,4 +300,34 @@ export async function voltarEtapaAceite(formData: FormData) {
   revalidarAceite();
   const voltarPara = String(formData.get("voltarPara") ?? "");
   redirect(["/aceite", "/pcp", "/engenharia", "/atendimento"].some((p) => voltarPara.startsWith(p)) ? voltarPara : "/aceite");
+}
+
+// Datas do cliente (campo escondido "datasCliente", JSON do formulário). A mais cedo vira dataCliente.
+function datasDoForm(raw: FormDataEntryValue | null) {
+  let lista: { data?: string; quantidade?: number | null; obs?: string }[] = [];
+  try {
+    lista = JSON.parse(String(raw ?? "[]"));
+  } catch {
+    lista = [];
+  }
+  const datas = (Array.isArray(lista) ? lista : [])
+    .filter((d) => typeof d?.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d.data))
+    .map((d) => ({ data: d.data as string, quantidade: typeof d.quantidade === "number" && d.quantidade > 0 ? Math.round(d.quantidade) : null, obs: String(d.obs ?? "").trim().slice(0, 200) }))
+    .sort((x, y) => x.data.localeCompare(y.data));
+  return {
+    dataCliente: datas[0] ? new Date(datas[0].data + "T00:00:00.000Z") : null,
+    datasCliente: datas.length ? datas : Prisma.JsonNull,
+  };
+}
+
+// Pedido interno informado depois da Engenharia (pendência de Vendas, 11/10/2026).
+export async function salvarPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const nome = await nomeSePode("ACEITE_VENDAS");
+  if (!nome) return { erro: "Sem permissão (área Vendas)." };
+  const pedidoInterno = String(formData.get("pedidoInterno") ?? "").trim();
+  if (!pedidoInterno) return { erro: "Informe o pedido interno." };
+  await prisma.aceite.update({ where: { id }, data: { pedidoInterno } });
+  revalidarAceite();
+  return { ok: "Pedido interno registrado." };
 }

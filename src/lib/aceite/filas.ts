@@ -15,6 +15,8 @@ export const FILAS = {
     concluidos: { etapa: "CONCLUIDO" },
     // Pedido já cadastrado e OF ainda não registrada: pendência de Vendas até registrar (a OF pode
     // ser aberta depois, mas não pode ser esquecida — pedido do Thiago em 11/10/2026).
+    // Pedido interno: pode ficar em branco ao liberar, mas depois da Engenharia Vendas precisa informar.
+    interno: { etapa: { in: ["ENGENHARIA_MATERIAL", "PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA"] }, engenhariaEm: { not: null }, pedidoInterno: null },
     of: { etapa: { in: ["ATENDIMENTO", "ENTREGA", "CONCLUIDO"] }, pedidoCadastradoEm: { not: null }, numeroOF: null },
   },
   engenharia: {
@@ -47,13 +49,14 @@ export const ALERTAS_ONDE: Record<"vendas" | "pcp", Prisma.AceiteWhereInput> = {
 
 // Pendências de Vendas no Aceite (tela inicial do módulo e página de entrada).
 export async function contarPendenciasVendas() {
-  const [vPreencher, vPedido, vOF, alertasVendas] = await Promise.all([
+  const [vPreencher, vPedido, vOF, vInterno, alertasVendas] = await Promise.all([
     prisma.aceite.count({ where: FILAS.vendas.preencher }),
     prisma.aceite.count({ where: FILAS.vendas.pedido }),
     prisma.aceite.count({ where: FILAS.vendas.of }),
+    prisma.aceite.count({ where: FILAS.vendas.interno }),
     listarAceitesComAlerta(ALERTAS_ONDE.vendas),
   ]);
-  return vPreencher + vPedido + vOF + alertasVendas.length;
+  return vPreencher + vPedido + vOF + vInterno + alertasVendas.length;
 }
 
 // Atendimento ao Cliente: Aceites esperando a data ser enviada ao cliente/representante.

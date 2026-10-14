@@ -20,7 +20,7 @@ export function FormPcp({ aceiteId, chegadaPapel, dataCliente }: { aceiteId: str
             ? `O papel que falta chega em ${fmtDia(chegadaPapel)}. Defina a data de entrega a partir daí e do tempo de produção.`
             : "O papel está reservado em estoque. Defina a data de entrega pelo tempo de produção."}
         </DiretrizBlock>
-        {dataCliente && <p className="text-sm text-muted-foreground">O cliente pediu para {dataCliente} (1ª data do cliente).</p>}
+        {dataCliente && <p className="text-sm text-muted-foreground">O cliente pediu para: {dataCliente}.</p>}
         <Field label="Data de entrega acordada">
           <Input type="date" name="dataEntrega" required min={chegadaPapel ?? undefined} />
         </Field>

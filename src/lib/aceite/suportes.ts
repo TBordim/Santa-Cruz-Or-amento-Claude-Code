@@ -2,8 +2,9 @@
 //
 // Um Aceite pode usar vários papéis (na planilha do PCP há pedidos com quatro códigos, ou
 // "Diversos"; decisão do Thiago em 08/10/2026). Cada papel tem a própria situação no estoque, e o
-// que falta de cada um vai por Pedido de Material (PM.suporteRef aponta o papel). O Aceite nasce com
-// o papel da SO fechada e os materiais de "conjunto" do orçamento; Vendas acrescenta outros.
+// que falta vai por Pedido de Material (PM), que é independente: pode ser de outro papel e formato. O
+// Aceite nasce com o papel da SO fechada e os materiais de "conjunto" do orçamento; Vendas acrescenta
+// outros (por exemplo, um formato a mais do estoque). Na tela o bloco é "Papel a ser utilizado".
 
 import { opcoesDePapel, usoDoMaterial } from "@/lib/orcamentos/modelos";
 import { parseQuantidade } from "@/lib/orcamentos/motor";
@@ -27,9 +28,9 @@ export type SuporteAceite = {
 };
 
 export const SITUACOES_SUPORTE: { key: Exclude<SituacaoSuporte, "NAO_VERIFICADO">; label: string }[] = [
-  { key: "RESERVADO_TOTAL", label: "Tem tudo: reservado" },
-  { key: "RESERVADO_PARCIAL", label: "Tem parte: o resto por PM" },
-  { key: "SEM_ESTOQUE", label: "Não tem: tudo por PM" },
+  { key: "RESERVADO_TOTAL", label: "Do estoque: reservado" },
+  { key: "RESERVADO_PARCIAL", label: "Estoque em parte, o resto por PM" },
+  { key: "SEM_ESTOQUE", label: "Sem estoque: tudo por PM" },
 ];
 
 export function textoSuporte(s: Pick<SuporteAceite, "descricao" | "gramatura" | "formato">): string {
@@ -94,29 +95,28 @@ export function situacaoGeral(suportes: SuporteAceite[]): SituacaoSuporte {
 
 type PMResumo = { status: string; prazoPrevisto: Date | string | null; suporteRef?: string | null };
 
-// PMs ativos que cobrem um papel. PM sem suporteRef (de antes da lista, ou Aceite com um papel só)
-// vale pra qualquer papel.
-export function pmsDoSuporte<T extends PMResumo>(s: SuporteAceite, pms: T[], umSo: boolean): T[] {
-  return pms.filter((p) => p.status !== "CANCELADO" && (umSo || !p.suporteRef || p.suporteRef === s.id));
+// PMs ativos do Aceite. Desde 11/10/2026 o PM não é preso a um papel: o que falta de estoque pode ser
+// comprado em outro papel ou formato, conforme a oferta do mercado; então todos os PMs ativos valem
+// para o conjunto (os antigos, com suporteRef, passam a valer igual).
+export function pmsAtivos<T extends PMResumo>(pms: T[]): T[] {
+  return pms.filter((p) => p.status !== "CANCELADO");
 }
 
 // Papel garantido = cada papel reservado por inteiro, ou com PM ativo e data de chegada definida
 // (ou recebido). Mesma regra de antes, agora papel por papel.
 export function suportesGarantidos(suportes: SuporteAceite[], pms: PMResumo[]): boolean {
   if (!suportes.length) return false;
-  const umSo = suportes.length === 1;
   return suportes.every((s) => {
     if (s.situacao === "RESERVADO_TOTAL") return true;
     if (s.situacao === "NAO_VERIFICADO") return false;
-    const doPapel = pmsDoSuporte(s, pms, umSo);
+    const doPapel = pmsAtivos(pms);
     return doPapel.length > 0 && doPapel.every((p) => p.status === "RECEBIDO" || !!p.prazoPrevisto);
   });
 }
 
 // Papel sem estoque completo e sem nenhum PM ativo: Vendas precisa emitir o PM antes de liberar.
 export function suportesSemPM(suportes: SuporteAceite[], pms: PMResumo[]): SuporteAceite[] {
-  const umSo = suportes.length === 1;
-  return suportes.filter((s) => (s.situacao === "RESERVADO_PARCIAL" || s.situacao === "SEM_ESTOQUE") && pmsDoSuporte(s, pms, umSo).length === 0);
+  return suportes.filter((s) => (s.situacao === "RESERVADO_PARCIAL" || s.situacao === "SEM_ESTOQUE") && pmsAtivos(pms).length === 0);
 }
 
 // Atalho com o Aceite inteiro (lista de papéis + PMs), usado pelas telas e pelo avanço ao PCP.
