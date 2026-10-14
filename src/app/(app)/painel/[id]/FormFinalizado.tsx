@@ -9,6 +9,7 @@ import { fmtMoney, fmtDateTime, DESFECHOS } from "@/lib/orcamentos/constantes";
 import { modelosDoDoc, soEscolhida, valorSO } from "@/lib/orcamentos/modelos";
 import { FormSection, Field, ResumoBox, DiretrizBlock } from "@/components/form-section";
 import { LinhasSO } from "@/components/orcamento/LinhasSO";
+import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -95,9 +96,14 @@ export function FormFinalizado({ doc, voltarPara }: { doc: OrcamentoComAnexos; v
             </fieldset>
           )}
           {desfecho === "POSITIVO" && (
-            <Field label="Nº do pedido do cliente (obrigatório)" hint="A ordem de compra que o cliente enviou para a SO aprovada.">
+            <Field label="Nº do pedido do cliente (obrigatório)" hint="A ordem de compra que o cliente enviou para a SO aprovada. Vendas vê este número no Aceite.">
               <Input name="pedidoCliente" required defaultValue={escolhidaAtual?.pedidoCliente ?? ""} />
             </Field>
+          )}
+          {/* E-mails e documentos do cliente para corroborar a ordem de compra. Sobem na hora (não
+              dependem de "Registrar desfecho") e Vendas os consulta no Aceite. */}
+          {desfecho === "POSITIVO" && (
+            <AnexoUpload orcamentoId={doc.id} tipo="ORDEM_COMPRA" anexos={doc.anexos.filter((a) => a.tipo === "ORDEM_COMPRA")} />
           )}
           <Field label="Motivo (opcional)">
             <Input name="motivo" defaultValue={doc.desfechoMotivo ?? ""} />

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { voltarEtapaAceite, marcarAlertasVistos } from "@/app/(app)/aceite/actions";
 import { Andamento } from "./Andamento";
 import { FormVendas } from "./FormVendas";
+import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { PedidosMaterial } from "./PedidosMaterial";
 import { FormEngenharia } from "./FormEngenharia";
 import { FormPcp } from "./FormPcp";
@@ -145,6 +146,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
             ...(datasCliente.length ? [{ label: datasCliente.length > 1 ? "Datas do cliente" : "Data do cliente", value: textoDatasCliente(datasCliente) }] : []),
             { label: "Nº de Orçamento", value: doc.numeroOrcamento || "—" },
             { label: "Nº de Pré Cadastro", value: doc.preCadastro || "—" },
+            ...(so?.pedidoCliente ? [{ label: "Pedido do cliente (OC)", value: so.pedidoCliente }] : []),
             ...(a.pedidoInterno ? [{ label: "Pedido interno", value: a.pedidoInterno }] : []),
             ...(a.numeroOF ? [{ label: "Nº da OF", value: a.numeroOF }] : []),
             { label: "Cliente aprovou em", value: fmtDateTime(doc.desfechoEm) },
@@ -164,6 +166,17 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
               </form>
             )}
           </div>
+        )}
+
+        {/* E-mails e documentos do cliente que comprovam a ordem de compra (anexados no desfecho). */}
+        {(doc.anexos.length > 0 || podeVendas) && (
+          <AnexoUpload
+            orcamentoId={doc.id}
+            tipo="ORDEM_COMPRA"
+            titulo="Ordem de compra do cliente: e-mails e documentos"
+            somenteLeitura={!podeVendas}
+            anexos={doc.anexos.map((x) => ({ id: x.id, nome: x.nome, url: x.url, mime: x.mime, tamanho: x.tamanho }))}
+          />
         )}
 
         {/* ---------- Vendas ---------- */}
