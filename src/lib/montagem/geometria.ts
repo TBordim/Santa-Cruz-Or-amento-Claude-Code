@@ -30,6 +30,9 @@ export type Faca = {
   // Aba de cola (preenchimento amarelo no desenho).
   cola?: Pt[];
   medidas?: MedidasCartucho;
+  // Peça composta (caixa + berço): contornos reais de cada peça, para o desenho. O `contorno` é o
+  // retângulo que as contém e serve só ao empacotador.
+  partes?: Pt[][];
   // De onde veio o contorno: mostrado na tela para ninguém confundir exemplo com faca real.
   origem?: "retangulo" | "generica" | "pdf";
 };

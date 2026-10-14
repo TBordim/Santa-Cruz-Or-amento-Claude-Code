@@ -9,6 +9,7 @@ const fmt = (n: number, d = 1) => n.toLocaleString("pt-BR", { maximumFractionDig
 // Uma peça: cola, arte do cliente recortada pelo contorno, vincos e contorno de corte.
 // Compartilhada entre a folha, a miniatura e a faca aberta.
 export function PecaDef({ id, faca, arte, mini = false }: { id: string; faca: Faca; arte?: Arte | null; mini?: boolean }) {
+  const contorno = faca.partes ? faca.partes.map((p) => caminhoSvg(p)).join("") : caminhoSvg(faca.contorno);
   const r = arte ? retanguloDaArte(faca, arte.modo) : null;
   return (
     <g id={id}>
@@ -16,19 +17,19 @@ export function PecaDef({ id, faca, arte, mini = false }: { id: string; faca: Fa
       {arte && r && (
         <>
           <clipPath id={`${id}c`}>
-            <path d={caminhoSvg(faca.contorno)} />
+            <path d={contorno} />
           </clipPath>
           <image href={arte.url} x={r.x} y={r.y} width={r.w} height={r.h} preserveAspectRatio="none" clipPath={`url(#${id}c)`} />
         </>
       )}
-      {!arte && <path d={caminhoSvg(faca.contorno)} className="fill-primary/20" />}
+      {!arte && <path d={contorno} className="fill-primary/20" />}
       {!mini && faca.secoes && faca.secoes.length > 0 && (
         <path d={faca.secoes.map((s) => caminhoSvg(s)).join("")} fill="none" className="stroke-primary" strokeWidth={1} strokeDasharray="5 3" vectorEffect="non-scaling-stroke" />
       )}
       {!mini && faca.linhas && faca.linhas.length > 0 && (
         <path d={faca.linhas.map((l) => caminhoSvg(l, false)).join("")} fill="none" className="stroke-primary" strokeWidth={1} strokeDasharray="5 3" vectorEffect="non-scaling-stroke" />
       )}
-      <path d={caminhoSvg(faca.contorno)} fill="none" className="stroke-foreground" strokeWidth={mini ? 0.9 : 1.2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <path d={contorno} fill="none" className="stroke-foreground" strokeWidth={mini ? 0.9 : 1.2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </g>
   );
 }
