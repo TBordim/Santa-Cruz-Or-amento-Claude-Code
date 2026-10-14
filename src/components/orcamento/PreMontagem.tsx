@@ -26,6 +26,8 @@ import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
 const selectCls =
   "h-11 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:h-8 md:text-sm dark:bg-input/30";
 
+// Máximo de modelos na mesma faca (as montagens reais chegam a 10 tipos).
+const MAX_CONJUGADO = 12;
 const fmt = (n: number, d = 1) => n.toLocaleString("pt-BR", { maximumFractionDigits: d });
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 // "30.000" (formato BR) -> 30000; aceita vírgula decimal nos campos em mm.
@@ -618,12 +620,18 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {conj.map((m, i) => (
-                      <div key={i} className="grid grid-cols-2 gap-2">
+                      <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                         <Input value={m.nome} onChange={(e) => setConj((l) => l.map((x, k) => (k === i ? { ...x, nome: e.target.value } : x)))} />
                         <Input inputMode="numeric" placeholder="Quantidade" value={m.qtd} onChange={(e) => setConj((l) => l.map((x, k) => (k === i ? { ...x, qtd: e.target.value } : x)))} />
+                        <Button type="button" variant="ghost" size="sm" disabled={conj.length <= 2} title="Remover modelo" onClick={() => setConj((l) => l.filter((_, k) => k !== i))}>
+                          ✕
+                        </Button>
                       </div>
                     ))}
                   </div>
+                  <Button type="button" variant="outline" size="sm" className="mt-2" disabled={conj.length >= MAX_CONJUGADO} onClick={() => setConj((l) => [...l, { nome: `Modelo ${l.length + 1}`, qtd: "" }])}>
+                    + Modelo
+                  </Button>
                   <div className="mt-3 text-sm">
                     {!conjugado && <span className="text-muted-foreground">Informe a quantidade de pelo menos dois modelos.</span>}
                     {conjugado && !conjugado.feito && <strong className="text-destructive">Não conjuga: nenhuma divisão das poses fecha. Um acerto por modelo.</strong>}
