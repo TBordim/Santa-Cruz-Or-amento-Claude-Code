@@ -21,6 +21,7 @@ type AceiteSetor = Parameters<typeof papelGarantido>[0] & {
   negociacoes?: { status: string }[];
   pedidoCadastradoEm?: Date | null;
   numeroOF?: string | null;
+  pedidoInterno?: string | null;
 };
 
 export function setoresAtuais(a: AceiteSetor): SetorAtual[] {
@@ -35,7 +36,10 @@ export function setoresAtuais(a: AceiteSetor): SetorAtual[] {
   // Pedido cadastrado sem OF: Vendas ainda deve registrar (pode ser depois, mas fica à vista).
   const faltaOF = !!a.pedidoCadastradoEm && !a.numeroOF && ["ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa);
   const of: SetorAtual = { setor: "Vendas", acao: "registrar a OF", cor: COR.vendas };
-  const daEtapa = faltaOF ? (a.etapa === "CONCLUIDO" ? [of] : [...setoresDaEtapa(a), of]) : setoresDaEtapa(a);
+  const faltaInterno = !!a.engenhariaEm && !a.pedidoInterno && ["ENGENHARIA_MATERIAL", "PCP", "ATENDIMENTO", "ENTREGA"].includes(a.etapa);
+  const interno: SetorAtual = { setor: "Vendas", acao: "informar o pedido interno", cor: COR.vendas };
+  // Concluído com OF pendente: só Vendas. Nos demais, o setor da etapa e, junto, as pendências de Vendas.
+  const daEtapa = a.etapa === "CONCLUIDO" && faltaOF ? [of] : [...setoresDaEtapa(a), ...(faltaInterno ? [interno] : []), ...(faltaOF ? [of] : [])];
   return daNegociacao.length && a.etapa === "CONCLUIDO" ? daNegociacao : [...daNegociacao, ...daEtapa.filter((x) => !daNegociacao.some((d) => d.setor === x.setor))];
 }
 

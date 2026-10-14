@@ -45,7 +45,7 @@ export async function criarPedidoMaterial(_prev: FormState, formData: FormData):
       pesoKg: calcularPeso(quantidade, unidade, formato, gramatura),
       formatoMinimo: String(formData.get("formatoMinimo") ?? "").trim() || null,
       entregaDesejada: String(formData.get("entregaDesejada") ?? "").trim() || null,
-      suporteRef: String(formData.get("suporteRef") ?? "").trim() || null,
+      // Sem vínculo com um papel do Aceite: o PM é independente do papel a ser utilizado.
       obs: String(formData.get("obs") ?? "").trim() || null,
       solicitadoPor: nome,
       eventos: { create: { tipo: "CRIADO", texto: `PM emitido: ${fmtQuantidade(quantidade, unidade)} de ${descricao}.`, porNome: nome } },

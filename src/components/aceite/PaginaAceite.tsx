@@ -8,6 +8,7 @@ import { chegadaDoPapel, temAlertaPendente, situacaoPapelLabel, fmtDia, fmtQuant
 import { fmtMoney, fmtDateTime, classificacaoLabel } from "@/lib/orcamentos/constantes";
 import { parseQuantidade } from "@/lib/orcamentos/motor";
 import { lerItens, quantidadeTotal } from "@/lib/aceite/montagem";
+import { lerDatasCliente, textoDatasCliente } from "@/lib/aceite/datas-cliente";
 import { lerSuportes, suportesSemPM, textoSuporte, SITUACOES_SUPORTE } from "@/lib/aceite/suportes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente } from "@/lib/orcamentos/types";
@@ -23,7 +24,7 @@ import { FormVendas } from "./FormVendas";
 import { PedidosMaterial } from "./PedidosMaterial";
 import { FormEngenharia } from "./FormEngenharia";
 import { FormPcp } from "./FormPcp";
-import { FormPedido, FormNumeroOF } from "./FormPedido";
+import { FormPedido, FormNumeroOF, FormPedidoInterno } from "./FormPedido";
 import { FormEntrega } from "./FormEntrega";
 import { FormInformarCliente } from "./FormInformarCliente";
 import { BlocoNegociacao } from "./BlocoNegociacao";
@@ -85,6 +86,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
   const situacaoPreco =
     so?.precoAnterior == null || preco == null ? null : Math.abs(preco - so.precoAnterior) < 0.005 ? "mantido" : "atualizado";
   const chegada = chegadaDoPapel(pms);
+  const datasCliente = lerDatasCliente(a);
   const alerta = temAlertaPendente(pms);
   const podeVoltar =
     (podeVendas && ["ENGENHARIA_MATERIAL", "PEDIDO", "ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
@@ -140,7 +142,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
             { label: "Representante", value: `${doc.representante || "—"}${doc.comissaoCev ? ` · comissão ${doc.comissaoCev}` : ""}` },
             { label: "Prazo de pagamento", value: doc.condPagamento || "—" },
             { label: "Acabamento especial", value: especiais.length ? `Sim · ${especiais.join(", ")}` : "Não" },
-            ...(a.dataCliente ? [{ label: "1ª data do cliente", value: fmtDia(a.dataCliente) }] : []),
+            ...(datasCliente.length ? [{ label: datasCliente.length > 1 ? "Datas do cliente" : "Data do cliente", value: textoDatasCliente(datasCliente) }] : []),
             { label: "Nº de Orçamento", value: doc.numeroOrcamento || "—" },
             { label: "Nº de Pré Cadastro", value: doc.preCadastro || "—" },
             ...(a.pedidoInterno ? [{ label: "Pedido interno", value: a.pedidoInterno }] : []),
@@ -244,7 +246,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
         {/* ---------- PCP ---------- */}
         {a.etapa === "PCP" &&
           (podePcp ? (
-            <FormPcp aceiteId={a.id} chegadaPapel={chegada ? chegada.toISOString().slice(0, 10) : null} dataCliente={a.dataCliente ? fmtDia(a.dataCliente) : null} />
+            <FormPcp aceiteId={a.id} chegadaPapel={chegada ? chegada.toISOString().slice(0, 10) : null} dataCliente={datasCliente.length ? textoDatasCliente(datasCliente) : null} />
           ) : (
             <Aviso>Aguardando o PCP definir a data de entrega.</Aviso>
           ))}
@@ -260,10 +262,13 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
           </FormSection>
         )}
 
+        {/* Pedido interno: pendência de Vendas depois da Engenharia (no cadastro do pedido ele é pedido ali). */}
+        {podeVendas && a.engenhariaEm && !a.pedidoInterno && a.etapa !== "VENDAS" && a.etapa !== "PEDIDO" && a.etapa !== "CONCLUIDO" && <FormPedidoInterno aceiteId={a.id} />}
+
         {/* ---------- Pedido ---------- */}
         {a.etapa === "PEDIDO" &&
           (podeVendas ? (
-            <FormPedido aceiteId={a.id} numero={a.numero} dataEntrega={fmtDia(a.dataEntrega)} />
+            <FormPedido aceiteId={a.id} numero={a.numero} dataEntrega={fmtDia(a.dataEntrega)} pedidoInterno={a.pedidoInterno} />
           ) : (
             <Aviso>Aguardando Vendas cadastrar o pedido no sistema informatizado.</Aviso>
           ))}
