@@ -132,5 +132,6 @@ function contexto(a: AceiteLinha, tipo: "alerta" | "pedido" | "preencher" | "of"
   if (tipo === "of") return `Pedido ${a.numeroPedido ?? a.numero ?? ""} cadastrado em ${fmtDateTime(a.pedidoCadastradoEm)} · entrega ${fmtDia(a.dataEntrega)} · registre o Nº da OF quando abrir a Ordem de Fabricação`;
   if (tipo === "pedido") return `PCP definiu a entrega para ${fmtDia(a.dataEntrega)} · cadastre o pedido no ERP; o Atendimento avisa o cliente`;
   const qtd = so ? parseQuantidade(so.quantidade) : null;
-  return `Cliente aprovou em ${fmtDateTime(a.orcamento.desfechoEm)}${so?.numeroSequencial ? ` · SO ${so.numeroSequencial}` : ""}${qtd ? ` · ${fmtQuantidade(qtd)} un.` : ""}`;
+  const oc = so?.pedidoCliente ? ` · OC do cliente ${so.pedidoCliente}` : "";
+  return `Cliente aprovou em ${fmtDateTime(a.orcamento.desfechoEm)}${so?.numeroSequencial ? ` · SO ${so.numeroSequencial}` : ""}${qtd ? ` · ${fmtQuantidade(qtd)} un.` : ""}${oc}`;
 }

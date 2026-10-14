@@ -285,6 +285,8 @@ model Orcamento {
 enum TipoAnexo {
   ARTE
   ENGENHARIA
+  // E-mails e documentos do cliente que comprovam a ordem de compra, anexados no desfecho positivo.
+  ORDEM_COMPRA
 }
 
 model Anexo {
