@@ -8,6 +8,8 @@ function chave(s: string | null | undefined): string {
 
 export type FaixaInput = {
   quantidade: string;
+  papelIdx?: number;
+  papel?: string;
   numeroSequencial: string;
   precoProjetado: number;
   custoPrimarioPct: number | null;
@@ -16,9 +18,9 @@ export type FaixaInput = {
   numeroSetups: string;
 };
 
-// Registro de histórico casado (mesma clienteChave+código interno — orçamento "novo" aprovado
-// OU registro do Arquivo legado, os dois contam igual) — usado como base de comparação de
-// premissas e preço anterior. Ver buscarOrcamentoAnterior em legado.ts.
+// Último fornecimento casado (mesmo cliente + mesmos códigos internos — orçamento do sistema
+// que virou pedido OU registro do Arquivo legado) — usado como base de comparação de premissas e
+// preço anterior. Ver buscarOrcamentoAnterior em legado.ts.
 export type OrcamentoAnteriorRef = {
   id: string;
   precoFinal: number | null;
@@ -28,6 +30,17 @@ export type OrcamentoAnteriorRef = {
   acabamento: string | null;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
+  // Como o anterior foi encontrado. Ausente = pelo código interno (a regra de sempre). "medidas" =
+  // segunda linha de rastreio, quando o card não tem código: mesmo cliente + medidas exatas. Aí
+  // `rastreio` diz o que foi achado, pra Diretoria conferir se é mesmo o mesmo produto.
+  via?: "codigo" | "medidas";
+  rastreio?: {
+    origem: "NOVO" | "LEGADO";
+    cliente: string | null;
+    data: string; // ISO
+    desfecho: string | null; // chave do desfecho (POSITIVO...), só nos orçamentos do fluxo
+    medidas: string;
+  };
 };
 
 export type MontarPrecificacaoInput = {
@@ -38,8 +51,9 @@ export type MontarPrecificacaoInput = {
   anterior: OrcamentoAnteriorRef | null;
 };
 
-// Equivalente ao corpo de cálculo de enviarParaDiretoria() — monta uma faixa por quantidade
-// pedida, rodando os dois critérios independentes (motor.ts) para cada uma.
+// Equivalente ao corpo de cálculo de enviarParaDiretoria() — monta uma faixa (SO) por
+// combinação quantidade × opção de papel, rodando os dois critérios independentes (motor.ts)
+// para cada uma. Todas comparam com o mesmo último fornecimento, qualquer que seja o papel.
 export function montarPrecificacao(input: MontarPrecificacaoInput): PrecificacaoTier[] {
   const { faixas, comissaoEspecial, acabamentoAtual, anterior } = input;
   const produtoNovo = !anterior || input.produtoNovoClassificacao;
@@ -83,6 +97,7 @@ export function montarPrecificacao(input: MontarPrecificacaoInput): Precificacao
 
     const tier: PrecificacaoTier = {
       quantidade: f.quantidade,
+      ...(f.papel !== undefined ? { papelIdx: f.papelIdx, papel: f.papel } : {}),
       numeroSequencial: f.numeroSequencial,
       precoProjetado: f.precoProjetado,
       custoPrimarioPct: f.custoPrimarioPct,
@@ -115,7 +130,15 @@ export function montarPrecificacao(input: MontarPrecificacaoInput): Precificacao
       { label: "Último preço", anterior: anterior?.precoFinal ?? null, atual: f.precoProjetado },
     ]);
 
-    if (av.aprovavel && discrepancia.bloqueia) {
+    // Anterior achado só por MEDIDAS (card sem código): o vínculo é mais fraco que o de código —
+    // pode ser outro produto de mesma medida, e o orçamento antigo pode ter sido recusado pelo
+    // cliente. Então a regra automática nunca aprova sozinha: a Diretoria vê a comparação e decide.
+    if (av.aprovavel && anterior?.via === "medidas") {
+      tier.statusDiretoria = "pendente";
+      tier.motivoPendencia = discrepancia.bloqueia
+        ? (discrepancia.motivo ?? tier.motivoPendencia)
+        : "Comparado por medidas (produto sem código interno): a Diretoria precisa conferir se é o mesmo produto.";
+    } else if (av.aprovavel && discrepancia.bloqueia) {
       tier.statusDiretoria = "pendente";
       tier.motivoPendencia = discrepancia.motivo ?? tier.motivoPendencia;
     } else if (av.aprovavel) {

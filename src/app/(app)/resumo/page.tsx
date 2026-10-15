@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { sessaoAtual } from "@/lib/permissions";
+import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { fmtDateTime, dataLimite } from "@/lib/orcamentos/constantes";
 import { PageHeader } from "@/components/page-header";
@@ -31,6 +31,7 @@ function Kpi({ label, valor, cor }: { label: string; valor: number | string; cor
 export default async function ResumoPage() {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
+  await exigirModulo("orcamento");
 
   const cutoff = dataLimite(7);
 

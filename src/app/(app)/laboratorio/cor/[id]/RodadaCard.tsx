@@ -23,7 +23,8 @@ import { somaFecha100 } from "@/lib/cor/composicao";
 
 const ORIGEM_LABEL: Record<string, string> = {
   FORNECEDOR: "Fornecedor",
-  SUGESTAO_SISTEMA: "Sugestão do sistema",
+  SUGESTAO_SISTEMA: "Sugestão do sistema (histórico)",
+  SUGESTAO_PANTONE: "Sugestão do sistema (Pantone convertido)",
   AJUSTE_MANUAL: "Ajuste manual",
   IMPORTADO: "Importada da planilha (só a final)",
 };

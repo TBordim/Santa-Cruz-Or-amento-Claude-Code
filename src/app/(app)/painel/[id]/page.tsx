@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { sessaoAtual } from "@/lib/permissions";
+import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { PageHeader } from "@/components/page-header";
 import { PainelBoard } from "../PainelBoard";
 import { Drawer } from "./Drawer";
@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function PainelCardPage({ params }: { params: Promise<{ id: string }> }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
+  await exigirModulo("orcamento");
   const { id } = await params;
 
   return (

@@ -28,6 +28,9 @@ model Perfil {
 
   usuarios Usuario[]
 
+  // Módulo Treinamentos
+  treinamentos TreinamentoPerfil[]
+
   @@map("perfis")
 }
 
@@ -46,6 +49,7 @@ model Usuario {
   criadoEm DateTime @default(now())
 
   orcamentosCriados Orcamento[] @relation("OrcamentoCriadoPor")
+  clientesCadastrados Cliente[] @relation("ClienteCadastradoPor")
   anexosEnviados    Anexo[]     @relation("AnexoEnviadoPor")
 
   // Módulo Cor
@@ -54,7 +58,57 @@ model Usuario {
   leiturasLidas         LeituraLab[]          @relation("LeituraLidaPor")
   interacoesRegistradas InteracaoFornecedor[] @relation("InteracaoRegistradaPor")
 
+  // Módulo Treinamentos
+  tentativasTreinamento TentativaTreinamento[]
+
   @@map("usuarios")
+}
+
+// ---------- clientes ----------
+
+enum OrigemCliente {
+  IMPORTADO
+  REPRESENTANTE
+}
+
+// Cadastro de clientes da Santa Cruz. Começou da planilha Clientes_Ativos (origem IMPORTADO);
+// enquanto o app não conversa com o sistema interno, cliente novo entra pelo Novo Orçamento
+// (origem REPRESENTANTE, pendenteConferencia = true até alguém do escritório conferir).
+model Cliente {
+  id           String  @id @default(cuid())
+  // 14 dígitos, sem pontuação.
+  cnpj         String  @unique
+  razaoSocial  String
+  // Razão social em maiúsculo e sem acento, só pra busca.
+  busca        String
+
+  endereco     String?
+  complemento  String?
+  bairro       String?
+  cep          String?
+  uf           String?
+  municipio    String?
+  telefone     String?
+  email        String?
+  contato      String?
+  // Parcelas em dias (ex.: [28, 35, 42] = "28/35/42 dias"); vazio = sem condição cadastrada.
+  prazosPagamento Int[] @default([])
+
+  // Endereço de entrega, só quando é diferente do de cima (nulo = entrega no mesmo endereço).
+  entrega      Json?
+
+  origem              OrigemCliente @default(IMPORTADO)
+  pendenteConferencia Boolean       @default(false)
+  ativo               Boolean       @default(true)
+  cadastradoPorId     String?
+  cadastradoPor       Usuario?      @relation("ClienteCadastradoPor", fields: [cadastradoPorId], references: [id], onDelete: SetNull)
+  criadoEm            DateTime      @default(now())
+  atualizadoEm        DateTime      @updatedAt
+
+  orcamentos Orcamento[]
+
+  @@index([busca])
+  @@map("clientes")
 }
 
 // ---------- orçamentos ----------
@@ -200,8 +254,19 @@ model Orcamento {
   // precificacao: array de faixas — ver src/lib/orcamentos/types.ts para o formato exato.
   reqCliente       Json?
   reqTecnicos      Json?
+  // Modelos (produtos) orçados juntos na mesma faca — produção conjugada. Lista de
+  // {id, descricao, codigoCliente, codInterno, classificacao}; ver Modelo em
+  // src/lib/orcamentos/types.ts. Nulo nos cards de antes de 30/09/2026: esses são lidos como um
+  // modelo só, montado dos campos de produto de cima (ver modelosDoDoc em modelos.ts).
+  modelos          Json?
   precificacao     Json?
   leituraAnterior  Json?
+
+  // Cliente do cadastro, quando o orçamento foi aberto escolhendo um. Opcional: registros antigos
+  // e do legado não têm; os campos de texto (cliente, cnpj, endereco...) continuam sendo a cópia
+  // que vale no orçamento.
+  clienteId        String?
+  clienteCadastro  Cliente?         @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
   criadoPorId      String?
   criadoPor        Usuario?         @relation("OrcamentoCriadoPor", fields: [criadoPorId], references: [id])
@@ -209,6 +274,8 @@ model Orcamento {
   atualizadoEm     DateTime         @updatedAt
 
   anexos           Anexo[]
+  // Aceite de Pedido aberto quando o cliente aprova (desfecho positivo). No máximo um por orçamento.
+  aceite           Aceite?
 
   @@map("orcamentos")
 }
@@ -218,6 +285,8 @@ model Orcamento {
 enum TipoAnexo {
   ARTE
   ENGENHARIA
+  // E-mails e documentos do cliente que comprovam a ordem de compra, anexados no desfecho positivo.
+  ORDEM_COMPRA
 }
 
 model Anexo {
@@ -233,6 +302,9 @@ model Anexo {
   // usada para excluir o arquivo com del() quando o anexo é removido.
   url          String
   pathname     String
+  // Arte de um modelo específico (id dentro de Orcamento.modelos). Nulo = arte do orçamento
+  // inteiro (e todos os anexos de antes de 30/09/2026), exibida junto do primeiro modelo.
+  modeloId     String?
   enviadoPorId String?
   enviadoPor   Usuario?  @relation("AnexoEnviadoPor", fields: [enviadoPorId], references: [id])
   enviadoEm    DateTime  @default(now())
@@ -274,6 +346,27 @@ model Base {
   composicoes Composicao[]
 
   @@map("cor_bases")
+}
+
+// ---------- catálogo Pantone (Formula Guide físico, transcrito pela Santa Cruz) ----------
+// Usado só como REFERÊNCIA pra sugerir o ponto de partida (Sugestão 1, ver src/lib/cor/pantone.ts) —
+// a composição aqui é em bases PANTONE (Yellow, Warm Red, Rubine...), não em bases IRO; a conversão
+// pra IRO acontece em código, via a tabela de equivalência confirmada pelo fornecedor (2026-09-30).
+model PantoneCor {
+  id     String  @id @default(cuid())
+  codigo String  @unique // normalizado: upper-case, sem espaço, "194C", "2350C"...
+
+  labL Decimal? @db.Decimal(6, 2)
+  labA Decimal? @db.Decimal(6, 2)
+  labB Decimal? @db.Decimal(6, 2)
+
+  composicao     Json    // { "WarmRed": 55.6, "Rubine": 33.3, "Black": 11.1, ... } — nomes Pantone
+  somaPercentual Decimal @db.Decimal(6, 2) // cache da soma; deveria fechar ~100 quando não parcial
+  parcial        Boolean @default(false)   // fórmula incompleta na transcrição — ver PDF fonte
+
+  criadoEm DateTime @default(now())
+
+  @@map("cor_pantone_catalogo")
 }
 
 // ---------- registro central de uma cor ----------
@@ -327,7 +420,8 @@ model Cor {
 
 enum OrigemRodada {
   FORNECEDOR
-  SUGESTAO_SISTEMA // reservado pra Fase 2/3 — não usado ainda
+  SUGESTAO_SISTEMA // rodada 1 pré-preenchida a partir de outra Cor aprovada com LAB parecido (ΔE2000 < 2,5)
+  SUGESTAO_PANTONE // rodada 1 pré-preenchida a partir do Pantone mais próximo, convertido p/ bases IRO
   AJUSTE_MANUAL
   IMPORTADO // fórmula final vinda da planilha antiga — só a final sobreviveu, origem real desconhecida
 }
@@ -423,4 +517,360 @@ model InteracaoFornecedor {
   criadaEm        DateTime @default(now())
 
   @@map("cor_interacoes_fornecedor")
+}
+
+// ============================================================
+// Módulo Treinamentos — vídeos por perfil, quiz e registro de quem fez
+// Só tabelas novas: nenhuma tabela existente ganha coluna (Perfil e Usuario só ganham a lista inversa).
+// ============================================================
+
+model Treinamento {
+  id        String  @id @default(cuid())
+  titulo    String
+  // Chave de src/lib/modulos.ts ("laboratorio", "orcamento"...). Aparece como selo no cartão.
+  modulo    String
+  descricao String?
+
+  // MP4 no Vercel Blob (URL pública, com sufixo aleatório no nome). O pathname serve pra apagar o arquivo
+  // quando o vídeo é trocado.
+  videoUrl         String
+  videoPathname    String
+  legendasUrl      String? // .vtt
+  legendasPathname String?
+  duracaoSeg       Int?
+
+  // quiz.json guardado inteiro (perguntas, alternativas, correta, explicação): é sempre lido junto do
+  // treinamento, nunca pergunta a pergunta. A correção roda no servidor contra este JSON.
+  quiz       Json
+  notaMinima Int  @default(75) // % de acertos pra contar como aprovado (6 de 8). Sem limite de tentativas.
+  // Sobe quando o vídeo ou o quiz mudam: a aprovação vale pra versão em que foi feita, e o painel mostra
+  // quem precisa refazer.
+  versao     Int  @default(1)
+
+  ativo        Boolean  @default(true)
+  ordem        Int      @default(0)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  perfis     TreinamentoPerfil[]
+  tentativas TentativaTreinamento[]
+
+  @@map("trein_treinamentos")
+}
+
+// Quais perfis veem e fazem cada treinamento (muitos-para-muitos). Quem não está aqui não acessa o vídeo.
+model TreinamentoPerfil {
+  treinamentoId String
+  treinamento   Treinamento @relation(fields: [treinamentoId], references: [id], onDelete: Cascade)
+  perfilId      String
+  perfil        Perfil      @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+
+  @@id([treinamentoId, perfilId])
+  @@map("trein_perfis")
+}
+
+// Cada vez que alguém responde o quiz. Guarda todas (histórico); o painel usa a melhor da versão atual.
+model TentativaTreinamento {
+  id                String      @id @default(cuid())
+  treinamentoId     String
+  treinamento       Treinamento @relation(fields: [treinamentoId], references: [id], onDelete: Cascade)
+  usuarioId         String
+  usuario           Usuario     @relation(fields: [usuarioId], references: [id])
+  versaoTreinamento Int
+
+  respostas Json // [{ perguntaId, escolhida }]
+  acertos   Int
+  total     Int
+  nota      Int // 0-100
+  aprovado  Boolean // nota >= notaMinima do treinamento na hora da resposta
+
+  criadaEm DateTime @default(now())
+
+  @@index([usuarioId, treinamentoId])
+  @@map("trein_tentativas")
+}
+
+// ---------- Aceite de Pedido ----------
+// Módulo Aceite (TP de Vendas 3.2, Engenharia 3.2 e PCP 3.3). Nasce sozinho quando o cliente
+// aprova um orçamento (desfecho positivo). Quem age em cada etapa fica em texto (nome), como nos
+// demais registros do Orçamento. Decisões do Thiago em 08/10/2026:
+//  - o app não lê o ERP: estoque e versão do produto só têm o "visto" de Vendas;
+//  - sem Ordem de Descarte nesta fase;
+//  - Engenharia e Material correm em paralelo; só com os dois prontos o Aceite vai ao PCP;
+//  - o PCP vai virar módulo próprio (branch própria): hoje só lança a data de entrega.
+
+enum EtapaAceite {
+  VENDAS
+  ENGENHARIA_MATERIAL
+  PCP
+  PEDIDO
+  // Atendimento ao Cliente envia a data prevista ao cliente e/ou representante (08/10/2026).
+  ATENDIMENTO
+  // Cliente avisado, pedido em produção: o PCP confirma quando entregou, e só aí conclui (11/10/2026).
+  ENTREGA
+  CONCLUIDO
+}
+
+enum SituacaoPapel {
+  NAO_VERIFICADO
+  RESERVADO_TOTAL
+  RESERVADO_PARCIAL
+  SEM_ESTOQUE
+}
+
+enum SituacaoCadastro {
+  PENDENTE
+  EXISTENTE
+  CRIADO
+}
+
+model Aceite {
+  id          String      @id @default(cuid())
+  // Nº do Aceite (o "Nº" do formulário de Confirmação de Pedido). É gerado no ERP; enquanto o app
+  // não conversa com o ERP, Vendas digita (decisão do Thiago em 08/10/2026).
+  numero      String?     @unique
+  orcamentoId String      @unique
+  orcamento   Orcamento   @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  etapa       EtapaAceite @default(VENDAS)
+
+  // Cópia da SO que o cliente fechou (PrecificacaoTier), congelada na abertura do Aceite.
+  soEscolhida Json?
+
+  // ---------- Vendas ----------
+  pedidoInterno            String?
+  // Protocolo de requisitos do produto (TP de Vendas 3.1.1; "Prot. REF" no formulário).
+  protocoloRequisitos      String?
+  // 1ª data do cliente: a data que o cliente pediu (a acordada é a dataEntrega, definida pelo PCP).
+  dataCliente          DateTime? @db.Date
+  // Todas as datas que o cliente pediu (entregas parceladas): [{ data: "2026-11-06", quantidade, obs }].
+  // dataCliente guarda a mais cedo, que as telas e a planilha do PCP já usam.
+  datasCliente         Json?
+  // Itens do pedido: um por modelo do orçamento, com a quantidade que o cliente pediu e a montagem
+  // (grupo de modelos que saem juntos na mesma folha, com as posições de cada um), definida pela
+  // Engenharia. Formato em ItemAceite (src/lib/aceite/montagem.ts).
+  itens                    Json?
+  // Suporte (papel) especificado, puxado da Engenharia do orçamento, e o que vai ser usado de fato
+  // quando é outro (troca de papel).
+  suporteCodigo            String?
+  suporteDescricao         String?
+  suporteQtdFolha          Int?
+  suporteFolhas            Int?
+  suporteUtilizarCodigo    String?
+  suporteUtilizarDescricao String?
+  // Papéis do pedido (um Aceite pode usar vários). Lista de SuporteAceite (src/lib/aceite/suportes.ts),
+  // cada um com código, formato, folhas e situação no estoque. Os campos suporte* acima são de quando
+  // havia um papel só (Aceites anteriores a 08/10/2026) e são lidos como o primeiro da lista.
+  suportes             Json?
+  // Há produto acabado em estoque (sobra de produção anterior na expedição)? null = ainda não
+  // verificado. A versão do produto só é conferida quando há (decisão do Thiago em 11/10/2026).
+  temProdutoAcabado    Boolean?
+  estoqueVerificadoEm      DateTime?
+  estoqueVerificadoPor     String?
+  versaoVerificadaEm       DateTime?
+  versaoVerificadaPor      String?
+  situacaoPapel            SituacaoPapel @default(NAO_VERIFICADO)
+  papelObs                 String?
+  arquivoFisicoConferido   Boolean       @default(false)
+  arquivoFisicoObs         String?
+  vendasLiberadoEm         DateTime?
+  vendasLiberadoPor        String?
+
+  // ---------- Engenharia ----------
+  cadastroSituacao SituacaoCadastro @default(PENDENTE)
+  // Marcações "Faca" e "Clichê" do formulário: o pedido precisa de faca / clichê novo.
+  facaNova         Boolean          @default(false)
+  clicheNovo       Boolean          @default(false)
+  // Código da faca (ex.: 6.001.516), informado pela Engenharia; vazio quando não tem faca.
+  codigoFaca       String?
+  engenhariaEm     DateTime?
+  engenhariaPor    String?
+  engenhariaObs    String?
+
+  // ---------- PCP (hoje só a data; o módulo PCP assume depois) ----------
+  dataEntregaSugerida DateTime? @db.Date
+  dataEntrega         DateTime? @db.Date
+  pcpEm               DateTime?
+  pcpPor              String?
+  pcpObs              String?
+
+  // ---------- Pedido ----------
+  numeroPedido        String?
+  // Nº da Ordem de Fabricação, quando Vendas abre a OF (TP de Vendas 3.3).
+  numeroOF            String?
+  pedidoCadastradoEm  DateTime?
+  pedidoCadastradoPor String?
+  clienteInformadoEm  DateTime?
+  clienteInformadoPor String?
+  // Entrega ao cliente confirmada pelo PCP: a data em que foi entregue (pode diferir da acordada).
+  entregueEm            DateTime? @db.Date
+  entregaConfirmadaEm   DateTime?
+  entregaConfirmadaPor  String?
+  entregaObs            String?
+  // Saldo que não será entregue: cancelado pelo PCP, com motivo.
+  entregaSaldoCancelado Decimal?  @db.Decimal(14, 3)
+  entregaCancelamentoMotivo String?
+  entregas        EntregaAceite[]
+
+  pedidosMaterial PedidoMaterial[]
+  negociacoes     NegociacaoData[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([etapa])
+  @@map("aceites")
+}
+
+// ---------- Pedido de Material (PM) ----------
+// Independente do Aceite de propósito: o módulo Compras (que vai ser acionado por vários módulos)
+// passa a enxergar esta mesma tabela. `origem` diz quem pediu; hoje só "ACEITE".
+
+enum TipoMaterial {
+  PAPEL
+  TINTA
+  VERNIZ
+  OUTRO
+}
+
+enum StatusPedidoMaterial {
+  SOLICITADO
+  EM_COMPRA
+  PRAZO_CONFIRMADO
+  RECEBIDO
+  CANCELADO
+}
+
+model PedidoMaterial {
+  id       String  @id @default(cuid())
+  // Número legível (PM 12), gerado pelo banco.
+  numero   Int     @unique @default(autoincrement())
+  origem   String  @default("ACEITE")
+  aceiteId String?
+  aceite   Aceite? @relation(fields: [aceiteId], references: [id], onDelete: SetNull)
+
+  material         TipoMaterial @default(PAPEL)
+  // Código do material no ERP (ex.: 2025214) e formato (ex.: 96x66); formato mínimo que serve.
+  codigoMaterial   String?
+  formato          String?
+  formatoMinimo    String?
+  // Gramatura (g/m²): com o formato, dá o peso do papel (folhas × m² × g/m²), calculado sozinho.
+  gramatura      Int?
+  descricao        String
+  quantidade       Decimal?     @db.Decimal(14, 3)
+  unidade          String       @default("kg")
+  // Papel é pedido em folhas e comprado em kg: o peso fica junto quando Compras converte.
+  pesoKg           Decimal?     @db.Decimal(14, 3)
+  // Quando o setor precisa do material ("imediata" ou uma data), como no formulário de PM.
+  entregaDesejada  String?
+  // Números no ERP: Solicitação de Compra (SC) e Ordem de Compra (OC).
+  numeroSC         String?
+  numeroOC         String?
+  // Papel do Aceite a que este PM se refere (id do SuporteAceite), quando o Aceite tem mais de um.
+  suporteRef String?
+  fornecedor       String?
+  // Pedido mínimo do fornecedor e a sobra que ele gera (precisa ser vista e consumida depois).
+  minimoFornecedor Decimal?     @db.Decimal(14, 3)
+  sobraPrevista    Decimal?     @db.Decimal(14, 3)
+  // A sobra é retirada do fornecedor depois, de uma vez ou aos poucos: soma do que já veio e quando
+  // o saldo zerou (aí o PM sai da fila de Sobras).
+  sobraRecebida    Decimal?     @db.Decimal(14, 3)
+  sobraEncerradaEm DateTime?
+
+  status        StatusPedidoMaterial @default(SOLICITADO)
+  // Prazo de entrega vigente informado pelo fornecedor (via Compras).
+  prazoPrevisto DateTime?            @db.Date
+  // Recebimentos (podem ser parciais): soma do que já chegou e data do último. Saldo a receber =
+  // quantidade - recebida; o PM só vira RECEBIDO quando o saldo zera. Cada entrega fica no histórico.
+  quantidadeRecebida Decimal?        @db.Decimal(14, 3)
+  recebidoEm         DateTime?       @db.Date
+  obs           String?
+  solicitadoPor String
+  solicitadoEm  DateTime             @default(now())
+
+  // Mudança de prazo/quantidade depois do prazo confirmado acende este alerta pro PCP e Vendas.
+  alertaEm      DateTime?
+  alertaVistoEm DateTime?
+
+  eventos      PedidoMaterialEvento[]
+  atualizadoEm DateTime               @updatedAt
+
+  @@index([aceiteId])
+  @@index([status])
+  @@map("pedidos_material")
+}
+
+model PedidoMaterialEvento {
+  id            String         @id @default(cuid())
+  pedidoId      String
+  pedido        PedidoMaterial @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  tipo          String
+  texto         String
+  prazoAnterior DateTime?      @db.Date
+  prazoNovo     DateTime?      @db.Date
+  porNome       String
+  criadoEm      DateTime       @default(now())
+
+  @@index([pedidoId])
+  @@map("pedido_material_eventos")
+}
+
+// ---------- Negociação de data de entrega ----------
+// Quando o cliente não aceita a data prevista, o Atendimento ao Cliente registra a data que ele quer
+// e o PCP reanalisa (pedido do Thiago em 08/10/2026). Uma linha por rodada: o histórico fica.
+
+enum StatusNegociacao {
+  AGUARDANDO_PCP
+  AGUARDANDO_ATENDIMENTO
+  ENCERRADA
+}
+
+enum ResultadoNegociacao {
+  ATENDE
+  OUTRA_DATA
+  MANTIDA
+}
+
+// Cada entrega ao cliente confirmada pelo PCP, inteira ou parcial (11/10/2026).
+model EntregaAceite {
+  id         String   @id @default(cuid())
+  aceiteId   String
+  aceite     Aceite   @relation(fields: [aceiteId], references: [id], onDelete: Cascade)
+  quantidade Decimal? @db.Decimal(14, 3)
+  entregueEm DateTime @db.Date
+  obs        String?
+  porNome    String
+  criadoEm   DateTime @default(now())
+
+  @@index([aceiteId])
+  @@map("entregas_aceite")
+}
+
+model NegociacaoData {
+  id       String           @id @default(cuid())
+  aceiteId String
+  aceite   Aceite           @relation(fields: [aceiteId], references: [id], onDelete: Cascade)
+  status   StatusNegociacao @default(AGUARDANDO_PCP)
+
+  // Pedido do cliente (Atendimento).
+  dataAtual  DateTime? @db.Date
+  dataPedida DateTime? @db.Date
+  motivo     String?
+  abertaPor  String
+  abertaEm   DateTime  @default(now())
+
+  // Resposta do PCP.
+  resultado    ResultadoNegociacao?
+  dataProposta DateTime?           @db.Date
+  respostaObs  String?
+  respondidaPor String?
+  respondidaEm  DateTime?
+
+  // Atendimento informou o cliente.
+  encerradaPor String?
+  encerradaEm  DateTime?
+  encerradaObs String?
+
+  @@index([aceiteId])
+  @@index([status])
+  @@map("negociacoes_data")
 }

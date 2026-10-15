@@ -28,11 +28,15 @@ export function NovaRodadaForm({
   bases,
   proximoNumero,
   composicaoAnterior,
+  origemPadrao,
 }: {
   corId: string;
   bases: Base[];
   proximoNumero: number;
   composicaoAnterior: { baseId: string; percentual: number }[];
+  // Preenchido quando a composição veio de uma sugestão (histórico parecido) em vez da rodada
+  // anterior — deixa a origem já certa, sem o colorista precisar lembrar de trocar.
+  origemPadrao?: string;
 }) {
   const [erro, onSubmit, pending] = useFormActionSemReset(criarRodada, undefined);
   const [linhas, setLinhas] = useState<Linha[]>(
@@ -45,6 +49,16 @@ export function NovaRodadaForm({
     setLinhas((ls) => ls.map((l) => (l.key === key ? { ...l, [campo]: valor } : l)));
 
   const total = linhas.reduce((s, l) => s + (Number(l.percentual.replace(",", ".")) || 0), 0);
+
+  // "Sugestão do sistema"/"Sugestão Pantone" só entram na lista quando já chegaram de uma sugestão
+  // real escolhida (ver PrimeiraFormula.tsx) — sozinhas, escolhidas à mão, elas não preenchem nada,
+  // então não fazem sentido como opção solta no menu (confundia: parecia uma ação, era só um rótulo vazio).
+  const origens =
+    origemPadrao === "SUGESTAO_SISTEMA"
+      ? [...ORIGENS, { value: "SUGESTAO_SISTEMA", label: "Sugestão do sistema (histórico parecido)" }]
+      : origemPadrao === "SUGESTAO_PANTONE"
+        ? [...ORIGENS, { value: "SUGESTAO_PANTONE", label: "Sugestão do sistema (Pantone convertido)" }]
+        : ORIGENS;
 
   return (
     <Card>
@@ -63,12 +77,12 @@ export function NovaRodadaForm({
 
           <div className="flex flex-col gap-1.5 sm:max-w-xs">
             <Label htmlFor="origem">Origem da fórmula</Label>
-            <Select name="origem" defaultValue={proximoNumero === 1 ? undefined : "AJUSTE_MANUAL"} required>
+            <Select name="origem" defaultValue={origemPadrao ?? (proximoNumero === 1 ? undefined : "AJUSTE_MANUAL")} required>
               <SelectTrigger id="origem" className="w-full">
                 <SelectValue placeholder="Escolha…" />
               </SelectTrigger>
               <SelectContent>
-                {ORIGENS.map((o) => (
+                {origens.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {o.label}
                   </SelectItem>

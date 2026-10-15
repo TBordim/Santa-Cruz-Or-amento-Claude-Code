@@ -1,11 +1,15 @@
 "use client";
 
 import { useActionState } from "react";
+import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
 import { salvarOrcamento, enviarParaDiretoria, solicitarCompras, registrarRetornoCompras } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
-import type { ReqCliente, PrecificacaoTier } from "@/lib/orcamentos/types";
+import type { ReqCliente, ReqTecnicos, PrecificacaoTier } from "@/lib/orcamentos/types";
+import { AjustesOrcamento } from "./AjustesOrcamento";
 import { fmtDateTime, resumoAcabamento } from "@/lib/orcamentos/constantes";
 import { paraCampoBR } from "@/lib/orcamentos/motor";
+import { combinacoesSO, chaveSO, opcoesDePapel, modelosDoDoc, type CombinacaoSO } from "@/lib/orcamentos/modelos";
+import { chave } from "@/lib/orcamentos/chave";
 import { FormSection, Field, Row2, ResumoBox, AcoesBar } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -52,16 +56,32 @@ function ComprasFormBox({ doc }: { doc: OrcamentoComAnexos }) {
   );
 }
 
+// Envio pelo onSubmit (useFormActionSemReset), não por <form action>/formAction: com action o
+// React limpa o formulário quando ela termina — inclusive quando volta com erro de validação —
+// e tudo que a pessoa digitou e ainda não estava salvo sumia da tela (achado no teste de
+// 30/09/2026: modelo novo e Observações apagados depois de um "Liberar" com erro).
 export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
-  const [state, salvarAction, salvando] = useActionState(salvarOrcamento, undefined);
-  const [state2, enviarAction, enviando] = useActionState(enviarParaDiretoria, undefined);
+  const [state, salvarSubmit, salvando] = useFormActionSemReset(salvarOrcamento, undefined);
+  const [state2, enviarSubmit, enviando] = useFormActionSemReset(enviarParaDiretoria, undefined);
   const erro = state?.erro ?? state2?.erro;
   useSalvoToast(salvando, state?.erro, "Precificação salva.");
 
   const c = doc.reqCliente as ReqCliente | null;
-  const quantidades = c?.quantidadesLista ?? [];
+  const r = doc.reqTecnicos as ReqTecnicos | null;
+  // Cada combinação quantidade × opção de papel tem o próprio preço (ver combinacoesSO em
+  // modelos.ts); o número da SO é um por quantidade, então a tela agrupa por quantidade.
+  const combinacoes = combinacoesSO(c);
+  const grupos: { quantidade: string; itens: { cb: CombinacaoSO; i: number }[] }[] = [];
+  combinacoes.forEach((cb, i) => {
+    const g = grupos.find((x) => chave(x.quantidade) === chave(cb.quantidade));
+    if (g) g.itens.push({ cb, i });
+    else grupos.push({ quantidade: cb.quantidade, itens: [{ cb, i }] });
+  });
+  const nPapeis = opcoesDePapel(c).length;
+  const modelos = modelosDoDoc(doc);
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
-  // Cards de antes desta mudança (25/09/2026) tinham um SOPP só, digitado como lista separada
+  const tierPorChave = new Map(tiers.map((t) => [chaveSO(t), t]));
+  // Cards de antes desta mudança (25/09/2026) tinham uma SO só, digitado como lista separada
   // por vírgula (ex.: "28730, 28731, 28732, 28733") — aproveita essa lista, posicionalmente,
   // como sugestão inicial de cada faixa que ainda não tem o próprio número gravado. Só um
   // valor pra começar; salvar grava certo, por faixa, dali em diante.
@@ -72,8 +92,9 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
       <ResumoBox
         rows={[
           { label: "Cliente", value: doc.cliente },
-          { label: "Produto", value: doc.produtoDescricao },
+          { label: modelos.length > 1 ? `Modelos (${modelos.length})` : "Produto", value: doc.produtoDescricao },
           { label: "Nº de Pré Cadastro", value: doc.preCadastro || "—" },
+          ...(nPapeis > 1 ? [{ label: "Opções de papel", value: `${nPapeis} — uma SO por quantidade; cada papel tem o próprio preço` }] : []),
         ]}
       />
 
@@ -81,46 +102,90 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
         <ComprasBox doc={doc} />
       </div>
 
-      <form id="form-orcamento" className="mt-4">
+      {/* Fora do <form id="form-orcamento"> de propósito: tem o próprio envio. A key recomeça o
+          painel limpo depois de cada gravação. */}
+      <AjustesOrcamento
+        key={JSON.stringify([c?.quantidadesLista, c?.suportes, (r?.ajustesOrcamento ?? []).length])}
+        id={doc.id}
+        quantidades={c?.quantidadesLista ?? []}
+        suportes={c?.suportes ?? []}
+        ajustes={r?.ajustesOrcamento ?? []}
+      />
+
+      <form id="form-orcamento" className="mt-4" onSubmit={porBotao({ salvar: salvarSubmit, enviar: enviarSubmit }, "salvar")}>
         <input type="hidden" name="id" value={doc.id} form="form-orcamento" />
 
-        {quantidades.length === 0 ? (
-          <div className="empty-state">Nenhuma quantidade lançada na Solicitação — volte a etapa e adicione ao menos uma.</div>
+        {combinacoes.length === 0 ? (
+          <div className="empty-state">Nenhuma quantidade lançada na Solicitação — use &quot;Ajustar quantidades e papéis&quot;, acima, para adicionar ao menos uma.</div>
         ) : (
-          quantidades.map((qtd, i) => {
-            const t = tiers[i];
+          grupos.map(({ quantidade, itens }) => {
+            // Um número de SO por quantidade, valendo pros papéis dela; o preço é por papel
+            // (decisão do Thiago em 05/10/2026). Card antigo que já tem um número diferente por
+            // papel na mesma quantidade continua com um campo por papel, como estava gravado.
+            const numerosGravados = [
+              ...new Set(itens.map(({ cb }) => tierPorChave.get(chaveSO(cb))?.numeroSequencial).filter((n): n is string => !!n)),
+            ];
+            const numeroPorPapel = itens.length > 1 && numerosGravados.length > 1;
+            const primeiro = itens[0];
+            const campoNumero = (i: number, valor: string, dica: string) => (
+              <Field label="Nº da SO" hint={dica}>
+                <Input name={`numeroSequencial_${i}`} required defaultValue={valor} form="form-orcamento" />
+              </Field>
+            );
             return (
-              <FormSection key={i} title={quantidades.length > 1 ? `Quantidade: ${qtd}` : "Precificação"}>
-                <Field label="Nº de SOPP" hint="Um número por faixa — cada quantidade é uma ordem de produção separada.">
-                  <Input name={`numeroSequencial_${i}`} required defaultValue={t?.numeroSequencial || soppLegado[i] || ""} form="form-orcamento" />
-                </Field>
-                <Row2 compacto>
-                  <Field label="Preço projetado">
-                    <Input name={`precoProjetado_${i}`} defaultValue={paraCampoBR(t?.precoProjetado)} placeholder="Ex.: 1.234,56" form="form-orcamento" />
-                  </Field>
-                  <Field label="Custo primário (%)">
-                    <Input name={`custoPrimarioPct_${i}`} defaultValue={paraCampoBR(t?.custoPrimarioPct)} form="form-orcamento" />
-                  </Field>
-                </Row2>
-                <Row2 compacto>
-                  <Field label="Margem P2 (%)">
-                    <Input name={`margemP2Pct_${i}`} defaultValue={paraCampoBR(t?.margemP2Pct)} form="form-orcamento" />
-                  </Field>
-                  <div />
-                </Row2>
-                <Row2 compacto>
-                  <Field label="Número de lotes"><Input name={`numeroLotes_${i}`} defaultValue={t?.numeroLotes ?? ""} form="form-orcamento" /></Field>
-                  <Field label="Número de setups"><Input name={`numeroSetups_${i}`} defaultValue={t?.numeroSetups ?? ""} form="form-orcamento" /></Field>
-                </Row2>
+              <FormSection key={chave(quantidade)} title={combinacoes.length === 1 ? "Precificação" : `Quantidade: ${quantidade}`}>
+                {!numeroPorPapel &&
+                  campoNumero(
+                    primeiro.i,
+                    numerosGravados[0] || (primeiro.cb.papel ? "" : soppLegado[primeiro.i]) || "",
+                    itens.length > 1
+                      ? 'Um número por quantidade (o "Orçamento S.O. nº"): vale para todos os papéis desta quantidade.'
+                      : 'Um número por SO (o "Orçamento S.O. nº").',
+                  )}
+                {itens.map(({ cb, i }) => {
+                  const t = tierPorChave.get(chaveSO(cb));
+                  const conteudo = (
+                    <>
+                      {numeroPorPapel && campoNumero(i, t?.numeroSequencial ?? "", "Este card tem um número de SO por papel (lançado antes da regra de uma SO por quantidade).")}
+                      <Row2 compacto>
+                        <Field label="Preço projetado">
+                          <Input name={`precoProjetado_${i}`} defaultValue={paraCampoBR(t?.precoProjetado)} placeholder="Ex.: 1.234,56" form="form-orcamento" />
+                        </Field>
+                        <Field label="Custo primário (%)">
+                          <Input name={`custoPrimarioPct_${i}`} defaultValue={paraCampoBR(t?.custoPrimarioPct)} form="form-orcamento" />
+                        </Field>
+                      </Row2>
+                      <Row2 compacto>
+                        <Field label="Margem P2 (%)">
+                          <Input name={`margemP2Pct_${i}`} defaultValue={paraCampoBR(t?.margemP2Pct)} form="form-orcamento" />
+                        </Field>
+                        <div />
+                      </Row2>
+                      <Row2 compacto>
+                        <Field label="Número de lotes"><Input name={`numeroLotes_${i}`} defaultValue={t?.numeroLotes ?? ""} form="form-orcamento" /></Field>
+                        <Field label="Número de setups"><Input name={`numeroSetups_${i}`} defaultValue={t?.numeroSetups ?? ""} form="form-orcamento" /></Field>
+                      </Row2>
+                    </>
+                  );
+                  // Mais de um papel na quantidade: cada um num quadro próprio, com o seu preço.
+                  return itens.length > 1 ? (
+                    <div key={chaveSO(cb)} className="flex flex-col gap-3 rounded-lg border border-dashed border-border p-3">
+                      <div className="text-sm font-semibold text-foreground">Papel: {cb.papel}</div>
+                      {conteudo}
+                    </div>
+                  ) : (
+                    <div key={chaveSO(cb)} className="contents">{conteudo}</div>
+                  );
+                })}
               </FormSection>
             );
           })
         )}
 
-        <FormSection title="Comum a todas as faixas">
+        <FormSection title="Comum a todas as SOs">
           {/* Prazo saiu daqui — já é lançado na Solicitação (campo "Datas de entrega"), não
               precisa de um segundo lugar pra essa informação. Pedido do Thiago em 23/09/2026.
-              Nº de SOPP também saiu — agora é um por faixa, ali em cima, não um só pro card
+              Nº da SO também saiu — agora é uma por faixa, ali em cima, não um só pro card
               inteiro. Pedido do Thiago em 25/09/2026. */}
           <Field label="Acabamento" hint="Sugerido a partir da Solicitação — ajuste se precisar.">
             <Input name="acabamento" defaultValue={doc.acabamento || resumoAcabamento(c)} form="form-orcamento" />
@@ -138,10 +203,10 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
 
       {erro && <div className="anexo-erro">{erro}</div>}
       <AcoesBar>
-        <Button type="submit" form="form-orcamento" formAction={salvarAction} variant="outline" disabled={salvando}>
+        <Button type="submit" form="form-orcamento" value="salvar" variant="outline" disabled={salvando}>
           Salvar sem liberar
         </Button>
-        <Button type="submit" form="form-orcamento" formAction={enviarAction} disabled={enviando || doc.aguardandoCompras}>
+        <Button type="submit" form="form-orcamento" value="enviar" disabled={enviando || doc.aguardandoCompras}>
           {enviando ? "Enviando…" : "Enviar para Diretoria"}
         </Button>
       </AcoesBar>

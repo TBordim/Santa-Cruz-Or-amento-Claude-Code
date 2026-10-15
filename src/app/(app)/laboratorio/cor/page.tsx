@@ -7,11 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NovaCorForm } from "./NovaCorForm";
+import { ExcluirCorButton } from "./ExcluirCorButton";
 import { labToCssColor } from "@/lib/cor/lab-to-rgb";
 import { deltaE2000 } from "@/lib/cor/deltae";
 import { num } from "@/lib/cor/formato";
 import { proximoCodigoCor } from "@/lib/cor/codigo";
+import type { StatusCor } from "@/generated/prisma/client";
 
 const STATUS_LABEL: Record<string, string> = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -34,6 +37,9 @@ const TD = "px-2! py-2! sm:px-2.5!";
 // própria coluna (SO_SM) e vai pra baixo do código. Tudo continua na bancada da cor.
 const SO_MD = "hidden lg:table-cell";
 const SO_SM = "hidden sm:table-cell";
+// Cód. do produto é a coluna mais nova e a menos crítica pra caber logo em 1024px (LAB alvo/ΔE já
+// disputavam esse espaço) — só a partir de telas bem largas, pra não voltar a rolagem lateral.
+const SO_XL = "hidden xl:table-cell";
 
 // Amostra + valores; a amostra é só apoio visual (tela ≠ cabine de luz D50). Os valores podem
 // quebrar de linha em telas estreitas em vez de forçar rolagem lateral.
@@ -55,25 +61,40 @@ function CelulaLab({ lab }: { lab: Lab | null }) {
   );
 }
 
+// Lista na ordem do código, decrescente — a cor mais nova no topo, mais fácil de achar. Compara o
+// NÚMERO, não o texto (um código digitado com dígito a menos, tipo "STA009", fica no lugar do 9, e
+// não perto do 90). Códigos fora do padrão STA (91801663…) vêm de uma base antiga e ficam sempre no
+// fim da lista.
+function ordemCodigo(a: string, b: string): number {
+  const staA = /^STA/i.test(a);
+  const staB = /^STA/i.test(b);
+  if (staA !== staB) return staA ? -1 : 1;
+  return b.localeCompare(a, "pt-BR", { numeric: true, sensitivity: "base" });
+}
+
 // Lista em tabela de propósito — não em cards, dinâmica diferente do painel de orçamentos
 // (decisão explícita: bancada única por cor, não visualização por cards).
-export default async function CorPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function CorPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
 
   const podeRegistrar = (await podeEditar("COR_LABORATORIO")) || (await podeEditar("COR_ENGENHARIA"));
 
-  const { q } = await searchParams;
+  const { q, status } = await searchParams;
   const busca = q?.trim();
+  // "todos" é o valor do Select quando nenhum status foi escolhido — Radix Select não aceita value="".
+  const statusFiltro = status && status !== "todos" && status in STATUS_LABEL ? status : undefined;
+  const filtroAtivo = Boolean(busca) || Boolean(statusFiltro);
   const contem = (campo: string) => ({ [campo]: { contains: busca, mode: "insensitive" as const } });
 
   // Traz as leituras de cada rodada: dão o LAB aprovado (puxada ou, no histórico importado, o final da
   // planilha) e alimentam a coluna "Melhor ΔE".
   const cores = await prisma.cor.findMany({
-    where: busca
-      ? { OR: [contem("codigo"), contem("cliente"), contem("codigoProduto"), contem("referenciaDeclarada")] }
-      : undefined,
-    orderBy: [{ atualizadaEm: "desc" }, { codigo: "asc" }],
+    where: {
+      ...(busca ? { OR: [contem("codigo"), contem("cliente"), contem("codigoProduto"), contem("referenciaDeclarada")] } : {}),
+      ...(statusFiltro ? { status: statusFiltro as StatusCor } : {}),
+    },
+    orderBy: { codigo: "desc" },
     take: 1000,
     include: {
       rodadas: {
@@ -82,6 +103,7 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
       },
     },
   });
+  cores.sort((x, y) => ordemCodigo(x.codigo, y.codigo));
 
   return (
     <>
@@ -95,12 +117,25 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
       <div className="mt-6">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <h3 className="text-sm font-semibold text-foreground">
-            Cores cadastradas <span className="font-normal text-muted-foreground">({cores.length}{busca ? " encontradas" : ""})</span>
+            Cores cadastradas <span className="font-normal text-muted-foreground">({cores.length}{filtroAtivo ? " encontradas" : ""})</span>
           </h3>
-          <form action="/laboratorio/cor" className="flex gap-2">
+          <form action="/laboratorio/cor" className="flex flex-wrap gap-2">
             <Input name="q" defaultValue={busca ?? ""} placeholder="Buscar código, cliente, referência…" className="w-72" aria-label="Buscar cor" />
+            <Select name="status" defaultValue={statusFiltro ?? "todos"}>
+              <SelectTrigger className="w-[190px]" aria-label="Filtrar por status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os status</SelectItem>
+                {Object.entries(STATUS_LABEL).map(([valor, rotulo]) => (
+                  <SelectItem key={valor} value={valor}>
+                    {rotulo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button type="submit" variant="outline">Buscar</Button>
-            {busca && (
+            {filtroAtivo && (
               <Button asChild variant="ghost">
                 <Link href="/laboratorio/cor">Limpar</Link>
               </Button>
@@ -108,7 +143,7 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
           </form>
         </div>
         {cores.length === 0 ? (
-          <div className="empty-state">{busca ? `Nenhuma cor encontrada para "${busca}".` : "Nenhuma cor cadastrada ainda."}</div>
+          <div className="empty-state">{filtroAtivo ? "Nenhuma cor encontrada com esse filtro." : "Nenhuma cor cadastrada ainda."}</div>
         ) : (
           <div className="rounded-xl border border-border">
             <Table>
@@ -118,6 +153,7 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                   <TableHead className={TH}>
                     Cliente<span className="hidden sm:inline"> / referência</span>
                   </TableHead>
+                  <TableHead className={`${TH} ${SO_XL}`}>Cód. do produto</TableHead>
                   <TableHead className={`${TH} ${SO_MD}`}>LAB alvo</TableHead>
                   <TableHead className={TH}>LAB aprovado</TableHead>
                   <TableHead className={`${TH} ${SO_MD} text-right`}>ΔE</TableHead>
@@ -140,11 +176,14 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                   return (
                     <TableRow key={c.id}>
                       <TableCell className={TD}>
-                        {/* prefetch off: com centenas de linhas, o prefetch automático dispara uma renderização
-                            de servidor (com consultas ao banco) por cor visível de uma vez e esgota as conexões. */}
-                        <Link href={`/laboratorio/cor/${c.id}`} prefetch={false} className="font-medium hover:underline">
-                          {c.codigo}
-                        </Link>
+                        <div className="flex items-center gap-1">
+                          {/* prefetch off: com centenas de linhas, o prefetch automático dispara uma renderização
+                              de servidor (com consultas ao banco) por cor visível de uma vez e esgota as conexões. */}
+                          <Link href={`/laboratorio/cor/${c.id}`} prefetch={false} className="font-medium hover:underline">
+                            {c.codigo}
+                          </Link>
+                          {sessao.admin && <ExcluirCorButton id={c.id} codigo={c.codigo} />}
+                        </div>
                         <div className="text-[11px] text-muted-foreground">
                           {c.rodadas.length} {c.rodadas.length === 1 ? "rodada" : "rodadas"}
                         </div>
@@ -159,6 +198,9 @@ export default async function CorPage({ searchParams }: { searchParams: Promise<
                             {c.referenciaDeclarada}
                           </div>
                         )}
+                      </TableCell>
+                      <TableCell className={`${TD} ${SO_XL} max-w-32 whitespace-normal! truncate`} title={c.codigoProduto ?? undefined}>
+                        {c.codigoProduto ?? "—"}
                       </TableCell>
                       <TableCell className={`${TD} ${SO_MD} whitespace-normal!`}>
                         <CelulaLab lab={alvo} />

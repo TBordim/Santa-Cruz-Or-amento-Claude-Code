@@ -1,8 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { podeEditar, sessaoAtual } from "@/lib/permissions";
+import { ehAdmin, podeEditar, sessaoAtual } from "@/lib/permissions";
 import { TipoReferencia } from "@/generated/prisma/client";
 import { parseLabAlvoOuErro } from "@/lib/cor/lab-alvo";
 import { proximoCodigoCor } from "@/lib/cor/codigo";
@@ -61,4 +62,18 @@ export async function criarCor(_prev: FormState, formData: FormData): Promise<Fo
   if (!corId) return "Não foi possível gerar o código da cor agora. Tente de novo.";
 
   redirect(`/laboratorio/cor/${corId}`);
+}
+
+// Exclui a cor inteira (em cascata: rodadas, composições e leituras junto) — mais destrutivo que
+// excluir uma rodada, então restrito a administrador, diferente do resto do módulo (Laboratório
+// e Engenharia registram/editam, mas não apagam uma cor da lista).
+export async function excluirCor(formData: FormData): Promise<{ erro?: string } | undefined> {
+  if (!(await ehAdmin())) return { erro: "Só administrador pode excluir uma cor." };
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { erro: "Cor não encontrada." };
+
+  await prisma.cor.delete({ where: { id } });
+  revalidatePath("/laboratorio/cor");
+  return undefined;
 }

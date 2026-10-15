@@ -5,6 +5,7 @@ import { podeEditar } from "@/lib/permissions";
 import { etapaInfo } from "@/lib/orcamentos/constantes";
 import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
+import { modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { voltarEtapa } from "../actions";
 import { Button } from "@/components/ui/button";
 import { ExcluirCardButton } from "./ExcluirCardButton";
@@ -27,6 +28,7 @@ export async function Drawer({ id }: { id: string }) {
   const doc = { ...raw, precoAnterior: raw.precoAnterior ? Number(raw.precoAnterior) : null };
 
   const et = etapaInfo(doc.etapa ?? "");
+  const modelos = modelosDoDoc(doc);
 
   let corpo: React.ReactNode = null;
   switch (doc.etapa) {
@@ -42,11 +44,16 @@ export async function Drawer({ id }: { id: string }) {
     case "DIRETORIA": {
       // Busca o "anterior" de novo, ao vivo, em vez de confiar só no que foi calculado quando
       // o card chegou na Diretoria (tier.precoAnterior etc.) — se o caso de comparação (um
-      // Histórico ou Arquivo legado do mesmo cliente+código interno) só passou a existir DEPOIS
+      // Histórico ou Arquivo legado com o mesmo código interno) só passou a existir DEPOIS
       // que este card já estava na Diretoria, o valor congelado nunca vai refletir isso. Achado
       // em teste real: card enviado à Diretoria antes do outro orçamento existir ficava sem
       // comparação pra sempre, mesmo depois do outro ser finalizado.
-      const anteriorAoVivo = await buscarOrcamentoAnterior(doc.clienteChave ?? "", doc.codInterno, doc.id);
+      const anteriorAoVivo = await buscarOrcamentoAnterior(modelos, doc.id, {
+        clienteId: doc.clienteId,
+        clienteChave: doc.clienteChave,
+        cnpj: doc.cnpj,
+        reqCliente: doc.reqCliente,
+      });
       corpo = <PainelDiretoria doc={doc} anteriorAoVivo={anteriorAoVivo} />;
       break;
     }
@@ -72,19 +79,24 @@ export async function Drawer({ id }: { id: string }) {
         </span>
       </div>
       {doc.numeroSequencial && (
-        <span className="mr-1.5 font-mono text-muted-foreground">Nº {doc.numeroSequencial} —</span>
+        <span className="mr-1.5 font-mono text-muted-foreground">SO {doc.numeroSequencial} —</span>
       )}
       {doc.cliente}
     </>
   );
 
-  const descricao = (
-    <>
-      {doc.produtoDescricao}
-      {doc.codInterno ? ` · SC:${formatarCodigoInterno(doc.codInterno)}` : ""}
-      {doc.codigoCliente ? ` · Cliente: ${doc.codigoCliente}` : ""}
-    </>
-  );
+  const descricao =
+    modelos.length > 1 ? (
+      <>
+        {modelos.length} modelos na mesma faca: {modelos.map((m) => m.descricao).filter(Boolean).join(" / ")}
+      </>
+    ) : (
+      <>
+        {doc.produtoDescricao}
+        {doc.codInterno ? ` · SC:${formatarCodigoInterno(doc.codInterno)}` : ""}
+        {doc.codigoCliente ? ` · Cliente: ${doc.codigoCliente}` : ""}
+      </>
+    );
 
   return (
     <DrawerSheet titulo={titulo} descricao={descricao}>

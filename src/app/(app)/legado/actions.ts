@@ -8,8 +8,17 @@ import { chave } from "@/lib/orcamentos/legado";
 import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
 import { salvarAnexoNoBlob, excluirAnexoDoBlob } from "@/lib/anexos/storage";
 import { parseValorBR } from "@/lib/orcamentos/leitura";
+import { numeroMedida, temMedidasParaComparar, type Medidas } from "@/lib/orcamentos/medidas";
 
 export type FormState = { erro?: string } | undefined;
+
+// Comprimento, largura e altura (mm). Em branco vale; preenchido tem que ser número.
+function lerMedidas(formData: FormData): { valores: Medidas; erro?: string } {
+  const t = (n: string) => String(formData.get(n) ?? "").trim();
+  const valores: Medidas = { F: t("medidaF"), L: t("medidaL"), A: t("medidaA") };
+  const ruim = Object.values(valores).some((v) => v && numeroMedida(v) === null);
+  return ruim ? { valores, erro: "As medidas precisam ser números, em mm (ex.: 40 ou 40,5)." } : { valores };
+}
 
 async function exigirLegado() {
   if (!(await podeEditar("LEGADO"))) throw new Error("Sem permissão para editar o Arquivo legado.");
@@ -21,9 +30,17 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
   const produtoDescricao = String(formData.get("produtoDescricao") ?? "").trim();
   if (!cliente || !produtoDescricao) return { erro: "Preencha ao menos o cliente e a descrição do produto." };
 
+  // A Diretoria compara pelo Código interno OU, sem código, pelas medidas do mesmo cliente — então
+  // basta um dos dois. Folha de orçamento que o cliente não aprovou não tem código.
   const codInterno = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
-  if (!codigoInternoValido(codInterno)) {
-    return { erro: "Código interno (Santa Cruz) é obrigatório, no formato 0.000.000 (7 dígitos)." };
+  const medidas = lerMedidas(formData);
+  if (medidas.erro) return { erro: medidas.erro };
+  if (codInterno ? !codigoInternoValido(codInterno) : !temMedidasParaComparar(medidas.valores)) {
+    return {
+      erro: codInterno
+        ? "Código interno (Santa Cruz) deve ter o formato 0.000.000 (7 dígitos)."
+        : "Informe o Código interno ou, ao menos, o Comprimento e a Largura (em mm) — é por um deles que a Diretoria compara.",
+    };
   }
 
   const precoAtual = parseValorBR(String(formData.get("precoAtual") ?? ""));
@@ -36,7 +53,8 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
       origem: "LEGADO",
       cliente,
       clienteChave: chave(cliente),
-      codInterno,
+      codInterno: codInterno || null,
+      reqCliente: { medidaF: medidas.valores.F, medidaL: medidas.valores.L, medidaA: medidas.valores.A },
       produtoDescricao,
       produtoChave: chave(produtoDescricao),
       precoAtual: Number.isNaN(precoAtual) ? null : precoAtual,
@@ -75,6 +93,11 @@ export async function salvarDadosLegado(formData: FormData) {
     throw new Error("Código interno (Santa Cruz) deve ter o formato 0.000.000 (7 dígitos).");
   }
 
+  const medidas = lerMedidas(formData);
+  if (medidas.erro) throw new Error(medidas.erro);
+  // As medidas moram no JSON reqCliente; o resto do que já houver lá é preservado.
+  const atual = await prisma.orcamento.findUnique({ where: { id }, select: { reqCliente: true } });
+
   await prisma.orcamento.update({
     where: { id },
     data: {
@@ -83,6 +106,12 @@ export async function salvarDadosLegado(formData: FormData) {
       margemP2Pct: Number.isNaN(margemP2Pct) ? null : margemP2Pct,
       quantidade: Number.isNaN(quantidade) ? null : quantidade,
       ...(codInternoForm ? { codInterno: codInternoForm } : {}),
+      reqCliente: {
+        ...((atual?.reqCliente as Record<string, unknown> | null) ?? {}),
+        medidaF: medidas.valores.F,
+        medidaL: medidas.valores.L,
+        medidaA: medidas.valores.A,
+      },
     },
   });
   revalidatePath("/legado");
