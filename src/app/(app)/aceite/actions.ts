@@ -3,6 +3,9 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { ehAdmin } from "@/lib/permissions";
+import { removerAceite, limparEscolhaDoDesfecho } from "@/lib/aceite/abrir";
+import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { Prisma } from "@/generated/prisma/client";
 import type { AreaKey } from "@/lib/areas";
 import { modelosDoDoc, resumoDosModelos } from "@/lib/orcamentos/modelos";
@@ -330,4 +333,42 @@ export async function salvarPedidoInterno(_prev: FormState, formData: FormData):
   await prisma.aceite.update({ where: { id }, data: { pedidoInterno } });
   revalidarAceite();
   return { ok: "Pedido interno registrado." };
+}
+
+// ---------- Administrador: cancelar e excluir (cards de teste) ----------
+// Em qualquer etapa do Aceite o administrador pode cancelar o Aceite (volta o desfecho do orçamento
+// para "aguardando", sem nada de oficial) ou excluir o pedido por inteiro. Pedido do Thiago em 14/10/2026.
+
+export async function cancelarAceite(formData: FormData) {
+  if (!(await ehAdmin())) throw new Error("Só o administrador cancela um Aceite.");
+  const id = String(formData.get("id") ?? "");
+  const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, select: { orcamentoId: true, orcamento: { select: { precificacao: true } } } });
+  await removerAceite(a.orcamentoId);
+  await prisma.orcamento.update({
+    where: { id: a.orcamentoId },
+    data: {
+      etapa: "FINALIZADO",
+      desfecho: "AGUARDANDO",
+      desfechoMotivo: "",
+      desfechoPor: "",
+      desfechoEm: null,
+      precificacao: limparEscolhaDoDesfecho(a.orcamento.precificacao as PrecificacaoTier[] | null),
+    },
+  });
+  revalidarAceite();
+  revalidatePath("/painel");
+  revalidatePath("/historico");
+  redirect("/painel");
+}
+
+export async function excluirPedidoCompleto(formData: FormData) {
+  if (!(await ehAdmin())) throw new Error("Só o administrador exclui um pedido.");
+  const id = String(formData.get("id") ?? "");
+  const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, select: { orcamentoId: true } });
+  await removerAceite(a.orcamentoId);
+  await prisma.orcamento.delete({ where: { id: a.orcamentoId } });
+  revalidarAceite();
+  revalidatePath("/painel");
+  revalidatePath("/historico");
+  redirect("/aceite");
 }

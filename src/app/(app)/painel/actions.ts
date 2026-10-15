@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { sessaoAtual, podeEditar } from "@/lib/permissions";
+import { sessaoAtual, podeEditar, ehAdmin } from "@/lib/permissions";
 import { lerCamposComerciais, lerReqTecnicos, parseValorBR } from "@/lib/orcamentos/leitura";
 import { erroNosCores } from "@/lib/orcamentos/cores";
 import { erroNoLink } from "@/lib/orcamentos/link";
@@ -18,7 +18,7 @@ import type { ReqCliente, ReqTecnicos, PrecificacaoTier, Modelo, Suporte, Suport
 import type { AreaKey } from "@/lib/areas";
 import { CREDITO_LIBERA } from "@/lib/orcamentos/constantes";
 import { erroNosModelos } from "@/lib/orcamentos/validacao-modelos";
-import { abrirAceite, desfazerAceiteSemAndamento } from "@/lib/aceite/abrir";
+import { abrirAceite, desfazerAceiteSemAndamento, removerAceite, limparEscolhaDoDesfecho } from "@/lib/aceite/abrir";
 
 export type FormState = { erro?: string } | undefined;
 
@@ -672,24 +672,28 @@ export async function voltarEtapa(formData: FormData) {
   await exigirEdicao(id);
   const idx = ordem.indexOf(doc.etapa as (typeof ordem)[number]);
   if (idx <= 0) return;
-  // Desfazer o desfecho positivo desfaz o Aceite que ele abriu, se ninguém mexeu nele ainda.
-  if (doc.etapa === "CADASTRO_PRODUTO") await desfazerAceiteSemAndamento(id);
+  // Voltar de uma etapa em que o desfecho já foi registrado (Retorno do Cliente com desfecho, ou
+  // Cadastro de Produto) desfaz o desfecho: sem zerar, o card voltaria com desfecho já registrado e
+  // continuaria no Histórico, e o Aceite que o desfecho abriu seguiria no módulo Aceite como dado
+  // oficial. A SO escolhida e o Nº do pedido do cliente vão junto: foram digitados no mesmo desfecho.
+  // O administrador desfaz em qualquer etapa do Aceite (com os Pedidos de Material dele); os demais só
+  // enquanto ninguém mexeu no Aceite (pedido do Thiago em 14/10/2026).
+  const desfeito = doc.etapa === "CADASTRO_PRODUTO" || (doc.etapa === "FINALIZADO" && !!doc.desfecho && doc.desfecho !== "AGUARDANDO");
+  if (desfeito) {
+    if (await ehAdmin()) await removerAceite(id);
+    else await desfazerAceiteSemAndamento(id);
+  }
   await prisma.orcamento.update({
     where: { id },
     data: {
       etapa: ordem[idx - 1],
-      // Voltar da etapa 7 pra 6 é desfazer o desfecho positivo que mandou o card pra lá — sem
-      // zerar, o card voltaria pra Retorno do Cliente com desfecho já registrado e sumiria do
-      // Painel direto pro Histórico, sem o número de cadastro e sem ninguém ver.
-      // A SO escolhida vai junto: foi escolhida no mesmo desfecho.
-      ...(doc.etapa === "CADASTRO_PRODUTO"
+      ...(desfeito
         ? {
             desfecho: "AGUARDANDO" as const,
-            precificacao: ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => {
-              const limpa: PrecificacaoTier = { ...t, escolhidaPeloCliente: false };
-              delete limpa.pedidoCliente;
-              return limpa;
-            }),
+            desfechoMotivo: "",
+            desfechoPor: "",
+            desfechoEm: null,
+            precificacao: limparEscolhaDoDesfecho(doc.precificacao as PrecificacaoTier[] | null),
           }
         : {}),
     },
@@ -705,6 +709,7 @@ export async function excluirCard(formData: FormData) {
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   const area: AreaKey = doc.origem === "LEGADO" ? "LEGADO" : "HISTORICO";
   if (!(await podeEditar(area))) throw new Error("Sem permissão para excluir.");
+  await removerAceite(id); // PMs do Aceite saem junto (senão ficam órfãos em Compras)
   await prisma.orcamento.delete({ where: { id } });
   redirect("/painel");
 }
