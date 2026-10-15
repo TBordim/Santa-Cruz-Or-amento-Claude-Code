@@ -250,10 +250,10 @@ async function main() {
   for (const c of CLIENTES) await prisma.cliente.create({ data: { ...c, busca: textoBusca(c.razaoSocial) } });
   console.log(`  ${CLIENTES.length} clientes fictícios`);
 
-  // Card fictício na etapa 6 (Retorno do Cliente), inspirado num card real: 3 SOs (uma por quantidade),
-  // produto novo sem Nº de Cadastro. Nomes, CNPJ, contatos e números de SO/orçamento são inventados;
-  // medidas, material, acabamentos, quantidades e preços abaixo são PLAUSÍVEIS, não os do card real —
-  // trocar pelos valores reais quando forem conferidos.
+  // Card na etapa 6 (Retorno do Cliente), baseado num card real: 3 SOs (uma por quantidade), produto novo
+  // sem Nº de Cadastro. Cliente, CNPJ, endereço, contatos, representante, produto, pessoas e números de
+  // SO, orçamento e pré cadastro são INVENTADOS. Medidas, material, acabamentos, quantidades, preços,
+  // custos, margens, lotes e setups vêm do card real (dados técnicos e comerciais, sem identificar ninguém).
   const aurora = await prisma.cliente.create({
     data: {
       cnpj: "55012345000157",
@@ -267,9 +267,10 @@ async function main() {
   });
   const agora = Date.now();
   const FAIXAS = [
-    { quantidade: "5.000", so: "90417", preco: 1480, custo: 42.5, margem: 21.0 },
-    { quantidade: "10.000", so: "90418", preco: 1290, custo: 39.8, margem: 22.4 },
-    { quantidade: "20.000", so: "90419", preco: 1150, custo: 37.2, margem: 23.9 },
+    // preco = projetado (Orçamento); ofertado = preço final por milheiro enviado ao cliente.
+    { quantidade: "90.000", so: "90417", preco: 180.98, ofertado: 187, custo: 55.3, margem: 5 },
+    { quantidade: "60.000", so: "90418", preco: 202.55, ofertado: 209, custo: 54.6, margem: 5 },
+    { quantidade: "30.000", so: "90419", preco: 267.9, ofertado: 279, custo: 53.2, margem: 5 },
   ];
   const nomeProduto = "KIT PEDRA SANITÁRIA VERDELIMP (3 ITENS)";
   // Dados da Solicitação, comuns às duas versões do card (etapa 6 e Engenharia).
@@ -291,20 +292,22 @@ async function main() {
       endereco: aurora.endereco,
       cnpj: aurora.cnpj,
       representante: "Rafael Representante",
+      comissaoCev: "2",
       telefone: aurora.telefone,
       email: aurora.email,
       contatoCompras: aurora.contato,
-      condPagamento: "28/35/42 dias",
-      entregaLocalidade: "Campinas/SP",
+      condPagamento: "50% pedido 50% entrega",
+      entregaLocalidade: aurora.endereco,
       modalidade: "C.I.F.",
       qtdEntregas: "1",
-      entregaDatas: "30/11/2026",
-      modelos: [{ id: "modelo-1", descricao: nomeProduto, codigoCliente: "", codInterno: "", classificacao: "NOVO", cores: "3/0" }],
+      entregaDatas: "NA",
+      obs: "Não tem quantidades por item e nem quais são.",
+      modelos: [{ id: "modelo-1", descricao: nomeProduto, codigoCliente: "", codInterno: "", classificacao: "NOVO", cores: "4/0" }],
       reqCliente: {
-        medidaF: "120",
-        medidaL: "80",
-        medidaA: "45",
-        suportes: [{ descricao: "Cartão duplex", gramatura: "300" }],
+        medidaF: "64",
+        medidaL: "23",
+        medidaA: "100",
+        suportes: [{ descricao: "CARTÃO VITALINER", gramatura: "225" }],
         acabamentos: ["Corte e Vinco", "Colagem"],
         acabamentoOutro: "",
         verniz: ["UV Brilho"],
@@ -312,8 +315,8 @@ async function main() {
         embalagem: ["Caixa de Papelão"],
         embalagemDetalhe: "",
         impressao: ["CMYK"],
-        fechamentoTampa: "",
-        fechamentoFundo: "",
+        fechamentoTampa: "AMERICANA COM CABIDE",
+        fechamentoFundo: "AMERICANO",
         quantidadesLista: FAIXAS.map((f) => f.quantidade),
         linkArte: "",
       },
@@ -327,13 +330,17 @@ async function main() {
       etapa: "FINALIZADO",
       desfecho: "AGUARDANDO",
       statusDiretoria: "APROVADO",
-      finalizadoEm: new Date(),
+      finalizadoEm: new Date("2026-10-13T17:47:00-03:00"),
       numeroSequencial: FAIXAS.map((f) => f.so).join(", "),
       numeroOrcamento: "9.274/1,2,3",
+      preCadastro: "5120",
       prazoDias: 25,
+      obsEngenharia: "2 ACERTOS - (DIVIDIDO EM QTDS IGUAIS POR ITEM)",
+      vistoEngenhariaPor: "Bruno Engenharia",
+      vistoEngenhariaEm: new Date("2026-10-12T18:32:00-03:00"),
       reqTecnicos: {
-        suportes: [{ formato: "660 x 960", codigo: "CD300-6696", qtdFolha: "24", flsAcerto: "150", fatorC: "4", fatorL: "6", corte: "1", qtdCh: "1", idealC: "", idealL: "" }],
-        anexos: [],
+        suportes: [{ formato: "66X96", codigo: "2025798", qtdFolha: "16", flsAcerto: "300", fatorC: "59", fatorL: "80", corte: "2", qtdCh: "8", idealC: "59", idealL: "80" }],
+        anexos: ["Especificação GSC Montagem"],
         infoComplementares: "",
       },
       precificacao: FAIXAS.map((f) => ({
@@ -343,7 +350,7 @@ async function main() {
         custoPrimarioPct: f.custo,
         margemP2Pct: f.margem,
         numeroLotes: "1",
-        numeroSetups: "1",
+        numeroSetups: "2",
         precoAnterior: null,
         quantidadeAnterior: null,
         custoPrimarioPctAnterior: null,
@@ -358,7 +365,7 @@ async function main() {
         precoFinalSugerido: f.preco,
         motivoPendencia: "Produto novo",
         statusDiretoria: "aprovado",
-        precoFinal: f.preco,
+        precoFinal: f.ofertado,
         decididoPor: "Demo Admin",
         decididoEm: agora,
       })),
@@ -372,7 +379,7 @@ async function main() {
     data: {
       ...solicitacao,
       etapa: "ENGENHARIA",
-      obs: "Card para teste da Pré-montagem na Engenharia.",
+      obs: "Não tem quantidades por item e nem quais são. (Card para teste da Pré-montagem na Engenharia.)",
     },
   });
   console.log("  Card fictício (Engenharia): mesmo cliente e produto, para testar a Pré-montagem");

@@ -8,7 +8,7 @@ export const FECHAMENTOS_FUNDO = [
   "Fundo reto (lingueta)",
   "Fundo reverso (lingueta)",
   "Fundo 1-2-3 (snap lock)",
-  "Fundo automático (crash lock)",
+  "Fundo automático / americano (crash lock)",
   "Fundo automático de aba cheia",
   "Fundo selado (colado)",
   "Sem fundo (luva)",
@@ -19,6 +19,6 @@ export const FECHAMENTOS_TAMPA = [
   "Tampa de lingueta reversa",
   "Tampa com trava (slit-lock / friction fit)",
   "Tampa lacrada (inviolável)",
-  "Tampa com pendurador (hang tab)",
+  "Tampa americana com cabide (hang tab)",
   "Sem tampa (luva)",
 ] as const;
