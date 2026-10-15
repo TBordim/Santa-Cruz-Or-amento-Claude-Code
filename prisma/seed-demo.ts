@@ -20,6 +20,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type OrigemRodada, type StatusCor, type TipoReferencia } from "../src/generated/prisma/client";
 import { BCRYPT_ROUNDS } from "../src/lib/validation";
 import { deltaE2000, type Lab } from "../src/lib/cor/deltae";
+import { textoBusca } from "../src/lib/clientes/busca";
 
 function conferirAlvo(): string {
   const raw = process.env.DATABASE_URL;
@@ -111,6 +112,19 @@ const CORES: CorSeed[] = [
     status: "EM_DESENVOLVIMENTO",
     rodadas: [],
   },
+  {
+    codigo: "91801663",
+    cliente: "Confeitaria Doce Aurora",
+    referenciaDeclarada: "LARANJA P. 1495",
+    tipoReferencia: "AMOSTRA_CLIENTE",
+    alvo: { l: 51.5, a: 57.5, b: 31.5 },
+    substrato: "Cartão duplex 300 g/m²",
+    acabamento: "Verniz UV brilho",
+    status: "APROVADO",
+    rodadas: [
+      { origem: "FORNECEDOR", composicao: [["IRO21", 46], ["IRO33", 29], ["IRO48", 25]], puxada: { l: 51.6, a: 57.4, b: 31.8 }, aprovada: true },
+    ],
+  },
 ];
 
 const PERFIS = [
@@ -118,6 +132,7 @@ const PERFIS = [
   { chave: "eng", nome: "Engenharia de cor", admin: false, areas: ["COR_ENGENHARIA"] },
   { chave: "consulta", nome: "Produção (consulta)", admin: false, areas: [] },
   { chave: "admin", nome: "Administrador", admin: true, areas: [] },
+  { chave: "rep", nome: "Representante", admin: false, areas: ["NOVO"] },
 ] as const;
 
 const USUARIOS = [
@@ -125,6 +140,7 @@ const USUARIOS = [
   { nome: "Bruno Engenharia", pin: "2222", perfil: "eng" },
   { nome: "Carla Produção", pin: "3333", perfil: "consulta" },
   { nome: "Demo Admin", pin: "9999", perfil: "admin" },
+  { nome: "Rafael Representante", pin: "4444", perfil: "rep" },
 ] as const;
 
 async function main() {
@@ -136,9 +152,12 @@ async function main() {
     prisma.leituraLab.deleteMany(),
     prisma.composicao.deleteMany(),
     prisma.rodada.deleteMany(),
+    prisma.pantoneCor.deleteMany(),
     prisma.cor.deleteMany(),
     prisma.anexo.deleteMany(),
     prisma.orcamento.deleteMany(),
+    prisma.cliente.deleteMany(),
+    prisma.tentativaTreinamento.deleteMany(),
     prisma.usuario.deleteMany(),
     prisma.perfil.deleteMany(),
   ]);
@@ -206,6 +225,139 @@ async function main() {
     }
     console.log(`  ${c.codigo} ${c.cliente} — ${c.status}${resumo.length ? " — " + resumo.join(", ") : ""}`);
   }
+
+  // Pantone do catálogo que alimenta as sugestões da Tomada 4 (ΔE 1,15 contra o alvo da STA0005).
+  await prisma.pantoneCor.create({
+    data: {
+      codigo: "1665C",
+      labL: 53.0,
+      labA: 59.5,
+      labB: 33.5,
+      composicao: { Orange021: 44, WarmRed: 30, TransWhite: 26 },
+      somaPercentual: 100,
+      parcial: false,
+    },
+  });
+  console.log("  Pantone 1665C no catálogo");
+
+  // Clientes fictícios para a busca do Novo Orçamento (gravação do representante). CNPJs com dígitos válidos.
+  const CLIENTES = [
+    { cnpj: "11222333000181", razaoSocial: "Doces Serra Azul Ltda.", endereco: "Rua das Palmeiras, 120, Centro, Campinas/SP", telefone: "(19) 3000-1000", email: "compras@docesserraazul.example", contato: "Marta Souza" },
+    { cnpj: "12345678000195", razaoSocial: "Docerias Vale Doce Ltda.", endereco: "Av. Brasil, 800, Jardim América, Ribeirão Preto/SP", telefone: "(16) 3000-2000", email: "compras@valedoce.example", contato: "Paulo Lima" },
+    { cnpj: "45123789000106", razaoSocial: "Padaria Pão Nosso Ltda.", endereco: "Rua XV de Novembro, 45, Centro, Sorocaba/SP", telefone: "(15) 3000-3000", email: "pedidos@paonosso.example", contato: "Ana Ribeiro" },
+  ];
+  for (const c of CLIENTES) await prisma.cliente.create({ data: { ...c, busca: textoBusca(c.razaoSocial) } });
+  console.log(`  ${CLIENTES.length} clientes fictícios`);
+
+  // Card fictício na etapa 6 (Retorno do Cliente), inspirado num card real: 3 SOs (uma por quantidade),
+  // produto novo sem Nº de Cadastro. Nomes, CNPJ, contatos e números de SO/orçamento são inventados;
+  // medidas, material, acabamentos, quantidades e preços abaixo são PLAUSÍVEIS, não os do card real —
+  // trocar pelos valores reais quando forem conferidos.
+  const aurora = await prisma.cliente.create({
+    data: {
+      cnpj: "55012345000157",
+      razaoSocial: "AURORA HIGIENE E LIMPEZA LTDA.",
+      busca: textoBusca("AURORA HIGIENE E LIMPEZA LTDA."),
+      endereco: "Rua das Acácias, 310, Distrito Industrial, Campinas/SP",
+      telefone: "(19) 3000-4000",
+      email: "compras@aurorahigiene.example",
+      contato: "Juliana Prado",
+    },
+  });
+  const agora = Date.now();
+  const FAIXAS = [
+    { quantidade: "5.000", so: "90417", preco: 1480, custo: 42.5, margem: 21.0 },
+    { quantidade: "10.000", so: "90418", preco: 1290, custo: 39.8, margem: 22.4 },
+    { quantidade: "20.000", so: "90419", preco: 1150, custo: 37.2, margem: 23.9 },
+  ];
+  const nomeProduto = "KIT PEDRA SANITÁRIA VERDELIMP (3 ITENS)";
+  await prisma.orcamento.create({
+    data: {
+      origem: "NOVO",
+      etapa: "FINALIZADO",
+      desfecho: "AGUARDANDO",
+      statusDiretoria: "APROVADO",
+      finalizadoEm: new Date(),
+      cliente: "AURORA HIGIENE E LIMPEZA LTDA.",
+      clienteChave: "AURORA HIGIENE E LIMPEZA LTDA.",
+      clienteId: aurora.id,
+      produtoDescricao: nomeProduto,
+      produtoChave: nomeProduto,
+      codigoCliente: "",
+      codInterno: "",
+      numeroSequencial: FAIXAS.map((f) => f.so).join(", "),
+      numeroOrcamento: "9.274/1,2,3",
+      classificacao: "NOVO",
+      produtoNovo: true,
+      prazoDias: 25,
+      acabamento: "Corte e Vinco, Colagem, UV Brilho",
+      origemPedido: "Representante",
+      analiseCredito: "Não aplicável (cliente já cadastrado)",
+      fsc: "Não FSC",
+      endereco: aurora.endereco,
+      cnpj: aurora.cnpj,
+      representante: "Rafael Representante",
+      telefone: aurora.telefone,
+      email: aurora.email,
+      contatoCompras: aurora.contato,
+      condPagamento: "28/35/42 dias",
+      entregaLocalidade: "Campinas/SP",
+      modalidade: "C.I.F.",
+      qtdEntregas: "1",
+      entregaDatas: "30/11/2026",
+      modelos: [{ id: "modelo-1", descricao: nomeProduto, codigoCliente: "", codInterno: "", classificacao: "NOVO", cores: "3/0" }],
+      reqCliente: {
+        medidaF: "120",
+        medidaL: "80",
+        medidaA: "45",
+        suportes: [{ descricao: "Cartão duplex", gramatura: "300" }],
+        acabamentos: ["Corte e Vinco", "Colagem"],
+        acabamentoOutro: "",
+        verniz: ["UV Brilho"],
+        plastico: [],
+        embalagem: ["Caixa de Papelão"],
+        embalagemDetalhe: "",
+        impressao: ["CMYK"],
+        fechamentoTampa: "",
+        fechamentoFundo: "",
+        quantidadesLista: FAIXAS.map((f) => f.quantidade),
+        linkArte: "",
+      },
+      reqTecnicos: {
+        suportes: [{ formato: "660 x 960", codigo: "CD300-6696", qtdFolha: "24", flsAcerto: "150", fatorC: "4", fatorL: "6", corte: "1", qtdCh: "1", idealC: "", idealL: "" }],
+        anexos: [],
+        infoComplementares: "",
+      },
+      precificacao: FAIXAS.map((f) => ({
+        quantidade: f.quantidade,
+        numeroSequencial: f.so,
+        precoProjetado: f.preco,
+        custoPrimarioPct: f.custo,
+        margemP2Pct: f.margem,
+        numeroLotes: "1",
+        numeroSetups: "1",
+        precoAnterior: null,
+        quantidadeAnterior: null,
+        custoPrimarioPctAnterior: null,
+        margemP2PctAnterior: null,
+        numeroLotesAnterior: null,
+        numeroSetupsAnterior: null,
+        acabamentoAnterior: null,
+        produtoNovo: true,
+        premissasIguais: null,
+        premissasDivergentes: [],
+        variacaoPct: null,
+        precoFinalSugerido: f.preco,
+        motivoPendencia: "Produto novo",
+        statusDiretoria: "aprovado",
+        precoFinal: f.preco,
+        decididoPor: "Demo Admin",
+        decididoEm: agora,
+      })),
+      criadoPorId: usuarioId["Rafael Representante"],
+    },
+  });
+  console.log(`  Card fictício (etapa 6): SO ${FAIXAS.map((f) => f.so).join(", ")} — ${aurora.razaoSocial}`);
 
   console.log(`Pronto: ${USUARIOS.length} usuários, ${CORES.length} cores. Próxima cor criada no app: STA0005.`);
 }
