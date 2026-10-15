@@ -165,13 +165,14 @@ async function main() {
   // 2) Perfis e usuários.
   const perfilId: Record<string, string> = {};
   for (const p of PERFIS) {
-    const criado = await prisma.perfil.create({ data: { nome: p.nome, admin: p.admin, areas: [...p.areas] } });
+    // IDs fixos (perfis e usuários): o login guardado no navegador continua valendo depois de cada seed.
+    const criado = await prisma.perfil.create({ data: { id: `demo-perfil-${p.chave}`, nome: p.nome, admin: p.admin, areas: [...p.areas] } });
     perfilId[p.chave] = criado.id;
   }
   const usuarioId: Record<string, string> = {};
   for (const u of USUARIOS) {
     const criado = await prisma.usuario.create({
-      data: { nome: u.nome, pinHash: await bcrypt.hash(u.pin, BCRYPT_ROUNDS), perfilId: perfilId[u.perfil] },
+      data: { id: `demo-usuario-${u.perfil}`, nome: u.nome, pinHash: await bcrypt.hash(u.pin, BCRYPT_ROUNDS), perfilId: perfilId[u.perfil] },
     });
     usuarioId[u.nome] = criado.id;
   }
@@ -271,13 +272,9 @@ async function main() {
     { quantidade: "20.000", so: "90419", preco: 1150, custo: 37.2, margem: 23.9 },
   ];
   const nomeProduto = "KIT PEDRA SANITÁRIA VERDELIMP (3 ITENS)";
-  await prisma.orcamento.create({
-    data: {
+  // Dados da Solicitação, comuns às duas versões do card (etapa 6 e Engenharia).
+  const solicitacao = {
       origem: "NOVO",
-      etapa: "FINALIZADO",
-      desfecho: "AGUARDANDO",
-      statusDiretoria: "APROVADO",
-      finalizadoEm: new Date(),
       cliente: "AURORA HIGIENE E LIMPEZA LTDA.",
       clienteChave: "AURORA HIGIENE E LIMPEZA LTDA.",
       clienteId: aurora.id,
@@ -285,11 +282,8 @@ async function main() {
       produtoChave: nomeProduto,
       codigoCliente: "",
       codInterno: "",
-      numeroSequencial: FAIXAS.map((f) => f.so).join(", "),
-      numeroOrcamento: "9.274/1,2,3",
       classificacao: "NOVO",
       produtoNovo: true,
-      prazoDias: 25,
       acabamento: "Corte e Vinco, Colagem, UV Brilho",
       origemPedido: "Representante",
       analiseCredito: "Não aplicável (cliente já cadastrado)",
@@ -323,6 +317,20 @@ async function main() {
         quantidadesLista: FAIXAS.map((f) => f.quantidade),
         linkArte: "",
       },
+      criadoPorId: usuarioId["Rafael Representante"],
+  } as const;
+
+  // Etapa 6 — Retorno do Cliente: já passou pela Engenharia, Orçamento, Diretoria e Envio de oferta.
+  await prisma.orcamento.create({
+    data: {
+      ...solicitacao,
+      etapa: "FINALIZADO",
+      desfecho: "AGUARDANDO",
+      statusDiretoria: "APROVADO",
+      finalizadoEm: new Date(),
+      numeroSequencial: FAIXAS.map((f) => f.so).join(", "),
+      numeroOrcamento: "9.274/1,2,3",
+      prazoDias: 25,
       reqTecnicos: {
         suportes: [{ formato: "660 x 960", codigo: "CD300-6696", qtdFolha: "24", flsAcerto: "150", fatorC: "4", fatorL: "6", corte: "1", qtdCh: "1", idealC: "", idealL: "" }],
         anexos: [],
@@ -354,10 +362,20 @@ async function main() {
         decididoPor: "Demo Admin",
         decididoEm: agora,
       })),
-      criadoPorId: usuarioId["Rafael Representante"],
     },
   });
   console.log(`  Card fictício (etapa 6): SO ${FAIXAS.map((f) => f.so).join(", ")} — ${aurora.razaoSocial}`);
+
+  // Etapa 2 — Engenharia: o mesmo pedido recém-chegado, sem SO, preço nem dados técnicos. Serve para
+  // testar a Pré-montagem (as medidas e as quantidades já vêm da Solicitação; a faca sai das medidas).
+  await prisma.orcamento.create({
+    data: {
+      ...solicitacao,
+      etapa: "ENGENHARIA",
+      obs: "Card para teste da Pré-montagem na Engenharia.",
+    },
+  });
+  console.log("  Card fictício (Engenharia): mesmo cliente e produto, para testar a Pré-montagem");
 
   console.log(`Pronto: ${USUARIOS.length} usuários, ${CORES.length} cores. Próxima cor criada no app: STA0005.`);
 }
