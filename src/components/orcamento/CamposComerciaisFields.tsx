@@ -15,6 +15,7 @@ import {
   OPCOES_MODALIDADE,
 } from "@/lib/orcamentos/constantes";
 import type { Modelo, ReqCliente } from "@/lib/orcamentos/types";
+import { FECHAMENTOS_FUNDO, FECHAMENTOS_TAMPA } from "@/lib/orcamentos/fechamentos";
 import { FormSection, Field, Grade } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -240,8 +241,18 @@ export function CamposComerciaisFields({
       <FormSection title="Impressão e fechamento" denso>
         <CheckGroup nome="impressao" opcoes={OPCOES_IMPRESSAO} marcados={r?.impressao} />
         <Grade cols={2}>
-          <Field label="Fechamento tampa"><Input name="fechamentoTampa" defaultValue={r?.fechamentoTampa ?? ""} /></Field>
-          <Field label="Fechamento fundo"><Input name="fechamentoFundo" defaultValue={r?.fechamentoFundo ?? ""} /></Field>
+          <Field label="Fechamento tampa">
+            <Input name="fechamentoTampa" list="opcoes-fechamento-tampa" autoComplete="off" defaultValue={r?.fechamentoTampa ?? ""} />
+            <datalist id="opcoes-fechamento-tampa">
+              {FECHAMENTOS_TAMPA.map((o) => <option key={o} value={o} />)}
+            </datalist>
+          </Field>
+          <Field label="Fechamento fundo">
+            <Input name="fechamentoFundo" list="opcoes-fechamento-fundo" autoComplete="off" defaultValue={r?.fechamentoFundo ?? ""} />
+            <datalist id="opcoes-fechamento-fundo">
+              {FECHAMENTOS_FUNDO.map((o) => <option key={o} value={o} />)}
+            </datalist>
+          </Field>
         </Grade>
       </FormSection>
         </div>
