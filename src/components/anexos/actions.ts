@@ -7,13 +7,13 @@ import { salvarAnexoNoBlob, excluirAnexoDoBlob } from "@/lib/anexos/storage";
 import type { AreaKey } from "@/lib/areas";
 
 // Áreas que controlam cada tipo de anexo — arte é anexada em Em Aberto, anexos técnicos em
-// Engenharia (mesma regra de podeEditar por etapa do sistema atual). Ordem de compra do cliente: quem
-// registra o desfecho (Retorno do Cliente) e Vendas, que a consulta e pode complementar.
+// Engenharia (mesma regra de podeEditar por etapa do sistema atual). Ordem de compra do cliente: só
+// quem registra o desfecho (Retorno do Cliente) anexa; Vendas e os demais só consultam no Aceite.
 type TipoAnexoKey = "ARTE" | "ENGENHARIA" | "ORDEM_COMPRA";
 const AREAS_POR_TIPO: Record<TipoAnexoKey, AreaKey[]> = {
   ARTE: ["ABERTO"],
   ENGENHARIA: ["ENGENHARIA"],
-  ORDEM_COMPRA: ["FINALIZADO", "ACEITE_VENDAS"],
+  ORDEM_COMPRA: ["FINALIZADO"],
 };
 const tipoDe = (v: unknown): TipoAnexoKey => (v === "ENGENHARIA" || v === "ORDEM_COMPRA" ? v : "ARTE");
 

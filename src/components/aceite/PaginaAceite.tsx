@@ -168,13 +168,14 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
           </div>
         )}
 
-        {/* E-mails e documentos do cliente que comprovam a ordem de compra (anexados no desfecho). */}
-        {(doc.anexos.length > 0 || podeVendas) && (
+        {/* E-mails e documentos do cliente que comprovam a ordem de compra: anexados no desfecho (Retorno do Cliente), aqui só leitura. */}
+        {doc.anexos.length > 0 && (
           <AnexoUpload
             orcamentoId={doc.id}
             tipo="ORDEM_COMPRA"
             titulo="Ordem de compra do cliente: e-mails e documentos"
-            somenteLeitura={!podeVendas}
+            somenteLeitura
+            compacto
             anexos={doc.anexos.map((x) => ({ id: x.id, nome: x.nome, url: x.url, mime: x.mime, tamanho: x.tamanho }))}
           />
         )}
