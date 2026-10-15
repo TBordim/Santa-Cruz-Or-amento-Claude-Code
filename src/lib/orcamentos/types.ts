@@ -162,6 +162,10 @@ export type PrecificacaoTier = {
   // Nº do pedido do cliente (a ordem de compra dele), exigido ao registrar o desfecho positivo.
   // Fica na SO que ele fechou.
   pedidoCliente?: string;
+  // Linha que já foi ofertada ao cliente e ficou PRESERVADA enquanto uma quantidade nova é cotada
+  // (cotarNovaQuantidade): preço, SO e decisão da Diretoria não são recalculados nem reabertos.
+  // Sai quando a oferta nova é marcada como enviada.
+  ofertada?: boolean;
 };
 
 // Leitura automática por IA do Arquivo legado — fica deste tipo pronto, mas a Fase 2 não

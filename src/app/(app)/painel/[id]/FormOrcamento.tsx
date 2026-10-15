@@ -6,7 +6,12 @@ import { salvarOrcamento, enviarParaDiretoria, solicitarCompras, registrarRetorn
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, ReqTecnicos, PrecificacaoTier } from "@/lib/orcamentos/types";
 import { AjustesOrcamento } from "./AjustesOrcamento";
-import { fmtDateTime, resumoAcabamento } from "@/lib/orcamentos/constantes";
+import { fmtDateTime, fmtMoney, resumoAcabamento } from "@/lib/orcamentos/constantes";
+
+const STATUS_DIRETORIA: Record<string, string> = {
+  auto_aprovado: "aprovada automaticamente",
+  aprovado: "aprovada pela Diretoria",
+};
 import { paraCampoBR } from "@/lib/orcamentos/motor";
 import { combinacoesSO, chaveSO, opcoesDePapel, modelosDoDoc, type CombinacaoSO } from "@/lib/orcamentos/modelos";
 import { chave } from "@/lib/orcamentos/chave";
@@ -127,6 +132,24 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
             ];
             const numeroPorPapel = itens.length > 1 && numerosGravados.length > 1;
             const primeiro = itens[0];
+            // Quantidade que já foi ofertada ao cliente e está preservada enquanto uma nova é cotada
+            // (ver cotarNovaQuantidade): só leitura, nada a recalcular nem a reenviar à Diretoria.
+            const tiersDoGrupo = itens.map(({ cb }) => tierPorChave.get(chaveSO(cb)));
+            if (tiersDoGrupo.every((t) => t?.ofertada)) {
+              return (
+                <FormSection key={chave(quantidade)} title={`Quantidade: ${quantidade} — já ofertada ao cliente`}>
+                  <p className="-mt-1 text-xs text-muted-foreground">
+                    Preservada: o preço e a decisão da Diretoria não mudam enquanto a quantidade nova é cotada.
+                  </p>
+                  <ResumoBox
+                    rows={tiersDoGrupo.map((t, k) => ({
+                      label: `${t?.numeroSequencial ? `SO ${t.numeroSequencial}` : "SO"}${itens[k].cb.papel ? ` · ${itens[k].cb.papel}` : ""}`,
+                      value: `${fmtMoney(t?.precoFinal ?? t?.precoProjetado ?? null)} (${STATUS_DIRETORIA[t?.statusDiretoria ?? ""] ?? "—"})`,
+                    }))}
+                  />
+                </FormSection>
+              );
+            }
             const campoNumero = (i: number, valor: string, dica: string) => (
               <Field label="Nº da SO" hint={dica}>
                 <Input name={`numeroSequencial_${i}`} required defaultValue={valor} form="form-orcamento" />

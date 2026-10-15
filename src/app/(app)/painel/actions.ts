@@ -206,6 +206,7 @@ export async function salvarOrcamento(_prev: FormState, formData: FormData): Pro
 
   const rascunho = faixas.map((f) => {
     const ex = existentes.get(chaveSO(f));
+    if (ex?.ofertada) return ex; // linha já ofertada ao cliente: não muda (ver cotarNovaQuantidade)
     return {
       ...(ex ?? {}),
       quantidade: f.quantidade,
@@ -384,7 +385,15 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   }
   if (doc.aguardandoCompras) return { erro: "Registre o retorno de Compras antes de enviar para a Diretoria." };
 
-  const faixas = lerFaixas(formData, combinacoes);
+  const existentes = new Map(((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => [chaveSO(t), t]));
+  // Linhas já ofertadas ao cliente (ver cotarNovaQuantidade): valem como estão — o que veio do
+  // formulário é descartado e entram os valores gravados, pra não recalcular nem reabrir a Diretoria.
+  const faixas = lerFaixas(formData, combinacoes).map((f) => {
+    const ex = existentes.get(chaveSO(f));
+    return ex?.ofertada
+      ? { ...f, numeroSequencial: ex.numeroSequencial, precoProjetado: ex.precoProjetado, custoPrimarioPct: ex.custoPrimarioPct, margemP2Pct: ex.margemP2Pct, numeroLotes: ex.numeroLotes, numeroSetups: ex.numeroSetups }
+      : f;
+  });
   if (faixas.some((f) => Number.isNaN(f.precoProjetado))) {
     return { erro: 'Preencha o "Preço projetado" de todas as SOs.' };
   }
@@ -420,8 +429,18 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
     reqCliente: doc.reqCliente,
   });
 
-  const precificacao = montarPrecificacao({ faixas, comissaoEspecial, acabamentoAtual: acabamento, produtoNovoClassificacao, anterior });
+  const calculadas = montarPrecificacao({ faixas, comissaoEspecial, acabamentoAtual: acabamento, produtoNovoClassificacao, anterior });
+  // As linhas ofertadas mantêm o objeto gravado (inclusive a decisão da Diretoria); só as novas
+  // usam o cálculo.
+  const precificacao = calculadas.map((t, i) => {
+    const ex = existentes.get(chaveSO(faixas[i]));
+    return ex?.ofertada ? ex : t;
+  });
   const todosAuto = precificacao.every((t) => t.statusDiretoria === "auto_aprovado");
+  // Sem nenhuma linha pendente não há o que a Diretoria decidir: segue direto pro Envio de oferta
+  // (com linhas antigas aprovadas à mão e a nova automática, "todosAuto" seria falso e o card
+  // ficaria parado na Diretoria).
+  const semPendentes = precificacao.every((t) => t.statusDiretoria !== "pendente");
   const t0 = precificacao[0];
 
   await prisma.orcamento.update({
@@ -436,8 +455,8 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
       acabamento,
       produtoNovo: t0.produtoNovo,
       conflitoClassificacao: doc.classificacao === "REPETICAO_SEM_ALTERACAO" && t0.premissasDivergentes.length > 0,
-      etapa: todosAuto ? "ENVIO_OFERTA" : "DIRETORIA",
-      statusDiretoria: todosAuto ? "AUTO_APROVADO" : "PENDENTE",
+      etapa: semPendentes ? "ENVIO_OFERTA" : "DIRETORIA",
+      statusDiretoria: semPendentes ? (todosAuto ? "AUTO_APROVADO" : "APROVADO") : "PENDENTE",
     },
   });
   redirect("/painel");
@@ -559,9 +578,17 @@ export async function marcarFinalizado(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   await exigirEdicao(id);
   const numeroOrcamento = String(formData.get("numeroOrcamento") ?? "").trim();
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  // Oferta nova enviada: as linhas que ficaram preservadas durante a cotação voltam ao normal.
+  const precificacao = ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => {
+    const limpa: PrecificacaoTier = { ...t };
+    delete limpa.ofertada;
+    return limpa;
+  });
   await prisma.orcamento.update({
     where: { id },
     data: {
+      precificacao,
       etapa: "FINALIZADO",
       desfecho: "AGUARDANDO",
       finalizadoEm: new Date(),
@@ -629,6 +656,49 @@ export async function registrarDesfecho(_prev: FormState, formData: FormData): P
   if (desfecho !== "AGUARDANDO") redirect(voltarPara.startsWith("/atendimento") ? voltarPara : "/painel");
   revalidatePath(`/painel/${id}`);
   return undefined;
+}
+
+// O cliente já recebeu a oferta e pediu OUTRA quantidade (ex.: ofereceu 90 mil, ele quer 100 mil).
+// Em vez de devolver o card ao início e refazer tudo, a quantidade nova entra na lista, o card
+// volta pra etapa Orçamento e as linhas já ofertadas ficam PRESERVADAS (preço, SO e decisão da
+// Diretoria intactos — ver `ofertada` em types.ts). Só a linha nova é precificada e vai à
+// Diretoria; depois a oferta segue com todas e o cliente escolhe qual aprova. Pedido do Thiago em
+// 15/10/2026. Só vale enquanto o desfecho ainda é "aguardando".
+export async function cotarNovaQuantidade(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  const { nomeAtor } = await exigirEdicao(id);
+  if (doc.etapa !== "FINALIZADO" || (doc.desfecho && doc.desfecho !== "AGUARDANDO")) {
+    return { erro: "Só dá para cotar uma nova quantidade enquanto o card aguarda o retorno do cliente." };
+  }
+
+  const c: ReqCliente = { ...((doc.reqCliente as ReqCliente | null) ?? ({} as ReqCliente)) };
+  const quantidades = [...(c.quantidadesLista ?? [])];
+  const novas = formData.getAll("novaQuantidade").map((v) => String(v).trim()).filter(Boolean);
+  if (!novas.length) return { erro: "Informe a nova quantidade." };
+  const itens: string[] = [];
+  for (const q of novas) {
+    const n = parseQuantidade(q);
+    if (!n) return { erro: `Quantidade inválida: "${q}". Informe só números, por exemplo 100.000.` };
+    if (quantidades.some((x) => chave(x) === chave(q) || parseQuantidade(x) === n)) {
+      return { erro: `A quantidade ${q} já foi cotada neste orçamento.` };
+    }
+    quantidades.push(q);
+    itens.push(`Quantidade ${q} cotada depois da oferta, a pedido do cliente`);
+  }
+
+  const r: ReqTecnicos = { ...((doc.reqTecnicos as ReqTecnicos | null) ?? ({ suportes: [], anexos: [] } as ReqTecnicos)) };
+  const reqTecnicos: ReqTecnicos = {
+    ...r,
+    ajustesOrcamento: [...(r.ajustesOrcamento ?? []), { em: new Date().toISOString(), por: nomeAtor, itens }],
+  };
+  const precificacao = ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => ({ ...t, ofertada: true }));
+
+  await prisma.orcamento.update({
+    where: { id },
+    data: { reqCliente: { ...c, quantidadesLista: quantidades }, reqTecnicos, precificacao, etapa: "ORCAMENTO" },
+  });
+  redirect("/painel");
 }
 
 // ---------- Etapa 7 — Cadastro de Produto ----------
