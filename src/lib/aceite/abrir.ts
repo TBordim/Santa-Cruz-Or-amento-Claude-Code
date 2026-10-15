@@ -42,3 +42,26 @@ export async function desfazerAceiteSemAndamento(orcamentoId: string) {
     await prisma.aceite.delete({ where: { id: aceite.id } });
   }
 }
+
+// Remove o Aceite de um orçamento junto com os Pedidos de Material dele. Os PMs têm exclusão "solta"
+// (onDelete SetNull, porque o PM é independente do módulo que o pediu), então apagar só o Aceite ou o
+// orçamento deixaria PMs órfãos em Compras: aqui eles saem junto. Uso do administrador, para limpar
+// cards de teste que não podem ficar como dados oficiais.
+export async function removerAceite(orcamentoId: string) {
+  const aceite = await prisma.aceite.findUnique({ where: { orcamentoId }, select: { id: true } });
+  if (!aceite) return;
+  await prisma.$transaction([
+    prisma.pedidoMaterial.deleteMany({ where: { aceiteId: aceite.id } }),
+    prisma.aceite.delete({ where: { id: aceite.id } }),
+  ]);
+}
+
+// Desfaz a escolha do desfecho positivo na precificação: nenhuma SO fica marcada e o Nº do pedido do
+// cliente sai (ele foi digitado junto com o desfecho).
+export function limparEscolhaDoDesfecho(tiers: PrecificacaoTier[] | null): PrecificacaoTier[] {
+  return (tiers ?? []).map((t) => {
+    const limpa: PrecificacaoTier = { ...t, escolhidaPeloCliente: false };
+    delete limpa.pedidoCliente;
+    return limpa;
+  });
+}

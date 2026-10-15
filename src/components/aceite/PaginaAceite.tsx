@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CornerUpLeft, TriangleAlert } from "lucide-react";
-import { podeEditar } from "@/lib/permissions";
+import { podeEditar, ehAdmin } from "@/lib/permissions";
 import { carregarAceite } from "@/lib/aceite/dados";
 import type { SetorAceite } from "@/lib/aceite/setores";
 import { chegadaDoPapel, temAlertaPendente, situacaoPapelLabel, fmtDia, fmtQuantidade } from "@/lib/aceite/constantes";
@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { voltarEtapaAceite, marcarAlertasVistos } from "@/app/(app)/aceite/actions";
 import { Andamento } from "./Andamento";
 import { FormVendas } from "./FormVendas";
+import { AdminAceite } from "./AdminAceite";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { PedidosMaterial } from "./PedidosMaterial";
 import { FormEngenharia } from "./FormEngenharia";
@@ -65,6 +66,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
     podeEditar("ATENDIMENTO_CLIENTE"),
   ]);
   // Cada ambiente age só pelo próprio setor, mesmo que a pessoa (ex.: administrador) tenha outras áreas.
+  const admin = await ehAdmin();
   const podeVendas = ambiente === "vendas" && podeVendasArea;
   const podeEngenharia = ambiente === "engenharia" && podeEngArea;
   const podePcp = ambiente === "pcp" && podePcpArea;
@@ -114,14 +116,19 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
             : `${doc.produtoDescricao ?? ""}${doc.codInterno ? ` · SC:${formatarCodigoInterno(doc.codInterno)}` : ""}`
         }
         action={
-          podeVoltar ? (
-            <form action={voltarEtapaAceite}>
-              <input type="hidden" name="id" value={a.id} />
-              <input type="hidden" name="voltarPara" value={voltarLista} />
-              <Button type="submit" variant="outline" size="sm" className="gap-1.5">
-                <CornerUpLeft className="h-3.5 w-3.5" /> Voltar etapa
-              </Button>
-            </form>
+          podeVoltar || admin ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {podeVoltar && (
+                <form action={voltarEtapaAceite}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <input type="hidden" name="voltarPara" value={voltarLista} />
+                  <Button type="submit" variant="outline" size="sm" className="gap-1.5">
+                    <CornerUpLeft className="h-3.5 w-3.5" /> Voltar etapa
+                  </Button>
+                </form>
+              )}
+              {admin && <AdminAceite aceiteId={a.id} />}
+            </div>
           ) : undefined
         }
       />
