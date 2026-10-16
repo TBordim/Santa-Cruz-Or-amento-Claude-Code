@@ -35,7 +35,8 @@ export default async function ComprasPage({ searchParams }: { searchParams: Prom
 
   const incluir = {
     eventos: { orderBy: { criadoEm: "desc" as const } },
-    aceite: { select: { id: true, numero: true, orcamento: { select: { cliente: true, produtoDescricao: true } } } },
+    aceite: { select: { id: true, numero: true, orcamento: { select: { cliente: true, produtoDescricao: true } }, _count: { select: { lotes: true } } } },
+    lote: { select: { numero: true } },
   };
   const [totais, ativos, doFiltro, podeCompras] = await Promise.all([
     Promise.all((["prazo", "confirmados", "atrasados", "sobras"] as const).map((k) => prisma.pedidoMaterial.count({ where: onde[k] }))),
@@ -66,7 +67,8 @@ export default async function ComprasPage({ searchParams }: { searchParams: Prom
   const cabecalho = (p: (typeof ativos)[number]) =>
     p.aceite ? (
       <div className="mb-1.5 truncate text-xs text-muted-foreground">
-        {p.aceite.numero ? `Aceite ${p.aceite.numero}` : "Aceite sem nº"}: <b className="text-foreground">{p.aceite.orcamento.cliente}</b> — {p.aceite.orcamento.produtoDescricao}
+        {p.aceite.numero ? `Aceite ${p.aceite.numero}` : "Aceite sem nº"}
+        {p.lote ? <b className="text-foreground"> · Lote {p.lote.numero}/{p.aceite._count.lotes}</b> : ""}: <b className="text-foreground">{p.aceite.orcamento.cliente}</b> — {p.aceite.orcamento.produtoDescricao}
       </div>
     ) : null;
 
