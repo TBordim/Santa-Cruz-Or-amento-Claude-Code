@@ -285,6 +285,8 @@ model Orcamento {
 enum TipoAnexo {
   ARTE
   ENGENHARIA
+  // E-mails e documentos do cliente que comprovam a ordem de compra, anexados no desfecho positivo.
+  ORDEM_COMPRA
 }
 
 model Anexo {
@@ -640,6 +642,9 @@ model Aceite {
   protocoloRequisitos      String?
   // 1ª data do cliente: a data que o cliente pediu (a acordada é a dataEntrega, definida pelo PCP).
   dataCliente          DateTime? @db.Date
+  // Todas as datas que o cliente pediu (entregas parceladas): [{ data: "2026-11-06", quantidade, obs }].
+  // dataCliente guarda a mais cedo, que as telas e a planilha do PCP já usam.
+  datasCliente         Json?
   // Itens do pedido: um por modelo do orçamento, com a quantidade que o cliente pediu e a montagem
   // (grupo de modelos que saem juntos na mesma folha, com as posições de cada um), definida pela
   // Engenharia. Formato em ItemAceite (src/lib/aceite/montagem.ts).

@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
-import { registrarDesfecho } from "../actions";
+import { registrarDesfecho, cotarNovaQuantidade } from "../actions";
+import { ListaDinamica } from "@/components/orcamento/ListaDinamica";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { fmtMoney, fmtDateTime, DESFECHOS } from "@/lib/orcamentos/constantes";
 import { modelosDoDoc, soEscolhida, valorSO } from "@/lib/orcamentos/modelos";
 import { FormSection, Field, ResumoBox, DiretrizBlock } from "@/components/form-section";
 import { LinhasSO } from "@/components/orcamento/LinhasSO";
+import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,7 @@ import { Button } from "@/components/ui/button";
 // esta mesma gaveta; sem ele, volta pro Painel).
 export function FormFinalizado({ doc, voltarPara }: { doc: OrcamentoComAnexos; voltarPara?: string }) {
   const [state, onSubmit, pending] = useFormActionSemReset(registrarDesfecho, undefined);
+  const [estadoCotar, onCotar, cotando] = useFormActionSemReset(cotarNovaQuantidade, undefined);
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
   const modelos = modelosDoDoc(doc);
   const semCadastro = modelos.filter((m) => !m.codInterno).length;
@@ -60,6 +63,27 @@ export function FormFinalizado({ doc, voltarPara }: { doc: OrcamentoComAnexos; v
         />
       </div>
 
+      {/* O cliente pediu outra quantidade depois da oferta: a nova entra e o card volta pro Orçamento
+          com as linhas já ofertadas preservadas (ver cotarNovaQuantidade em painel/actions.ts). */}
+      {(!doc.desfecho || doc.desfecho === "AGUARDANDO") && (
+        <form onSubmit={onCotar} className="mt-4">
+          <input type="hidden" name="id" value={doc.id} />
+          <FormSection title="O cliente pediu outra quantidade?">
+            <p className="-mt-1 text-xs text-muted-foreground">
+              A oferta que você já enviou fica como está (preço, SO e decisão da Diretoria). O card volta para o Orçamento só para
+              precificar a quantidade nova, e depois segue com todas as linhas para o cliente escolher.
+            </p>
+            <Field label="Nova quantidade">
+              <ListaDinamica name="novaQuantidade" placeholder="Ex.: 100.000" botaoLabel="Adicionar outra quantidade" obrigatorio />
+            </Field>
+            {estadoCotar?.erro && <div className="anexo-erro">{estadoCotar.erro}</div>}
+            <div>
+              <Button type="submit" variant="outline" disabled={cotando}>{cotando ? "Enviando…" : "Cotar nova quantidade"}</Button>
+            </div>
+          </FormSection>
+        </form>
+      )}
+
       <form onSubmit={onSubmit} className="mt-4">
         <input type="hidden" name="id" value={doc.id} />
         {voltarPara && <input type="hidden" name="voltarPara" value={voltarPara} />}
@@ -95,9 +119,14 @@ export function FormFinalizado({ doc, voltarPara }: { doc: OrcamentoComAnexos; v
             </fieldset>
           )}
           {desfecho === "POSITIVO" && (
-            <Field label="Nº do pedido do cliente (obrigatório)" hint="A ordem de compra que o cliente enviou para a SO aprovada.">
+            <Field label="Nº do pedido do cliente (obrigatório)" hint="A ordem de compra que o cliente enviou para a SO aprovada. Vendas vê este número no Aceite.">
               <Input name="pedidoCliente" required defaultValue={escolhidaAtual?.pedidoCliente ?? ""} />
             </Field>
+          )}
+          {/* E-mails e documentos do cliente para corroborar a ordem de compra. Sobem na hora (não
+              dependem de "Registrar desfecho") e Vendas os consulta no Aceite. */}
+          {desfecho === "POSITIVO" && (
+            <AnexoUpload orcamentoId={doc.id} tipo="ORDEM_COMPRA" anexos={doc.anexos.filter((a) => a.tipo === "ORDEM_COMPRA")} />
           )}
           <Field label="Motivo (opcional)">
             <Input name="motivo" defaultValue={doc.desfechoMotivo ?? ""} />

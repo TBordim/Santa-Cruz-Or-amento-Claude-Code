@@ -26,16 +26,26 @@ export const CONFIG = {
     { id: "roland-507", nome: "Roland 507", coresMax: 7, espessuraMaxMm: 0.6 },
   ] satisfies Maquina[],
 
-  // O fator (pedaço da folha depois do corte) passa na máquina pelo lado de 53, e o 74 fica
-  // transversal. O mínimo vem da internet (Roland 500) e precisa ser confirmado.
-  fator: { passagemMax: 530, transversalMax: 740, passagemMin: 260, transversalMin: 400 },
+  // O fator (pedaço da folha depois do corte) passa na máquina com a "altura" na direção da passagem
+  // e a "largura" (74) na transversal. Medidas informadas pelo Thiago em 13/10/2026:
+  // - área máxima de impressão: 59 × 74 cm (altura × largura);
+  // - tamanho mínimo de papel da impressora: 26 × 40 cm.
+  fator: { passagemMax: 590, transversalMax: 740, passagemMin: 260, transversalMin: 400 },
 
-  // Faixas das bordas de 74, descontadas da dimensão de passagem (53).
-  pincaMm: 13, // limitada pela Bobst SP 102
-  barraControleMm: 15, // opcional por pedido
+  // A corte e vinco automática (Bobst SP 102) pede no mínimo 32 × 40 cm. Abaixo disso só dá para
+  // cortar na manual ou na guilhotina (até o mínimo da impressora, 26 × 40 cm).
+  bobstAutomatica: { passagemMin: 320, transversalMin: 400 },
 
-  // EXEMPLO: margem das bordas e espaço entre facas ainda não foram informados.
-  margemMm: 8,
+  // Faixas das bordas de 74, descontadas da dimensão de passagem.
+  pincaMm: 11, // pinça mínima; pode ser aumentada por pedido
+  barraControleMm: 9, // na borda oposta à pinça; opcional por pedido
+  margemTraseiraMm: 0, // AINDA NÃO INFORMADO: margem depois da barra (ou da borda, sem barra)
+
+  // Margem de impressão nas laterais (as bordas ao longo da passagem), em cada lado.
+  margemLateralMm: 5,
+
+  // Corte duplo (lâminas separadas): espaço mínimo entre os cartuchos no sentido da tampa e do fundo.
+  // No sentido da aba de cola os cartuchos sempre se encostam (uma aba contra o outro), nos dois cortes.
   espacoFacasMm: 4,
 
   // Produzir de 100% a 110% do pedido, nunca menos.
@@ -68,6 +78,10 @@ export const CONFIG = {
   // A folha sob medida tem de ter centímetros inteiros (83 ou 84, nunca 83,4): o fator é arredondado
   // para cima em múltiplos de `multiploMm` (10 mm = 1 cm) e a folha é o fator vezes o nº de partes.
   formatoIdeal: { multiploMm: 10, prazoDias: 10 },
+
+  // Busca de blocos exatos para a folha sob medida: até quantas colunas e linhas testar e quantas opções
+  // sob medida manter (as de melhor aproveitamento, uma por número de poses).
+  sobMedida: { maxColunas: 10, maxLinhas: 10, manter: 6 },
 
   // Lâmina da faca, cobrada por metro desenhado (corte e vinco pelo mesmo preço).
   precoMetroLaminaReais: 50,

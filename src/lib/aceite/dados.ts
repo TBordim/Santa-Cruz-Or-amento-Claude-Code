@@ -26,7 +26,7 @@ export type PMTela = ReturnType<typeof pmParaTela>;
 export async function carregarAceite(id: string) {
   const a = await prisma.aceite.findUnique({
     where: { id },
-    include: { orcamento: true, negociacoes: { orderBy: { abertaEm: "desc" } }, entregas: { orderBy: { criadoEm: "asc" } }, ...comPMs },
+    include: { orcamento: { include: { anexos: { where: { tipo: "ORDEM_COMPRA" }, orderBy: { enviadoEm: "asc" } } } }, negociacoes: { orderBy: { abertaEm: "desc" } }, entregas: { orderBy: { criadoEm: "asc" } }, ...comPMs },
   });
   if (!a) return null;
   const { orcamento, pedidosMaterial, ...resto } = a;

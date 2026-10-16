@@ -42,7 +42,7 @@ export function PedidosMaterial({
   podeCompras: boolean;
   podeCancelar: boolean;
   nota?: string;
-  // Papéis do Aceite: o PM escolhe a qual se refere e já nasce preenchido com ele.
+  // Papéis a utilizar do Aceite: o PM pode copiar os dados de um deles, mas não fica preso a ele.
   papeis?: Papel[];
 }) {
   return (
@@ -330,31 +330,38 @@ function Calculado({ rotulo, valor, destaque = false }: { rotulo: string; valor:
 type Papel = { id: string; codigo: string; descricao: string; folhas: number | null; formato: string; gramatura: string };
 
 function NovoPM({ aceiteId, papeis }: { aceiteId: string; papeis: Papel[] }) {
-  const [papelId, setPapelId] = useState<string>(papeis[0]?.id ?? "");
+  // O PM é independente do papel a ser utilizado: pode ser de outro papel e outro formato, conforme
+  // a oferta do mercado (11/10/2026). O papel escolhido aqui só preenche os campos, não cria vínculo.
+  const [papelId, setPapelId] = useState<string>("");
   const sugestao = papeis.find((x) => x.id === papelId);
+  const [codigo, setCodigo] = useState("");
+  const [descricao, setDescricao] = useState("");
   const [aberto, setAberto] = useState(false);
   const [state, onSubmit, pending] = useFormActionSemReset(criarPedidoMaterial, undefined);
   const [material, setMaterial] = useState<string>("PAPEL");
   const [qtd, setQtd] = useState("");
   const [unidade, setUnidade] = useState("fls");
+  const [imediata, setImediata] = useState(true);
+  const [desejada, setDesejada] = useState("");
   // Formato e gramatura vêm do papel escolhido; editáveis, porque o PM pode pedir outro formato.
   const [formato, setFormato] = useState(sugestao?.formato ?? "");
   const [gramatura, setGramatura] = useState(soNumero(sugestao?.gramatura));
   const peso = pesoKg(lerQuantidade(qtd), unidade, formato, lerQuantidade(gramatura));
 
-  function escolherPapel(id: string) {
+  function copiarDe(id: string) {
     setPapelId(id);
     const x = papeis.find((y) => y.id === id);
-    setFormato(x?.formato ?? "");
-    setGramatura(soNumero(x?.gramatura));
+    if (!x) return;
+    setCodigo(x.codigo);
+    setDescricao(x.descricao);
+    setFormato(x.formato);
+    setGramatura(soNumero(x.gramatura));
   }
   function escolherMaterial(m: string) {
     setMaterial(m);
     setUnidade(m === "PAPEL" ? "fls" : "kg");
-    if (m !== "PAPEL") {
-      setFormato("");
-      setGramatura("");
-    } else escolherPapel(papelId);
+    if (m !== "PAPEL") setFormato("");
+    if (m !== "PAPEL") setGramatura("");
   }
 
   if (!aberto) {
@@ -379,10 +386,9 @@ function NovoPM({ aceiteId, papeis }: { aceiteId: string; papeis: Papel[] }) {
     >
       <input type="hidden" name="aceiteId" value={aceiteId} />
       <input type="hidden" name="material" value={material} />
-      <input type="hidden" name="suporteRef" value={material === "PAPEL" ? papelId : ""} />
-      {material === "PAPEL" && papeis.length > 1 && (
-        <Field label="De qual papel do pedido?">
-          <Escolha rotulo="Papel do pedido" valor={papelId} onChange={escolherPapel} opcoes={papeis.map((x, n) => ({ key: x.id, label: `Papel ${n + 1}: ${x.descricao}` }))} />
+      {material === "PAPEL" && papeis.length > 0 && (
+        <Field label="Preencher com os dados de um papel a ser utilizado (opcional)" hint="Só copia os dados; o PM pode ser de outro papel ou formato.">
+          <Escolha rotulo="Copiar dados do papel" valor={papelId} onChange={copiarDe} opcoes={papeis.map((x, n) => ({ key: x.id, label: `Papel ${n + 1}: ${x.descricao}` }))} />
         </Field>
       )}
       <Field label="Material">
@@ -390,17 +396,17 @@ function NovoPM({ aceiteId, papeis }: { aceiteId: string; papeis: Papel[] }) {
       </Field>
       <Row2 compacto>
         <Field label="Código no ERP">
-          <Input name="codigoMaterial" defaultValue={material === "PAPEL" ? (sugestao?.codigo ?? "") : ""} key={`cod-${material}-${papelId}`} />
+          <Input name="codigoMaterial" value={codigo} onChange={(e) => setCodigo(e.target.value)} />
         </Field>
         <Field label="Formato mínimo que serve" hint="Ex.: 48x56.">
           <Input name="formatoMinimo" />
         </Field>
       </Row2>
       <Field label="Descrição" hint="Ex.: Vitamax 300g 96x66.">
-        <Input name="descricao" required defaultValue={material === "PAPEL" ? (sugestao?.descricao ?? "") : ""} key={`desc-${material}-${papelId}`} />
+        <Input name="descricao" required value={descricao} onChange={(e) => setDescricao(e.target.value)} />
       </Field>
       <Row2 compacto>
-        <Field label="Quantidade que falta" hint={material === "PAPEL" && sugestao?.folhas ? `O Aceite precisa de ${fmtQuantidade(sugestao.folhas)} folhas no total.` : undefined}>
+        <Field label="Quantidade que falta" hint={material === "PAPEL" && sugestao?.folhas ? `O papel copiado usa ${fmtQuantidade(sugestao.folhas)} folhas no total.` : undefined}>
           <Input name="quantidade" inputMode="decimal" required value={qtd} onChange={(e) => setQtd(e.target.value)} />
         </Field>
         <Field label="Unidade">
@@ -418,8 +424,15 @@ function NovoPM({ aceiteId, papeis }: { aceiteId: string; papeis: Papel[] }) {
           <Calculado rotulo="Peso" valor={peso === null ? "—" : fmtQuantidade(peso, "kg")} />
         </div>
       </div>
-      <Field label="Entrega desejada" hint="Ex.: imediata, ou uma data.">
-        <Input name="entregaDesejada" defaultValue="Imediata" />
+      <input type="hidden" name="entregaDesejada" value={imediata ? "Imediata" : desejada ? desejada.split("-").reverse().join("/") : ""} />
+      <Field label="Entrega desejada">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={imediata} onChange={(e) => setImediata(e.target.checked)} className="h-4 w-4" />
+            Imediata
+          </label>
+          <Input type="date" value={desejada} disabled={imediata} min={new Date().toLocaleDateString("en-CA")} onChange={(e) => setDesejada(e.target.value)} className="w-44" aria-label="Data de entrega desejada" />
+        </div>
       </Field>
       <Field label="Observação para Compras (opcional)">
         <Input name="obs" />

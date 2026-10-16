@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "TipoAnexo" ADD VALUE 'ORDEM_COMPRA';
+

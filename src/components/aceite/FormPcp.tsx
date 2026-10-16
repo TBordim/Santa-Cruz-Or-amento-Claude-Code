@@ -33,7 +33,7 @@ export function FormPcp({
             ? `O papel que falta chega em ${fmtDia(chegadaPapel)}. Defina a data de entrega a partir daí e do tempo de produção.`
             : "O papel está reservado em estoque. Defina a data de entrega pelo tempo de produção."}
         </DiretrizBlock>
-        {dataCliente && <p className="text-sm text-muted-foreground">O cliente pediu para {dataCliente} (1ª data do cliente).</p>}
+        {dataCliente && <p className="text-sm text-muted-foreground">O cliente pediu para: {dataCliente}.</p>}
         {sugestao && (
           <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">

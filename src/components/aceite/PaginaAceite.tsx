@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CornerUpLeft, TriangleAlert } from "lucide-react";
-import { podeEditar } from "@/lib/permissions";
+import { podeEditar, ehAdmin } from "@/lib/permissions";
 import { carregarAceite } from "@/lib/aceite/dados";
 import type { SetorAceite } from "@/lib/aceite/setores";
 import { chegadaDoPapel, temAlertaPendente, situacaoPapelLabel, fmtDia, fmtQuantidade } from "@/lib/aceite/constantes";
 import { fmtMoney, fmtDateTime, classificacaoLabel } from "@/lib/orcamentos/constantes";
 import { parseQuantidade } from "@/lib/orcamentos/motor";
 import { lerItens, quantidadeTotal, calcularMontagens } from "@/lib/aceite/montagem";
+import { lerDatasCliente, textoDatasCliente } from "@/lib/aceite/datas-cliente";
 import { lerSuportes, suportesSemPM, textoSuporte, SITUACOES_SUPORTE } from "@/lib/aceite/suportes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente } from "@/lib/orcamentos/types";
@@ -20,13 +21,15 @@ import { Button } from "@/components/ui/button";
 import { voltarEtapaAceite, marcarAlertasVistos } from "@/app/(app)/aceite/actions";
 import { Andamento } from "./Andamento";
 import { FormVendas } from "./FormVendas";
+import { AdminAceite } from "./AdminAceite";
+import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { PedidosMaterial } from "./PedidosMaterial";
 import { FormEngenharia } from "./FormEngenharia";
 import { FormPcp } from "./FormPcp";
 import { carregarParametros } from "@/lib/pcp/parametros";
 import { sugerirData } from "@/lib/pcp/sugestao";
 import { hojeBrasil } from "@/lib/aceite/agenda";
-import { FormPedido, FormNumeroOF } from "./FormPedido";
+import { FormPedido, FormNumeroOF, FormPedidoInterno } from "./FormPedido";
 import { FormEntrega } from "./FormEntrega";
 import { FormInformarCliente } from "./FormInformarCliente";
 import { BlocoNegociacao } from "./BlocoNegociacao";
@@ -66,6 +69,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
     podeEditar("ATENDIMENTO_CLIENTE"),
   ]);
   // Cada ambiente age só pelo próprio setor, mesmo que a pessoa (ex.: administrador) tenha outras áreas.
+  const admin = await ehAdmin();
   const podeVendas = ambiente === "vendas" && podeVendasArea;
   const podeEngenharia = ambiente === "engenharia" && podeEngArea;
   const podePcp = ambiente === "pcp" && podePcpArea;
@@ -88,6 +92,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
   const situacaoPreco =
     so?.precoAnterior == null || preco == null ? null : Math.abs(preco - so.precoAnterior) < 0.005 ? "mantido" : "atualizado";
   const chegada = chegadaDoPapel(pms);
+  const datasCliente = lerDatasCliente(a);
   const alerta = temAlertaPendente(pms);
   const podeVoltar =
     (podeVendas && ["ENGENHARIA_MATERIAL", "PEDIDO", "ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
@@ -122,14 +127,19 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
             : `${doc.produtoDescricao ?? ""}${doc.codInterno ? ` · SC:${formatarCodigoInterno(doc.codInterno)}` : ""}`
         }
         action={
-          podeVoltar ? (
-            <form action={voltarEtapaAceite}>
-              <input type="hidden" name="id" value={a.id} />
-              <input type="hidden" name="voltarPara" value={voltarLista} />
-              <Button type="submit" variant="outline" size="sm" className="gap-1.5">
-                <CornerUpLeft className="h-3.5 w-3.5" /> Voltar etapa
-              </Button>
-            </form>
+          podeVoltar || admin ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {podeVoltar && (
+                <form action={voltarEtapaAceite}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <input type="hidden" name="voltarPara" value={voltarLista} />
+                  <Button type="submit" variant="outline" size="sm" className="gap-1.5">
+                    <CornerUpLeft className="h-3.5 w-3.5" /> Voltar etapa
+                  </Button>
+                </form>
+              )}
+              {admin && <AdminAceite aceiteId={a.id} />}
+            </div>
           ) : undefined
         }
       />
@@ -151,9 +161,10 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
             { label: "Representante", value: `${doc.representante || "—"}${doc.comissaoCev ? ` · comissão ${doc.comissaoCev}` : ""}` },
             { label: "Prazo de pagamento", value: doc.condPagamento || "—" },
             { label: "Acabamento especial", value: especiais.length ? `Sim · ${especiais.join(", ")}` : "Não" },
-            ...(a.dataCliente ? [{ label: "1ª data do cliente", value: fmtDia(a.dataCliente) }] : []),
+            ...(datasCliente.length ? [{ label: datasCliente.length > 1 ? "Datas do cliente" : "Data do cliente", value: textoDatasCliente(datasCliente) }] : []),
             { label: "Nº de Orçamento", value: doc.numeroOrcamento || "—" },
             { label: "Nº de Pré Cadastro", value: doc.preCadastro || "—" },
+            ...(so?.pedidoCliente ? [{ label: "Pedido do cliente (OC)", value: so.pedidoCliente }] : []),
             ...(a.pedidoInterno ? [{ label: "Pedido interno", value: a.pedidoInterno }] : []),
             ...(a.numeroOF ? [{ label: "Nº da OF", value: a.numeroOF }] : []),
             { label: "Cliente aprovou em", value: fmtDateTime(doc.desfechoEm) },
@@ -173,6 +184,18 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
               </form>
             )}
           </div>
+        )}
+
+        {/* E-mails e documentos do cliente que comprovam a ordem de compra: anexados no desfecho (Retorno do Cliente), aqui só leitura. */}
+        {doc.anexos.length > 0 && (
+          <AnexoUpload
+            orcamentoId={doc.id}
+            tipo="ORDEM_COMPRA"
+            titulo="Ordem de compra do cliente: e-mails e documentos"
+            somenteLeitura
+            compacto
+            anexos={doc.anexos.map((x) => ({ id: x.id, nome: x.nome, url: x.url, mime: x.mime, tamanho: x.tamanho }))}
+          />
         )}
 
         {/* ---------- Vendas ---------- */}
@@ -255,7 +278,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
         {/* ---------- PCP ---------- */}
         {a.etapa === "PCP" &&
           (podePcp ? (
-            <FormPcp aceiteId={a.id} chegadaPapel={chegada ? chegada.toISOString().slice(0, 10) : null} dataCliente={a.dataCliente ? fmtDia(a.dataCliente) : null} sugestao={sugestaoPcp} />
+            <FormPcp aceiteId={a.id} chegadaPapel={chegada ? chegada.toISOString().slice(0, 10) : null} dataCliente={datasCliente.length ? textoDatasCliente(datasCliente) : null} sugestao={sugestaoPcp} />
           ) : (
             <Aviso>Aguardando o PCP definir a data de entrega.</Aviso>
           ))}
@@ -271,10 +294,13 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
           </FormSection>
         )}
 
+        {/* Pedido interno: pendência de Vendas depois da Engenharia (no cadastro do pedido ele é pedido ali). */}
+        {podeVendas && a.engenhariaEm && !a.pedidoInterno && a.etapa !== "VENDAS" && a.etapa !== "PEDIDO" && a.etapa !== "CONCLUIDO" && <FormPedidoInterno aceiteId={a.id} />}
+
         {/* ---------- Pedido ---------- */}
         {a.etapa === "PEDIDO" &&
           (podeVendas ? (
-            <FormPedido aceiteId={a.id} numero={a.numero} dataEntrega={fmtDia(a.dataEntrega)} />
+            <FormPedido aceiteId={a.id} numero={a.numero} dataEntrega={fmtDia(a.dataEntrega)} pedidoInterno={a.pedidoInterno} />
           ) : (
             <Aviso>Aguardando Vendas cadastrar o pedido no sistema informatizado.</Aviso>
           ))}

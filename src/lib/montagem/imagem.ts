@@ -53,8 +53,8 @@ function folha(d: DadosDaImagem, k: number): { svg: string; w: number; h: number
   const H = op.formato.h;
   const arr = op.arranjo;
   const m74 = op.fibraMaquina === "74";
-  const pinca = CONFIG.pincaMm;
-  const barra = d.barraControle ? CONFIG.barraControleMm : 0;
+  const pinca = op.pincaMm;
+  const barra = d.barraControle ? op.barraMm : 0;
   const sw = 1.4 / k;
   const ou = (arr.wp - arr.larguraUsada) / 2;
   const ov = (arr.hp - arr.alturaUsada) / 2;
@@ -136,7 +136,7 @@ export function svgDaPreMontagem(d: DadosDaImagem): string {
   s += `<text x="${bx}" y="${by}" font-size="22" font-weight="700" fill="${COR.tinta}">Faca aberta · ${fmt(faca.W)} × ${fmt(faca.H)} mm</text>`;
   s += `<svg x="${bx}" y="${by + 14}" width="${bw}" height="${num(bh - 30)}" viewBox="0 0 ${num(faca.W)} ${num(faca.H)}" preserveAspectRatio="xMinYMin meet"><defs>${peca(faca, "pf", d.arte, 1.3 / kf, true)}</defs><use href="#pf" xlink:href="#pf"/></svg>`;
 
-  s += `<text x="40" y="${H - 22}" font-size="16" fill="${COR.suave}">Pré-montagem para o orçamento. O desenho final da montagem é feito no ArtiosCAD. Margem (${CONFIG.margemMm} mm) e espaço entre facas (${CONFIG.espacoFacasMm} mm) ainda são valores de exemplo.</text>`;
+  s += `<text x="40" y="${H - 22}" font-size="16" fill="${COR.suave}">Pré-montagem para o orçamento. O desenho final da montagem é feito no ArtiosCAD. Margem lateral ${CONFIG.margemLateralMm} mm; corte duplo com ${CONFIG.espacoFacasMm} mm entre facas.</text>`;
   s += `</svg>`;
   return s;
 }

@@ -45,7 +45,7 @@ function Corpo({ grupos, anexos }: { grupos: Grupo[]; anexos: ReactNode }) {
   );
 }
 
-function Anexos({ doc, tipo }: { doc: OrcamentoComAnexos; tipo: "ARTE" | "ENGENHARIA" }) {
+function Anexos({ doc, tipo }: { doc: OrcamentoComAnexos; tipo: "ARTE" | "ENGENHARIA" | "ORDEM_COMPRA" }) {
   const lista = doc.anexos.filter((a) => a.tipo === tipo);
   if (!lista.length) return null;
   const modelos = modelosDoDoc(doc);
@@ -314,7 +314,7 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
 
     FINALIZADO: (
       <Corpo
-        anexos={null}
+        anexos={<Anexos doc={doc} tipo="ORDEM_COMPRA" />}
         grupos={[
           {
             linhas: [

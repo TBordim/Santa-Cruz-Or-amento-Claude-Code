@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
 import { salvarVendas } from "@/app/(app)/aceite/actions";
-import { lerQuantidade, fmtQuantidade, paraInputData } from "@/lib/aceite/constantes";
+import { lerQuantidade, fmtQuantidade } from "@/lib/aceite/constantes";
+import { lerDatasCliente } from "@/lib/aceite/datas-cliente";
 import { folhasEstimadas, aProduzir, type ItemAceite } from "@/lib/aceite/montagem";
 import { SITUACOES_SUPORTE, textoSuporte, type SuporteAceite } from "@/lib/aceite/suportes";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
@@ -18,6 +19,7 @@ export type AceiteVendas = {
   itens: ItemAceite[];
   pedidoInterno: string | null;
   dataCliente: Date | null;
+  datasCliente?: unknown;
   suportes: SuporteAceite[];
   temProdutoAcabado: boolean | null;
   versaoVerificadaEm: Date | null;
@@ -40,6 +42,11 @@ export function FormVendas({ aceite, papeisSemPM, qtdSO }: { aceite: AceiteVenda
   const [qtds, setQtds] = useState<Record<string, string>>(
     Object.fromEntries(aceite.itens.map((i) => [i.modeloId, i.quantidade ? i.quantidade.toLocaleString("pt-BR") : ""])),
   );
+  // Datas pedidas pelo cliente (uma ou mais, cada uma com a quantidade até lá, opcional).
+  const [datas, setDatas] = useState(() =>
+    (lerDatasCliente(aceite).length ? lerDatasCliente(aceite) : [{ data: "", quantidade: null, obs: "" }]).map((d) => ({ data: d.data, quantidade: d.quantidade ? d.quantidade.toLocaleString("pt-BR") : "", obs: d.obs })),
+  );
+  const mudaData = (i: number, campo: "data" | "quantidade" | "obs", v: string) => setDatas((l) => l.map((d, n) => (n === i ? { ...d, [campo]: v } : d)));
   const state = stateLiberar?.erro ? stateLiberar : (stateSalvar ?? stateLiberar);
   const pending = pendSalvar || pendLiberar;
   const [estoques, setEstoques] = useState<Record<string, string>>(
@@ -77,22 +84,50 @@ export function FormVendas({ aceite, papeisSemPM, qtdSO }: { aceite: AceiteVenda
       <input type="hidden" name="id" value={aceite.id} />
       <input type="hidden" name="suportes" value={JSON.stringify(suportes)} />
       <input type="hidden" name="produtoAcabado" value={acabado} />
+      <input
+        type="hidden"
+        name="datasCliente"
+        value={JSON.stringify(datas.filter((d) => d.data).map((d) => ({ data: d.data, quantidade: lerQuantidade(d.quantidade), obs: d.obs })))}
+      />
       <p className="mb-2 text-sm text-muted-foreground">
         Confira no ERP e registre aqui. Com o papel resolvido (reservado ou com PM emitido), libere: o Aceite segue para a Engenharia
         enquanto Compras busca o prazo do papel.
       </p>
 
       <FormSection title="Pedido do cliente" denso>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Nº do Aceite (ERP)">
             <Input name="numero" defaultValue={aceite.numero ?? ""} />
           </Field>
-          <Field label="Pedido interno (opcional)">
+          <Field label="Pedido interno" hint="Pode ficar em branco agora; fica como pendência de Vendas depois da Engenharia.">
             <Input name="pedidoInterno" defaultValue={aceite.pedidoInterno ?? ""} />
           </Field>
-          <Field label="1ª data do cliente">
-            <Input type="date" name="dataCliente" defaultValue={paraInputData(aceite.dataCliente)} />
-          </Field>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="text-sm font-medium text-foreground">Datas do cliente</span>
+            <span className="text-xs text-muted-foreground">Uma por entrega pedida; a quantidade é opcional.</span>
+          </div>
+          {datas.map((d, i) => (
+            <div key={i} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2 sm:grid-cols-[7rem_10rem_8rem_1fr_auto]">
+              <span className="text-xs font-medium text-muted-foreground">{i + 1}ª data</span>
+              <Input type="date" value={d.data} onChange={(e) => mudaData(i, "data", e.target.value)} aria-label={`${i + 1}ª data do cliente`} />
+              <Input value={d.quantidade} inputMode="numeric" placeholder="Qtd. até lá" onChange={(e) => mudaData(i, "quantidade", e.target.value)} aria-label={`Quantidade da ${i + 1}ª data`} />
+              <Input className="hidden sm:block" value={d.obs} placeholder="Observação (opcional)" onChange={(e) => mudaData(i, "obs", e.target.value)} aria-label={`Observação da ${i + 1}ª data`} />
+              {i > 0 ? (
+                <Button type="button" size="sm" variant="ghost" className="text-bad" onClick={() => setDatas((l) => l.filter((_, n) => n !== i))}>
+                  Remover
+                </Button>
+              ) : (
+                <span />
+              )}
+            </div>
+          ))}
+          <div>
+            <Button type="button" size="sm" variant="outline" onClick={() => setDatas((l) => [...l, { data: "", quantidade: "", obs: "" }])}>
+              + Adicionar data
+            </Button>
+          </div>
         </div>
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -168,7 +203,11 @@ export function FormVendas({ aceite, papeisSemPM, qtdSO }: { aceite: AceiteVenda
         )}
       </FormSection>
 
-      <FormSection title="Papéis do pedido" denso>
+      <FormSection title="Papel a ser utilizado" denso>
+        <p className="text-xs text-muted-foreground">
+          Uma linha por papel e formato que serão usados. Se o estoque tem mais de um formato, acrescente uma linha para cada. O que for
+          comprado vai no Pedido de Material, que pode ser de outro papel ou formato.
+        </p>
         {suportes.map((x, n) => {
           const sugestao = n === 0 ? folhasEstimadas(produzir || null, x.qtdFolha) : null;
           const d = x.doOrcamento;
