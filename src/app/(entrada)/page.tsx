@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { sessaoAtual, podeEditar } from "@/lib/permissions";
 import { modulosAcessiveis, type ModuloKey } from "@/lib/modulos";
 import { contarPendentes } from "@/lib/treinamentos/dados";
-import { contarPendenciasVendas, contarPendenciasPcp, FILAS_PM, FILA_ATENDIMENTO } from "@/lib/aceite/filas";
+import { contarPendenciasVendas, contarPendenciasPcp, contarFilaAtendimento, FILAS_PM } from "@/lib/aceite/filas";
 import { contarPendenciasEngenharia } from "@/lib/engenharia/pendencias";
 import { Entrada } from "./Entrada";
 
@@ -31,7 +31,7 @@ export default async function EntradaPage() {
     ...(abre("atendimento") && (atendimento || retorno)
       ? {
           atendimento:
-            (atendimento ? await prisma.aceite.count({ where: FILA_ATENDIMENTO }) : 0) +
+            (atendimento ? await contarFilaAtendimento() : 0) +
             (atendimento ? await prisma.negociacaoData.count({ where: { status: "AGUARDANDO_ATENDIMENTO" } }) : 0) +
             (retorno ? await prisma.orcamento.count({ where: { origem: "NOVO", etapa: "FINALIZADO", desfecho: "AGUARDANDO" } }) : 0),
         }

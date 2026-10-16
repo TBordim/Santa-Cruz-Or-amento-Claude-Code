@@ -17,6 +17,7 @@ import { lerItens, erroNaMontagem, type ItemAceite } from "@/lib/aceite/montagem
 import { erroNaDivisao, lerItensLote, pmsDoLote, type ItemLote } from "@/lib/aceite/lotes";
 import type { DataCliente } from "@/lib/aceite/datas-cliente";
 import { exigirArea, nomeSePode, revalidarAceite, avancarSePronto, type FormState } from "@/lib/aceite/servidor";
+import { carregarAlvo, gravarAlvo } from "@/lib/aceite/alvo";
 
 // Ações do módulo Aceite (Vendas e Engenharia). Pedido de Material mora no módulo Compras
 // (compras/actions.ts) e a data de entrega no módulo PCP (pcp/actions.ts).
@@ -294,25 +295,27 @@ export async function salvarPedido(_prev: FormState, formData: FormData): Promis
   const id = String(formData.get("id") ?? "");
   const nome = await nomeSePode("ACEITE_VENDAS");
   if (!nome) return { erro: "Sem permissão (área Vendas)." };
-  const a = await prisma.aceite.findUniqueOrThrow({ where: { id } });
-  if (a.etapa !== "PEDIDO") return { erro: "O Aceite não está na etapa Cadastro do pedido." };
+  const alvo = await carregarAlvo(id, formData.get("loteId"));
+  if ("erro" in alvo) return alvo;
+  const { a, lote } = alvo;
+  if (a.etapa !== "PEDIDO") return { erro: lote ? "Este lote não está na etapa Cadastro do pedido." : "O Aceite não está na etapa Cadastro do pedido." };
   // O nº do pedido no ERP é o próprio Nº do Aceite, informado por Vendas no preenchimento.
   const numeroPedido = a.numero;
   // O pedido interno precisa estar preenchido para cadastrar o pedido (pode ser informado aqui).
   const pedidoInterno = String(formData.get("pedidoInterno") ?? "").trim() || a.pedidoInterno;
   if (!pedidoInterno) return { erro: "Informe o pedido interno antes de cadastrar o pedido." };
   const agora = new Date();
-  await prisma.aceite.update({
-    where: { id },
-    data: {
-      numeroPedido,
-      pedidoInterno,
-      pedidoCadastradoEm: a.pedidoCadastradoEm ?? agora,
-      pedidoCadastradoPor: a.pedidoCadastradoPor ?? nome,
-      numeroOF: String(formData.get("numeroOF") ?? "").trim() || null,
-      etapa: "ATENDIMENTO",
-    },
-  });
+  // Cadastro e OF são do lote (ou do Aceite, sem divisão); nº do pedido e pedido interno são do Aceite.
+  const doLote = {
+    pedidoCadastradoEm: a.pedidoCadastradoEm ?? agora,
+    pedidoCadastradoPor: a.pedidoCadastradoPor ?? nome,
+    numeroOF: String(formData.get("numeroOF") ?? "").trim() || null,
+    etapa: "ATENDIMENTO",
+  };
+  await prisma.$transaction([
+    prisma.aceite.update({ where: { id }, data: { numeroPedido, pedidoInterno, ...(lote ? {} : (doLote as Prisma.AceiteUpdateInput)) } }),
+    ...(lote ? [gravarAlvo(id, lote, doLote)] : []),
+  ]);
   revalidarAceite();
   redirect("/aceite/vendas");
 }
@@ -325,7 +328,9 @@ export async function salvarNumeroOF(_prev: FormState, formData: FormData): Prom
   if (!nome) return { erro: "Sem permissão (área Vendas)." };
   const numeroOF = String(formData.get("numeroOF") ?? "").trim();
   if (!numeroOF) return { erro: "Informe o número da OF." };
-  await prisma.aceite.update({ where: { id }, data: { numeroOF } });
+  const alvo = await carregarAlvo(id, formData.get("loteId"));
+  if ("erro" in alvo) return alvo;
+  await gravarAlvo(id, alvo.lote, { numeroOF });
   revalidarAceite();
   return { ok: "Nº da OF registrado." };
 }

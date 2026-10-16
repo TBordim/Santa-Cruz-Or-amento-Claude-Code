@@ -361,7 +361,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         {/* ---------- Pedido ---------- */}
         {a.etapa === "PEDIDO" &&
           (podeVendas ? (
-            <FormPedido aceiteId={a.id} numero={a.numero} dataEntrega={fmtDia(a.dataEntrega)} pedidoInterno={a.pedidoInterno} />
+            <FormPedido aceiteId={a.id} loteId={a.lote?.id} numero={a.numero} dataEntrega={fmtDia(a.dataEntrega)} pedidoInterno={a.pedidoInterno} />
           ) : (
             <Aviso>Aguardando Vendas cadastrar o pedido no sistema informatizado.</Aviso>
           ))}
@@ -375,18 +375,18 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
               ]}
             />
             {podeVendas ? (
-              <FormNumeroOF aceiteId={a.id} atual={a.numeroOF} />
+              <FormNumeroOF aceiteId={a.id} loteId={a.lote?.id} atual={a.numeroOF} />
             ) : (
               <p className="text-xs text-muted-foreground">{a.numeroOF ? `OF ${a.numeroOF}.` : "OF ainda não registrada (pendência de Vendas)."}</p>
             )}
           </FormSection>
         )}
         {(a.negociacoes.length > 0 || (podeAtendimento && (a.etapa === "ATENDIMENTO" || a.etapa === "ENTREGA"))) && (
-          <BlocoNegociacao aceiteId={a.id} etapa={a.etapa} negociacoes={a.negociacoes} podeAtendimento={podeAtendimento} podePcp={podePcp} />
+          <BlocoNegociacao aceiteId={a.id} loteId={a.lote?.id} etapa={a.etapa} negociacoes={a.negociacoes} podeAtendimento={podeAtendimento} podePcp={podePcp} />
         )}
         {a.etapa === "ATENDIMENTO" &&
           (podeAtendimento ? (
-            <FormInformarCliente aceiteId={a.id} dataEntrega={fmtDia(a.dataEntrega)} representante={doc.representante} />
+            <FormInformarCliente aceiteId={a.id} loteId={a.lote?.id} dataEntrega={fmtDia(a.dataEntrega)} representante={doc.representante} />
           ) : (
             <Aviso>Aguardando o Atendimento ao Cliente enviar a data ao cliente e/ou representante.</Aviso>
           ))}
