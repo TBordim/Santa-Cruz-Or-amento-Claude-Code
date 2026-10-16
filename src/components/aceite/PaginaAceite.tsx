@@ -9,7 +9,9 @@ import { fmtMoney, fmtDateTime, classificacaoLabel } from "@/lib/orcamentos/cons
 import { parseQuantidade } from "@/lib/orcamentos/motor";
 import { lerItens, quantidadeTotal, calcularMontagens } from "@/lib/aceite/montagem";
 import { lerDatasCliente, textoDatasCliente } from "@/lib/aceite/datas-cliente";
-import { lerSuportes, suportesSemPM, textoSuporte, SITUACOES_SUPORTE } from "@/lib/aceite/suportes";
+import { lerSuportes, suportesSemPM, textoSuporte, SITUACOES_SUPORTE, type SuporteAceite } from "@/lib/aceite/suportes";
+import { lerItensLote } from "@/lib/aceite/lotes";
+import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente } from "@/lib/orcamentos/types";
 import { modelosDoDoc, rotuloSO, valorSO } from "@/lib/orcamentos/modelos";
@@ -93,11 +95,19 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
     so?.precoAnterior == null || preco == null ? null : Math.abs(preco - so.precoAnterior) < 0.005 ? "mantido" : "atualizado";
   const chegada = chegadaDoPapel(pms);
   const datasCliente = lerDatasCliente(a);
+  // Lotes gravados, no formato do formulário de Vendas (quantidades como texto, datas editáveis).
+  const lotesForm: LoteForm[] = a.lotes.map((l) => ({
+    id: l.id,
+    itens: lerItensLote(l.itens).map((i) => ({ modeloId: i.modeloId, quantidade: i.quantidade ? i.quantidade.toLocaleString("pt-BR") : "", emEstoque: i.emEstoque ? i.emEstoque.toLocaleString("pt-BR") : "" })),
+    datas: (lerDatasCliente(l).length ? lerDatasCliente(l) : [{ data: "", quantidade: null, obs: "" }]).map((d) => ({ data: d.data, quantidade: d.quantidade ? d.quantidade.toLocaleString("pt-BR") : "", obs: d.obs })),
+    suportes: Array.isArray(l.suportes) ? (l.suportes as SuporteAceite[]) : [],
+    comPM: pms.some((p) => p.loteId === l.id && p.status !== "CANCELADO"),
+  }));
   const alerta = temAlertaPendente(pms);
   const podeVoltar =
-    (podeVendas && ["ENGENHARIA_MATERIAL", "PEDIDO", "ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
+    (podeVendas && ["ENGENHARIA_MATERIAL", "EM_LOTES", "PEDIDO", "ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
     (podeAtendimento && ["ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
-    (podeEngenharia && a.etapa === "ENGENHARIA_MATERIAL") ||
+    (podeEngenharia && (a.etapa === "ENGENHARIA_MATERIAL" || a.etapa === "EM_LOTES")) ||
     (podePcp && ["PCP", "PEDIDO", "CONCLUIDO"].includes(a.etapa));
   // Saldo a entregar: pedido do cliente menos as entregas já confirmadas (desconhecido sem quantidade).
   const totalPedido = quantidadeTotal(itens) || null;
@@ -202,8 +212,9 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
         {a.etapa === "VENDAS" ? (
           podeVendas ? (
             <FormVendas
-              aceite={{ ...a, itens, suportes }}
+              aceite={{ ...a, itens, suportes, lotes: lotesForm }}
               papeisSemPM={suportesSemPM(suportes, pms).map((x) => x.id)}
+              papeisSemPMPorLote={Object.fromEntries(a.lotes.map((l) => [l.id, suportesSemPM(Array.isArray(l.suportes) ? (l.suportes as SuporteAceite[]) : [], pms.filter((p) => p.loteId === l.id)).map((x) => x.id)]))}
               qtdSO={so ? parseQuantidade(so.quantidade) : null}
             />
           ) : (
