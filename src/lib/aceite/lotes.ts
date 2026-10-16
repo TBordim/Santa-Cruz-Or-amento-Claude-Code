@@ -363,6 +363,7 @@ export function producaoDoLote(l: Pick<LoteView, "itens">): { pedido: number; do
   };
 }
 
-// Chave da funcionalidade. Fica desligada enquanto Compras, Engenharia, PCP e Atendimento ainda não
-// trabalham com lotes: a divisão só é oferecida em Vendas quando o resto está pronto (16/10/2026).
-export const LOTES_ATIVOS = false;
+// Chave da funcionalidade. Esteve desligada enquanto Compras, Engenharia, PCP e Atendimento não
+// trabalhavam com lotes; ligada em 16/10/2026, com tudo pronto. Desligar (false) só esconde a opção
+// "Dividir em lotes" em Vendas: Aceites já divididos continuam funcionando.
+export const LOTES_ATIVOS = true;

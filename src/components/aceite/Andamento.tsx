@@ -25,8 +25,9 @@ type AceiteAndamento = {
 
 // Linha do tempo do Aceite, vista igual por todos os setores: quem já fez a sua parte e onde o
 // pedido está parado agora. Engenharia e Papel andam ao mesmo tempo; os dois ficam em destaque.
-export function Andamento({ a }: { a: AceiteAndamento }) {
-  const papelOk = papelGarantido(a);
+// `papelOkLotes`: Aceite dividido antes de ir aos lotes, o papel só está garantido quando o de TODOS os lotes está.
+export function Andamento({ a, papelOkLotes }: { a: AceiteAndamento; papelOkLotes?: boolean }) {
+  const papelOk = papelOkLotes ?? papelGarantido(a);
   const chegada = chegadaDoPapel(a.pedidosMaterial);
   const emParalelo = a.etapa === "ENGENHARIA_MATERIAL"; // Engenharia e Papel andam juntos nesta etapa
   const passos: Passo[] = [
