@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 
 // Cadastro do pedido (TP de Vendas 3.2.2): Vendas cadastra no sistema informatizado e passa o Aceite
 // ao Atendimento ao Cliente, que envia a data ao cliente e/ou representante (ver FormInformarCliente).
-export function FormPedido({ aceiteId, numero, dataEntrega, pedidoInterno }: { aceiteId: string; numero: string | null; dataEntrega: string; pedidoInterno: string | null }) {
+export function FormPedido({ aceiteId, loteId, numero, dataEntrega, pedidoInterno }: { aceiteId: string; loteId?: string | null; numero: string | null; dataEntrega: string; pedidoInterno: string | null }) {
   const [state, onSubmit, pending] = useFormActionSemReset(salvarPedido, undefined);
   return (
     <form id="form-aceite-pedido" onSubmit={onSubmit} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={aceiteId} />
+      <input type="hidden" name="loteId" value={loteId ?? ""} />
       <FormSection title="Pedido">
         <DiretrizBlock>
           Cadastre o pedido{numero ? ` ${numero}` : ""} no sistema informatizado com a data de entrega ({dataEntrega}). Em seguida o Aceite vai para o Atendimento ao Cliente, que envia a data ao cliente e/ou representante.
@@ -33,11 +34,12 @@ export function FormPedido({ aceiteId, numero, dataEntrega, pedidoInterno }: { a
 }
 
 // Depois de concluído: Vendas registra o Nº da OF quando abrir a Ordem de Fabricação.
-export function FormNumeroOF({ aceiteId, atual }: { aceiteId: string; atual: string | null }) {
+export function FormNumeroOF({ aceiteId, loteId, atual }: { aceiteId: string; loteId?: string | null; atual: string | null }) {
   const [state, onSubmit, pending] = useFormActionSemReset(salvarNumeroOF, undefined);
   return (
     <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="id" value={aceiteId} />
+      <input type="hidden" name="loteId" value={loteId ?? ""} />
       <Field label="Nº da OF">
         <Input name="numeroOF" defaultValue={atual ?? ""} className="w-40" />
       </Field>

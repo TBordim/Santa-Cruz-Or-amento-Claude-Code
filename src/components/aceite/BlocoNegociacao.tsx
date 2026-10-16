@@ -35,12 +35,14 @@ type Negociacao = {
 // no histórico. Cada setor só vê o formulário da sua vez.
 export function BlocoNegociacao({
   aceiteId,
+  loteId,
   etapa,
   negociacoes,
   podeAtendimento,
   podePcp,
 }: {
   aceiteId: string;
+  loteId?: string | null;
   etapa: string;
   negociacoes: Negociacao[];
   podeAtendimento: boolean;
@@ -81,12 +83,12 @@ export function BlocoNegociacao({
           {n.status === "AGUARDANDO_ATENDIMENTO" && podeAtendimento && etapa === "ENTREGA" && <EncerrarAtendimento negociacaoId={n.id} />}
         </div>
       ))}
-      {podeAbrir && <AbrirNegociacao aceiteId={aceiteId} />}
+      {podeAbrir && <AbrirNegociacao aceiteId={aceiteId} loteId={loteId} />}
     </FormSection>
   );
 }
 
-function AbrirNegociacao({ aceiteId }: { aceiteId: string }) {
+function AbrirNegociacao({ aceiteId, loteId }: { aceiteId: string; loteId?: string | null }) {
   const [aberto, setAberto] = useState(false);
   const [state, onSubmit, pending] = useFormActionSemReset(abrirNegociacao, undefined);
   if (!aberto) {
@@ -104,6 +106,7 @@ function AbrirNegociacao({ aceiteId }: { aceiteId: string }) {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3 rounded-lg border border-border p-3">
       <input type="hidden" name="id" value={aceiteId} />
+      <input type="hidden" name="loteId" value={loteId ?? ""} />
       <Row2 compacto>
         <Field label="Data que o cliente quer">
           <Input type="date" name="dataPedida" />

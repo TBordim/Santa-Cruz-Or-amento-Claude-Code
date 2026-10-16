@@ -13,14 +13,15 @@ export const FILAS = {
   vendas: {
     preencher: { etapa: "VENDAS" },
     // Aceites que ainda não terminaram (a tabela "Aceites em andamento").
-    pedido: { etapa: "PEDIDO" },
+    // Aceite dividido (EM_LOTES) entra: cada lote tem o seu cadastro de pedido e a sua OF.
+    pedido: { etapa: { in: ["PEDIDO", "EM_LOTES"] } },
     andamento: { etapa: { in: ["ENGENHARIA_MATERIAL", "PCP", "ATENDIMENTO", "ENTREGA"] } },
     concluidos: { etapa: "CONCLUIDO" },
     // Pedido já cadastrado e OF ainda não registrada: pendência de Vendas até registrar (a OF pode
     // ser aberta depois, mas não pode ser esquecida — pedido do Thiago em 11/10/2026).
     // Pedido interno: pode ficar em branco ao liberar, mas depois da Engenharia Vendas precisa informar.
     interno: { etapa: { in: ["ENGENHARIA_MATERIAL", "PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA"] }, engenhariaEm: { not: null }, pedidoInterno: null },
-    of: { etapa: { in: ["ATENDIMENTO", "ENTREGA", "CONCLUIDO"] }, pedidoCadastradoEm: { not: null }, numeroOF: null },
+    of: { OR: [{ etapa: { in: ["ATENDIMENTO", "ENTREGA", "CONCLUIDO"] }, pedidoCadastradoEm: { not: null }, numeroOF: null }, { etapa: "EM_LOTES" }] },
   },
   engenharia: {
     conferir: { etapa: "ENGENHARIA_MATERIAL", engenhariaEm: null },
@@ -52,19 +53,32 @@ export const ALERTAS_ONDE: Record<"vendas" | "pcp", Prisma.AceiteWhereInput> = {
 };
 
 // Pendências de Vendas no Aceite (tela inicial do módulo e página de entrada).
+// Linhas (lote ou Aceite) de cada fila de Vendas: o cadastro do pedido e a OF são por lote.
+export const noCadastroDoPedido = (a: { etapa: string }) => a.etapa === "PEDIDO";
+export const semOFRegistrada = (a: { etapa: string; pedidoCadastradoEm: Date | null; numeroOF: string | null }) =>
+  ["ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa) && !!a.pedidoCadastradoEm && !a.numeroOF;
+export const esperandoAtendimento = (a: { etapa: string }) => a.etapa === "ATENDIMENTO";
+
 export async function contarPendenciasVendas() {
-  const [vPreencher, vPedido, vOF, vInterno, alertasVendas] = await Promise.all([
+  const [vPreencher, pedidoB, ofB, vInterno, alertasVendas] = await Promise.all([
     prisma.aceite.count({ where: FILAS.vendas.preencher }),
-    prisma.aceite.count({ where: FILAS.vendas.pedido }),
-    prisma.aceite.count({ where: FILAS.vendas.of }),
+    listarAceites(FILAS.vendas.pedido),
+    listarAceites(FILAS.vendas.of),
     prisma.aceite.count({ where: FILAS.vendas.interno }),
     listarAceitesComAlerta(ALERTAS_ONDE.vendas),
   ]);
+  const vPedido = linhasPorLote(pedidoB).filter(noCadastroDoPedido).length;
+  const vOF = linhasPorLote(ofB).filter(semOFRegistrada).length;
   return vPreencher + vPedido + vOF + vInterno + alertasVendas.length;
 }
 
+// Atendimento: lotes (ou Aceites) esperando a data ser enviada ao cliente.
+export async function contarFilaAtendimento(): Promise<number> {
+  return linhasPorLote(await listarAceites(FILA_ATENDIMENTO)).filter(esperandoAtendimento).length;
+}
+
 // Atendimento ao Cliente: Aceites esperando a data ser enviada ao cliente/representante.
-export const FILA_ATENDIMENTO = { etapa: "ATENDIMENTO" } satisfies Prisma.AceiteWhereInput;
+export const FILA_ATENDIMENTO = { etapa: { in: ["ATENDIMENTO", "EM_LOTES"] } } satisfies Prisma.AceiteWhereInput;
 
 // Pendências do PCP, contadas por lote (Aceite sem divisão conta como uma linha): datas a definir,
 // clientes que pediram outra data, entregas com a data chegada e fornecedores que mudaram o prazo.

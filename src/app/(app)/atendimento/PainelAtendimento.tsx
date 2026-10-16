@@ -8,7 +8,8 @@ import { Kpis, type Kpi } from "@/components/painel-setor/Kpis";
 import { PrecisaDeVoce, type Tarefa } from "@/components/painel-setor/PrecisaDeVoce";
 import { ListaAceites } from "@/components/aceite/ListaAceites";
 import { listarAceites, type AceiteLinha } from "@/lib/aceite/dados";
-import { FILA_ATENDIMENTO } from "@/lib/aceite/filas";
+import { FILA_ATENDIMENTO, esperandoAtendimento } from "@/lib/aceite/filas";
+import { linhasPorLote, hrefDaLinha, rotuloLote, type LinhaLote } from "@/lib/aceite/lotes";
 import { fmtDia } from "@/lib/aceite/constantes";
 import { hojeBrasil } from "@/lib/aceite/agenda";
 import { fmtDateTime } from "@/lib/orcamentos/constantes";
@@ -29,7 +30,7 @@ export async function PainelAtendimento({ filtro: f, q: qBruto }: { filtro?: str
   const umaSemanaAtras = new Date(hoje.getTime() - 7 * 86400000);
 
   const [podeAtender, podeRetorno] = await Promise.all([podeEditar("ATENDIMENTO_CLIENTE"), podeEditar("FINALIZADO")]);
-  const [informar, respondidas, retornos, pedidos, busca] = await Promise.all([
+  const [informarB, respondidasB, retornos, pedidos, busca] = await Promise.all([
     listarAceites(FILA_ATENDIMENTO),
     // Negociação de data que o PCP já respondeu: falta informar o cliente.
     listarAceites({ negociacoes: { some: { status: "AGUARDANDO_ATENDIMENTO" } } }),
@@ -59,7 +60,11 @@ export async function PainelAtendimento({ filtro: f, q: qBruto }: { filtro?: str
         )
       : Promise.resolve(null),
   ]);
-  const semana = pedidos.filter((a) => !a.entregueEm && a.dataEntrega && a.dataEntrega >= hoje && a.dataEntrega < em7dias);
+  // Aviso da data e resposta do PCP são por lote (Aceite sem divisão: uma linha só).
+  const informar = linhasPorLote(informarB).filter(esperandoAtendimento);
+  const respondidas = linhasPorLote(respondidasB).filter((a) => a.negociacoes.some((n) => n.status === "AGUARDANDO_ATENDIMENTO"));
+  // Entregas da semana: o Aceite entra na tabela se algum lote dele entrega nos próximos 7 dias.
+  const semana = pedidos.filter((a) => linhasPorLote([a]).some((l) => !l.entregueEm && l.etapa !== "CONCLUIDO" && l.dataEntrega && l.dataEntrega >= hoje && l.dataEntrega < em7dias));
 
   const kpis: Kpi[] = [
     ...(podeAtender || !podeRetorno ? [{ key: "informar", n: informar.length, label: "Datas para enviar ao cliente", tom: "modulo" as const }] : []),
@@ -72,28 +77,20 @@ export async function PainelAtendimento({ filtro: f, q: qBruto }: { filtro?: str
   const tarefas: Tarefa[] = [
     ...(!filtro || filtro === "negociacao"
       ? respondidas.map((a) => ({
-          key: `neg-${a.id}`,
-          titulo: (
-            <>
-              <span className="font-mono">{a.numero ?? "Aceite sem nº"}</span> · {a.orcamento.cliente}
-            </>
-          ),
+          key: `neg-${a.linha}`,
+          titulo: tituloLinha(a),
           contexto: `O PCP respondeu à negociação de data · data agora: ${fmtDia(a.dataEntrega)} · informe o cliente`,
           selo: { texto: "PCP respondeu", tom: "good" as const },
-          acao: { texto: "Informar", href: `/atendimento/aceite/${a.id}` },
+          acao: { texto: "Informar", href: hrefDaLinha("/atendimento/aceite", a) },
         }))
       : []),
     ...(!filtro || filtro === "informar"
       ? informar.map((a) => ({
-          key: `inf-${a.id}`,
-          titulo: (
-            <>
-              <span className="font-mono">{a.numero ?? "Aceite sem nº"}</span> · {a.orcamento.cliente}
-            </>
-          ),
+          key: `inf-${a.linha}`,
+          titulo: tituloLinha(a),
           contexto: `Enviar ao cliente e/ou representante a data prevista: ${fmtDia(a.dataEntrega)}${a.dataCliente && a.dataEntrega && a.dataEntrega > a.dataCliente ? ` (o cliente pediu ${fmtDia(a.dataCliente)})` : ""}`,
           selo: { texto: "Data definida", tom: "good" as const },
-          acao: { texto: "Enviar data", href: `/atendimento/aceite/${a.id}` },
+          acao: { texto: "Enviar data", href: hrefDaLinha("/atendimento/aceite", a) },
         }))
       : []),
     ...(!filtro || filtro === "retornos"
@@ -110,7 +107,10 @@ export async function PainelAtendimento({ filtro: f, q: qBruto }: { filtro?: str
   // Situação da entrega como o PCP registrou: entregue, atrasada (passou da data sem confirmação) ou prevista.
   const colunaEntrega = {
     titulo: "Entrega",
-    valor: (a: AceiteLinha) => (
+    valor: (a: AceiteLinha) =>
+      a.lotes.length > 0 && a.etapa !== "CONCLUIDO" ? (
+        <ResumoEntregaLotes a={a} hoje={hoje} />
+      ) : (
       <span className="text-xs">
         {a.entregueEm ? (
           <span className="font-semibold text-good">entregue {fmtDia(a.entregueEm)}</span>
@@ -123,7 +123,7 @@ export async function PainelAtendimento({ filtro: f, q: qBruto }: { filtro?: str
         )}
         {a.dataCliente && <span className="block text-muted-foreground">cliente pediu {fmtDia(a.dataCliente)}</span>}
       </span>
-    ),
+      ),
   };
   const naTabela = busca ?? (filtro === "semana" ? semana : pedidos);
   const mostrarTarefas = !busca && filtro !== "pedidos" && filtro !== "semana";
@@ -159,5 +159,37 @@ export async function PainelAtendimento({ filtro: f, q: qBruto }: { filtro?: str
         </section>
       </div>
     </>
+  );
+}
+
+type Linha = LinhaLote<AceiteLinha>;
+
+function tituloLinha(a: Linha) {
+  return (
+    <>
+      <span className="font-mono">{a.numero ?? "Aceite sem nº"}</span>
+      {a.lote && <b className="font-semibold"> · {rotuloLote({ ...a.lote, implicito: false })}</b>} · {a.orcamento.cliente}
+    </>
+  );
+}
+
+// Aceite dividido: quantos lotes já foram entregues e a próxima entrega pela data acordada de cada lote.
+function ResumoEntregaLotes({ a, hoje }: { a: AceiteLinha; hoje: Date }) {
+  const lotes = linhasPorLote([a]);
+  const entregues = lotes.filter((l) => l.etapa === "CONCLUIDO").length;
+  const proxima = lotes
+    .filter((l) => l.etapa !== "CONCLUIDO" && l.dataEntrega)
+    .map((l) => l.dataEntrega as Date)
+    .sort((x, y) => x.getTime() - y.getTime())[0];
+  return (
+    <span className="text-xs">
+      <span className="font-semibold">{entregues} de {lotes.length} lotes entregues</span>
+      {proxima && (
+        <span className="block text-muted-foreground">
+          próxima {fmtDia(proxima)}
+          {proxima < hoje && <b className="ml-1 text-bad">atrasada</b>}
+        </span>
+      )}
+    </span>
   );
 }

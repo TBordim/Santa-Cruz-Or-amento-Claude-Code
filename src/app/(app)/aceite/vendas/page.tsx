@@ -5,7 +5,8 @@ import { Kpis, type Kpi } from "@/components/painel-setor/Kpis";
 import { PrecisaDeVoce, type Tarefa } from "@/components/painel-setor/PrecisaDeVoce";
 import { ListaAceites } from "@/components/aceite/ListaAceites";
 import { listarAceites, type AceiteLinha } from "@/lib/aceite/dados";
-import { FILAS } from "@/lib/aceite/filas";
+import { FILAS, noCadastroDoPedido, semOFRegistrada } from "@/lib/aceite/filas";
+import { linhasPorLote, hrefDaLinha } from "@/lib/aceite/lotes";
 import { chegadaDoPapel, temAlertaPendente, fmtDia, fmtQuantidade } from "@/lib/aceite/constantes";
 import { fmtDateTime } from "@/lib/orcamentos/constantes";
 import { parseQuantidade } from "@/lib/orcamentos/motor";
@@ -23,7 +24,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
   const { filtro: f } = await searchParams;
   const filtro = (FILTROS as readonly string[]).includes(f ?? "") ? (f as Filtro) : null;
 
-  const [preencher, pedido, semInterno, semOF, andamento, concluidos] = await Promise.all([
+  const [preencher, pedidoB, semInterno, semOFB, andamento, concluidos] = await Promise.all([
     listarAceites(FILAS.vendas.preencher),
     listarAceites(FILAS.vendas.pedido),
     listarAceites(FILAS.vendas.interno, { engenhariaEm: "asc" }),
@@ -31,27 +32,41 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
     listarAceites(FILAS.vendas.andamento),
     filtro === "concluidos" ? listarAceites(FILAS.vendas.concluidos, { atualizadoEm: "desc" }, 100) : Promise.resolve([]),
   ]);
+  // Cadastro do pedido e OF são por lote: uma linha por lote (Aceite sem divisão: uma linha só).
+  const pedido = linhasPorLote(pedidoB).filter(noCadastroDoPedido);
+  const semOF = linhasPorLote(semOFB).filter(semOFRegistrada);
   // Aceites que ainda não terminaram. O acompanhamento do pedido depois disso é do Atendimento ao Cliente.
-  const todos = [...preencher, ...pedido, ...andamento];
+  const todos = unicosAceites([...preencher, ...pedidoB, ...andamento]);
   const alertas = todos.filter((a) => temAlertaPendente(a.pedidosMaterial));
+  const comAlerta = (a: { id: string }) => alertas.some((x) => x.id === a.id);
 
-  const doFiltro: Record<Exclude<Filtro, "concluidos">, AceiteLinha[]> = { preencher, pedido, interno: semInterno, of: semOF, alertas, andamento };
+  // As tabelas mostram Aceites; os filtros de pedido e OF mostram os Aceites das linhas.
+  const aceitesDe = (linhas: { id: string }[]) => todosPorId(todos, semInterno, andamento, linhas);
+  const doFiltro: Record<Exclude<Filtro, "concluidos">, AceiteLinha[]> = {
+    preencher,
+    pedido: aceitesDe(pedido),
+    interno: semInterno,
+    of: aceitesDe(semOF),
+    alertas,
+    andamento,
+  };
   const naLista = filtro && filtro !== "concluidos" ? doFiltro[filtro] : todos;
 
   // "Precisa de você": mudança do fornecedor primeiro, depois pedido para cadastrar, depois Aceite
   // para preencher (o mais antigo primeiro) e, por fim, as OFs que faltam registrar.
   const tarefasBrutas = [
     ...alertas.map((a) => ({ a, tipo: "alerta" as const })),
-    ...pedido.filter((a) => !alertas.includes(a)).map((a) => ({ a, tipo: "pedido" as const })),
-    ...preencher.filter((a) => !alertas.includes(a)).map((a) => ({ a, tipo: "preencher" as const })),
+    ...pedido.filter((a) => !comAlerta(a)).map((a) => ({ a, tipo: "pedido" as const })),
+    ...preencher.filter((a) => !comAlerta(a)).map((a) => ({ a, tipo: "preencher" as const })),
     ...semInterno.map((a) => ({ a, tipo: "interno" as const })),
     ...semOF.map((a) => ({ a, tipo: "of" as const })),
-  ].filter((t) => !filtro || filtro === "concluidos" || doFiltro[filtro].includes(t.a));
+  ].filter((t) => !filtro || filtro === "concluidos" || doFiltro[filtro].some((x) => x.id === t.a.id));
   const tarefas: Tarefa[] = tarefasBrutas.map(({ a, tipo }) => ({
-    key: `${tipo}-${a.id}`,
+    key: `${tipo}-${"linha" in a ? a.linha : a.id}`,
     titulo: (
       <>
-        <span className="font-mono">{a.numero ?? "Aceite sem nº"}</span> · {a.orcamento.cliente}
+        <span className="font-mono">{a.numero ?? "Aceite sem nº"}</span>
+        {"lote" in a && a.lote && <b className="font-semibold"> · Lote {a.lote.numero}/{a.lote.de}</b>} · {a.orcamento.cliente}
       </>
     ),
     contexto: contexto(a, tipo),
@@ -67,7 +82,7 @@ export default async function VendasPage({ searchParams }: { searchParams: Promi
             : { texto: "Novo", tom: "pend" },
     acao: {
       texto: tipo === "alerta" ? "Ver" : tipo === "pedido" ? "Cadastrar" : tipo === "of" ? "Registrar OF" : tipo === "interno" ? "Registrar" : "Preencher",
-      href: `/aceite/vendas/${a.id}`,
+      href: "linha" in a ? hrefDaLinha("/aceite/vendas", a) : `/aceite/vendas/${a.id}`,
       primaria: tipo !== "alerta",
     },
   }));
@@ -134,4 +149,16 @@ function contexto(a: AceiteLinha, tipo: "alerta" | "pedido" | "preencher" | "of"
   const qtd = so ? parseQuantidade(so.quantidade) : null;
   const oc = so?.pedidoCliente ? ` · OC do cliente ${so.pedidoCliente}` : "";
   return `Cliente aprovou em ${fmtDateTime(a.orcamento.desfechoEm)}${so?.numeroSequencial ? ` · SO ${so.numeroSequencial}` : ""}${qtd ? ` · ${fmtQuantidade(qtd)} un.` : ""}${oc}`;
+}
+
+// Aceites sem repetir (o mesmo Aceite pode vir de mais de uma fila).
+function unicosAceites(lista: AceiteLinha[]): AceiteLinha[] {
+  const vistos = new Set<string>();
+  return lista.filter((a) => (vistos.has(a.id) ? false : (vistos.add(a.id), true)));
+}
+
+// Os Aceites (da tabela) que correspondem a linhas de lote ou de Aceite, achados pelo id do Aceite.
+function todosPorId(todos: AceiteLinha[], semInterno: AceiteLinha[], andamento: AceiteLinha[], linhas: { id: string }[]): AceiteLinha[] {
+  const base = unicosAceites([...todos, ...semInterno, ...andamento]);
+  return unicosAceites(linhas.map((l) => base.find((a) => a.id === l.id)).filter((a): a is AceiteLinha => !!a));
 }

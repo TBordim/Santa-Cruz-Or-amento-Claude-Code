@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 
 // Último passo do Aceite, no módulo Atendimento ao Cliente (TP de Vendas 3.2.3): enviar a data
 // prevista de entrega ao cliente e/ou representante.
-export function FormInformarCliente({ aceiteId, dataEntrega, representante }: { aceiteId: string; dataEntrega: string; representante: string | null }) {
+export function FormInformarCliente({ aceiteId, loteId, dataEntrega, representante }: { aceiteId: string; loteId?: string | null; dataEntrega: string; representante: string | null }) {
   const [state, onSubmit, pending] = useFormActionSemReset(informarCliente, undefined);
   return (
     <form id="form-aceite-atendimento" onSubmit={onSubmit} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={aceiteId} />
+      <input type="hidden" name="loteId" value={loteId ?? ""} />
       <FormSection title="Informar o cliente">
         <DiretrizBlock>Envie a data prevista de entrega ({dataEntrega}) ao cliente e/ou representante{representante ? ` (${representante})` : ""} e registre aqui.</DiretrizBlock>
         <Marcar name="avisouCliente" texto="Enviei a data ao cliente" />
