@@ -148,3 +148,32 @@ export async function confirmarEntrega(_prev: FormState, formData: FormData): Pr
   if (modo === "parcial") return { ok: `Entrega parcial registrada. Saldo previsto para ${fmtDia(novaData)}.` };
   redirect("/pcp");
 }
+
+// ---------- Parâmetros da sugestão de data ----------
+// O PCP ajusta os prazos que a sugestão de data usa (lib/pcp/sugestao.ts).
+export async function salvarParametrosPcp(_prev: FormState, formData: FormData): Promise<FormState> {
+  const nome = await nomeSePode("PCP_ENTREGA");
+  if (!nome) return { erro: "Sem permissão para alterar os parâmetros (área PCP)." };
+  const campo = (k: string, min: number, max: number): number | null => {
+    const n = lerQuantidade(formData.get(k));
+    return n !== null && Number.isInteger(n) && n >= min && n <= max ? n : null;
+  };
+  const v = {
+    diasProducaoMinimo: campo("diasProducaoMinimo", 0, 90),
+    folhasPorDia: campo("folhasPorDia", 1, 1000000),
+    diasFacaNova: campo("diasFacaNova", 0, 90),
+    diasClicheNovo: campo("diasClicheNovo", 0, 90),
+    diasAcabamentoEspecial: campo("diasAcabamentoEspecial", 0, 90),
+    diasMargem: campo("diasMargem", 0, 30),
+  };
+  const invalido = Object.entries(v).find(([, x]) => x === null);
+  if (invalido) return { erro: "Preencha todos os campos com números inteiros (dias de 0 a 90; capacidade a partir de 1)." };
+  const dados = v as { [K in keyof typeof v]: number };
+  await prisma.pcpParametros.upsert({
+    where: { id: "padrao" },
+    create: { id: "padrao", ...dados, atualizadoPor: nome },
+    update: { ...dados, atualizadoPor: nome },
+  });
+  revalidarAceite();
+  return { ok: "Parâmetros salvos. A próxima sugestão de data já usa estes valores." };
+}

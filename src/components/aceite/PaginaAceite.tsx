@@ -7,7 +7,7 @@ import type { SetorAceite } from "@/lib/aceite/setores";
 import { chegadaDoPapel, temAlertaPendente, situacaoPapelLabel, fmtDia, fmtQuantidade } from "@/lib/aceite/constantes";
 import { fmtMoney, fmtDateTime, classificacaoLabel } from "@/lib/orcamentos/constantes";
 import { parseQuantidade } from "@/lib/orcamentos/motor";
-import { lerItens, quantidadeTotal } from "@/lib/aceite/montagem";
+import { lerItens, quantidadeTotal, calcularMontagens } from "@/lib/aceite/montagem";
 import { lerDatasCliente, textoDatasCliente } from "@/lib/aceite/datas-cliente";
 import { lerSuportes, suportesSemPM, textoSuporte, SITUACOES_SUPORTE } from "@/lib/aceite/suportes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
@@ -26,6 +26,9 @@ import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { PedidosMaterial } from "./PedidosMaterial";
 import { FormEngenharia } from "./FormEngenharia";
 import { FormPcp } from "./FormPcp";
+import { carregarParametros } from "@/lib/pcp/parametros";
+import { sugerirData } from "@/lib/pcp/sugestao";
+import { hojeBrasil } from "@/lib/aceite/agenda";
 import { FormPedido, FormNumeroOF, FormPedidoInterno } from "./FormPedido";
 import { FormEntrega } from "./FormEntrega";
 import { FormInformarCliente } from "./FormInformarCliente";
@@ -100,6 +103,14 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
   const totalPedido = quantidadeTotal(itens) || null;
   const jaEntregue = a.entregas.reduce((s, e) => s + Number(e.quantidade ?? 0), 0);
   const saldoEntrega = totalPedido === null ? null : Math.max(0, totalPedido - jaEntregue);
+  // Sugestão de data de entrega do PCP: só calculada quando o Aceite está esperando o PCP.
+  const sugestaoPcp = await (async () => {
+    if (a.etapa !== "PCP") return undefined;
+    const { salvo, ...parametros } = await carregarParametros();
+    const folhas = calcularMontagens(itens).reduce((s, m) => s + m.folhas, 0);
+    const s = sugerirData({ hoje: hojeBrasil(new Date()), chegadaPapel: chegada, folhas, facaNova: a.facaNova, clicheNovo: a.clicheNovo, acabamentoEspecial: especiais.length > 0 }, parametros);
+    return { data: s.data.toISOString().slice(0, 10), passos: s.passos, ajustada: salvo };
+  })();
   const temPMs = pms.length > 0 || a.situacaoPapel === "RESERVADO_PARCIAL" || a.situacaoPapel === "SEM_ESTOQUE";
   const emitirPM = podeVendas && ["VENDAS", "ENGENHARIA_MATERIAL", "PCP"].includes(a.etapa);
 
@@ -267,7 +278,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
         {/* ---------- PCP ---------- */}
         {a.etapa === "PCP" &&
           (podePcp ? (
-            <FormPcp aceiteId={a.id} chegadaPapel={chegada ? chegada.toISOString().slice(0, 10) : null} dataCliente={datasCliente.length ? textoDatasCliente(datasCliente) : null} />
+            <FormPcp aceiteId={a.id} chegadaPapel={chegada ? chegada.toISOString().slice(0, 10) : null} dataCliente={datasCliente.length ? textoDatasCliente(datasCliente) : null} sugestao={sugestaoPcp} />
           ) : (
             <Aviso>Aguardando o PCP definir a data de entrega.</Aviso>
           ))}

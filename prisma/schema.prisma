@@ -874,3 +874,24 @@ model NegociacaoData {
   @@index([status])
   @@map("negociacoes_data")
 }
+
+// Parâmetros do PCP para sugerir a data de entrega (11/10/2026). Uma linha só (id "padrao"). Os
+// valores iniciais são palpites para o PCP ajustar na tela Parâmetros, não regras da fábrica.
+model PcpParametros {
+  id                    String   @id @default("padrao")
+  // Dias úteis mínimos de produção, qualquer que seja o tamanho do pedido.
+  diasProducaoMinimo    Int      @default(5)
+  // Quantas folhas a produção dá conta por dia útil (acima do mínimo, o prazo cresce).
+  folhasPorDia          Int      @default(4000)
+  // Dias úteis de preparo, contados em paralelo à chegada do papel.
+  diasFacaNova          Int      @default(7)
+  diasClicheNovo        Int      @default(5)
+  // Dias úteis a mais quando há acabamento especial (hot stamping, relevo, plastificação etc.).
+  diasAcabamentoEspecial Int     @default(3)
+  // Folga de segurança no fim, em dias úteis.
+  diasMargem            Int      @default(1)
+  atualizadoEm          DateTime @updatedAt
+  atualizadoPor         String?
+
+  @@map("pcp_parametros")
+}

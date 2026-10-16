@@ -7,6 +7,7 @@ import {
   KanbanSquare,
   FilePlus2,
   Gavel,
+  SlidersHorizontal,
   History,
   Archive,
   BarChart3,
@@ -128,6 +129,7 @@ function SidebarContent({
 
   const itemsPcp: NavItem[] = [
     { href: "/pcp", label: "Datas de entrega", icon: CalendarClock, color: "#2C7A8C", prefixo: true },
+    { href: "/pcp/parametros", label: "Parâmetros", icon: SlidersHorizontal, color: "#5B6270", prefixo: true },
   ];
 
   const itemsLaboratorio: NavItem[] = [
@@ -229,7 +231,9 @@ function SidebarContent({
 
       <nav className="flex flex-col gap-1.5 pr-0.5">
         {items.map((it, i) => {
-          const active = pathname === it.href || (!!it.prefixo && pathname.startsWith(it.href + "/"));
+          // Com um item mais específico da mesma lista (ex.: /pcp/parametros dentro de /pcp), só ele fica ativo.
+          const maisEspecifico = items.some((o) => o !== it && o.href.length > it.href.length && o.href.startsWith(it.href + "/") && (pathname === o.href || pathname.startsWith(o.href + "/")));
+          const active = !maisEspecifico && (pathname === it.href || (!!it.prefixo && pathname.startsWith(it.href + "/")));
           const Icon = it.icon;
           return (
             <Link
