@@ -5,12 +5,16 @@ import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
 import { salvarVendas } from "@/app/(app)/aceite/actions";
 import { lerQuantidade, fmtQuantidade } from "@/lib/aceite/constantes";
 import { lerDatasCliente } from "@/lib/aceite/datas-cliente";
-import { folhasEstimadas, aProduzir, type ItemAceite } from "@/lib/aceite/montagem";
-import { SITUACOES_SUPORTE, textoSuporte, type SuporteAceite } from "@/lib/aceite/suportes";
+import { aProduzir, type ItemAceite } from "@/lib/aceite/montagem";
+import type { SuporteAceite } from "@/lib/aceite/suportes";
+import { LOTES_ATIVOS } from "@/lib/aceite/lotes";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { FormSection, Field, AcoesBar } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Escolha } from "./Escolha";
+import { EditorDatasCliente, datasParaEnvio, type DataForm } from "./EditorDatasCliente";
+import { EditorPapeis } from "./EditorPapeis";
+import { EditorLotes, lotesIguais, type LoteForm, type ModeloDoPedido } from "./EditorLotes";
 import { Button } from "@/components/ui/button";
 
 export type AceiteVendas = {
@@ -21,20 +25,27 @@ export type AceiteVendas = {
   dataCliente: Date | null;
   datasCliente?: unknown;
   suportes: SuporteAceite[];
+  // Lotes já gravados (Aceite dividido), no formato do formulário.
+  lotes?: LoteForm[];
   temProdutoAcabado: boolean | null;
   versaoVerificadaEm: Date | null;
 };
-
-const SITUACOES_COM_COR = SITUACOES_SUPORTE.map((o) => ({
-  ...o,
-  tom: (o.key === "RESERVADO_TOTAL" ? "good" : o.key === "RESERVADO_PARCIAL" ? "warn" : "bad") as "good" | "warn" | "bad",
-}));
 
 // Etapa de Vendas do Aceite (TP de Vendas 3.2.1). O app não lê o ERP: Vendas confere lá e deixa aqui
 // só o visto (decisão do Thiago em 08/10/2026). Um pedido pode usar vários papéis, cada um com a sua
 // situação no estoque; o PM do que falta sai pelo bloco "Pedidos de Material". `papeisSemPM` vem da
 // página. Layout compacto (11/10/2026): campos curtos lado a lado, pra rolar menos a tela.
-export function FormVendas({ aceite, papeisSemPM, qtdSO }: { aceite: AceiteVendas; papeisSemPM: string[]; qtdSO: number | null }) {
+export function FormVendas({
+  aceite,
+  papeisSemPM,
+  papeisSemPMPorLote = {},
+  qtdSO,
+}: {
+  aceite: AceiteVendas;
+  papeisSemPM: string[];
+  papeisSemPMPorLote?: Record<string, string[]>;
+  qtdSO: number | null;
+}) {
   const [stateSalvar, onSalvar, pendSalvar] = useFormActionSemReset(salvarVendas, undefined);
   const [stateLiberar, onLiberar, pendLiberar] = useFormActionSemReset(salvarVendas, undefined);
   const [suportes, setSuportes] = useState<SuporteAceite[]>(aceite.suportes);
@@ -43,10 +54,12 @@ export function FormVendas({ aceite, papeisSemPM, qtdSO }: { aceite: AceiteVenda
     Object.fromEntries(aceite.itens.map((i) => [i.modeloId, i.quantidade ? i.quantidade.toLocaleString("pt-BR") : ""])),
   );
   // Datas pedidas pelo cliente (uma ou mais, cada uma com a quantidade até lá, opcional).
-  const [datas, setDatas] = useState(() =>
+  const [lotes, setLotes] = useState<LoteForm[]>(aceite.lotes ?? []);
+  const [nLotes, setNLotes] = useState("2");
+  const dividido = lotes.length > 0;
+  const [datas, setDatas] = useState<DataForm[]>(() =>
     (lerDatasCliente(aceite).length ? lerDatasCliente(aceite) : [{ data: "", quantidade: null, obs: "" }]).map((d) => ({ data: d.data, quantidade: d.quantidade ? d.quantidade.toLocaleString("pt-BR") : "", obs: d.obs })),
   );
-  const mudaData = (i: number, campo: "data" | "quantidade" | "obs", v: string) => setDatas((l) => l.map((d, n) => (n === i ? { ...d, [campo]: v } : d)));
   const state = stateLiberar?.erro ? stateLiberar : (stateSalvar ?? stateLiberar);
   const pending = pendSalvar || pendLiberar;
   const [estoques, setEstoques] = useState<Record<string, string>>(
@@ -58,37 +71,28 @@ export function FormVendas({ aceite, papeisSemPM, qtdSO }: { aceite: AceiteVenda
     (s, i) => s + aProduzir({ quantidade: lerQuantidade(qtds[i.modeloId] ?? ""), emEstoque: acabado === "sim" ? lerQuantidade(estoques[i.modeloId] ?? "") : null }),
     0,
   );
-  const muda = (id: string, campo: keyof SuporteAceite, valor: string | number | null) =>
-    setSuportes((lista) => lista.map((x) => (x.id === id ? { ...x, [campo]: valor } : x)));
-  const numero = (v: string) => (v ? Number(v.replace(/[^0-9]/g, "")) || null : null);
-  const adicionar = () =>
-    setSuportes((lista) => [
-      ...lista,
-      {
-        id: `s${lista.length + 1}-${Math.random().toString(36).slice(2, 6)}`,
-        descricao: "",
-        gramatura: "",
-        codigo: "",
-        formato: "",
-        qtdFolha: null,
-        folhas: null,
-        situacao: "NAO_VERIFICADO",
-        obs: "",
-        doOrcamento: null,
-      },
-    ]);
-  const remover = (id: string) => setSuportes((lista) => lista.filter((x) => x.id !== id));
+  // Modelos do pedido com o que está digitado agora (a divisão em lotes confere com isto).
+  const modelosDoPedido: ModeloDoPedido[] = aceite.itens.map((i) => ({
+    modeloId: i.modeloId,
+    descricao: i.descricao,
+    pedido: lerQuantidade(qtds[i.modeloId] ?? "") ?? 0,
+    estoque: acabado === "sim" ? (lerQuantidade(estoques[i.modeloId] ?? "") ?? 0) : 0,
+  }));
+  const lotesParaEnvio = lotes.map((l, n) => ({
+    numero: n + 1,
+    itens: l.itens.map((i) => ({ modeloId: i.modeloId, quantidade: lerQuantidade(i.quantidade), emEstoque: acabado === "sim" ? lerQuantidade(i.emEstoque) : null })),
+    datasCliente: datasParaEnvio(l.datas),
+    suportes: l.suportes,
+  }));
 
   return (
     <form id="form-aceite-vendas" onSubmit={porBotao({ salvar: onSalvar, liberar: onLiberar }, "salvar")} className="flex flex-col gap-1">
       <input type="hidden" name="id" value={aceite.id} />
       <input type="hidden" name="suportes" value={JSON.stringify(suportes)} />
       <input type="hidden" name="produtoAcabado" value={acabado} />
-      <input
-        type="hidden"
-        name="datasCliente"
-        value={JSON.stringify(datas.filter((d) => d.data).map((d) => ({ data: d.data, quantidade: lerQuantidade(d.quantidade), obs: d.obs })))}
-      />
+      <input type="hidden" name="datasCliente" value={JSON.stringify(datasParaEnvio(datas))} />
+      {/* Só manda os lotes quando a divisão está ligada ou já existe: sem o campo, o servidor não mexe neles. */}
+      {(LOTES_ATIVOS || (aceite.lotes?.length ?? 0) > 0) && <input type="hidden" name="lotes" value={JSON.stringify(lotesParaEnvio)} />}
       <p className="mb-2 text-sm text-muted-foreground">
         Confira no ERP e registre aqui. Com o papel resolvido (reservado ou com PM emitido), libere: o Aceite segue para a Engenharia
         enquanto Compras busca o prazo do papel.
@@ -103,32 +107,7 @@ export function FormVendas({ aceite, papeisSemPM, qtdSO }: { aceite: AceiteVenda
             <Input name="pedidoInterno" defaultValue={aceite.pedidoInterno ?? ""} />
           </Field>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-sm font-medium text-foreground">Datas do cliente</span>
-            <span className="text-xs text-muted-foreground">Uma por entrega pedida; a quantidade é opcional.</span>
-          </div>
-          {datas.map((d, i) => (
-            <div key={i} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2 sm:grid-cols-[7rem_10rem_8rem_1fr_auto]">
-              <span className="text-xs font-medium text-muted-foreground">{i + 1}ª data</span>
-              <Input type="date" value={d.data} onChange={(e) => mudaData(i, "data", e.target.value)} aria-label={`${i + 1}ª data do cliente`} />
-              <Input value={d.quantidade} inputMode="numeric" placeholder="Qtd. até lá" onChange={(e) => mudaData(i, "quantidade", e.target.value)} aria-label={`Quantidade da ${i + 1}ª data`} />
-              <Input className="hidden sm:block" value={d.obs} placeholder="Observação (opcional)" onChange={(e) => mudaData(i, "obs", e.target.value)} aria-label={`Observação da ${i + 1}ª data`} />
-              {i > 0 ? (
-                <Button type="button" size="sm" variant="ghost" className="text-bad" onClick={() => setDatas((l) => l.filter((_, n) => n !== i))}>
-                  Remover
-                </Button>
-              ) : (
-                <span />
-              )}
-            </div>
-          ))}
-          <div>
-            <Button type="button" size="sm" variant="outline" onClick={() => setDatas((l) => [...l, { data: "", quantidade: "", obs: "" }])}>
-              + Adicionar data
-            </Button>
-          </div>
-        </div>
+        {!dividido && <EditorDatasCliente datas={datas} onChange={setDatas} />}
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="text-sm font-medium text-foreground">Quantidade pedida por modelo</span>
@@ -203,67 +182,51 @@ export function FormVendas({ aceite, papeisSemPM, qtdSO }: { aceite: AceiteVenda
         )}
       </FormSection>
 
-      <FormSection title="Papel a ser utilizado" denso>
-        <p className="text-xs text-muted-foreground">
-          Uma linha por papel e formato que serão usados. Se o estoque tem mais de um formato, acrescente uma linha para cada. O que for
-          comprado vai no Pedido de Material, que pode ser de outro papel ou formato.
-        </p>
-        {suportes.map((x, n) => {
-          const sugestao = n === 0 ? folhasEstimadas(produzir || null, x.qtdFolha) : null;
-          const d = x.doOrcamento;
-          const trocou = !!d && (d.codigo !== x.codigo || d.descricao !== x.descricao || d.formato !== x.formato || d.gramatura !== x.gramatura);
-          return (
-            <div key={x.id} className="flex flex-col gap-2.5 rounded-lg border border-border p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-foreground">
-                  Papel {n + 1}
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">{d ? "do orçamento" : "acrescentado por Vendas"}</span>
-                  {!d && (
-                    <Button type="button" size="sm" variant="ghost" className="ml-1 h-auto px-1.5 py-0.5 text-xs text-bad" onClick={() => remover(x.id)}>
-                      Remover
-                    </Button>
-                  )}
-                </span>
-                <Escolha rotulo={`Estoque do papel ${n + 1}`} valor={x.situacao} onChange={(k) => muda(x.id, "situacao", k)} opcoes={SITUACOES_COM_COR} />
-              </div>
-              {trocou && d && (
-                <p className="rounded-md bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
-                  Especificado no orçamento: {textoSuporte(d)} · código {d.codigo || "—"}
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-                <Field label="Tipo de papel">
-                  <Input value={x.descricao} onChange={(e) => muda(x.id, "descricao", e.target.value)} placeholder="Vitamax" />
-                </Field>
-                <Field label="Gramatura (g)">
-                  <Input value={x.gramatura} inputMode="numeric" onChange={(e) => muda(x.id, "gramatura", e.target.value)} />
-                </Field>
-                <Field label="Código no ERP">
-                  <Input value={x.codigo} onChange={(e) => muda(x.id, "codigo", e.target.value)} />
-                </Field>
-                <Field label="Formato">
-                  <Input value={x.formato} onChange={(e) => muda(x.id, "formato", e.target.value)} placeholder="96x66" />
-                </Field>
-                <Field label="Qtd por folha">
-                  <Input value={x.qtdFolha ?? ""} inputMode="numeric" onChange={(e) => muda(x.id, "qtdFolha", numero(e.target.value))} />
-                </Field>
-                <Field label={sugestao ? `Folhas (conta: ${fmtQuantidade(sugestao)})` : "Folhas"}>
-                  <Input value={x.folhas ?? ""} inputMode="numeric" placeholder={sugestao ? String(sugestao) : ""} onChange={(e) => muda(x.id, "folhas", numero(e.target.value))} />
-                </Field>
-              </div>
-              <Input value={x.obs} onChange={(e) => muda(x.id, "obs", e.target.value)} placeholder="Observação sobre este papel (opcional). Ex.: reservei 800 folhas do saldo" aria-label={`Observação do papel ${n + 1}`} />
-              {papeisSemPM.includes(x.id) && (x.situacao === "RESERVADO_PARCIAL" || x.situacao === "SEM_ESTOQUE") && (
-                <p className="text-xs font-medium text-warn">Emita o Pedido de Material deste papel (bloco abaixo) antes de liberar.</p>
-              )}
-            </div>
-          );
-        })}
-        <div>
-          <Button type="button" size="sm" variant="outline" onClick={adicionar}>
-            Adicionar papel
-          </Button>
-        </div>
-      </FormSection>
+      {LOTES_ATIVOS && !dividido && (
+        <FormSection title="Dividir em lotes" denso>
+          <p className="text-xs text-muted-foreground">
+            Se o cliente quer o pedido em lotes (cada um é uma produção separada, com papel, OF e datas próprios), divida aqui antes de liberar.
+            A soma de cada modelo nos lotes tem que bater com o pedido. Sem dividir, o pedido segue como um lote só.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input value={nLotes} inputMode="numeric" className="w-20" aria-label="Quantos lotes" onChange={(e) => setNLotes(e.target.value)} />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const n = Math.min(12, Math.max(2, lerQuantidade(nLotes) ?? 2));
+                setLotes(lotesIguais(modelosDoPedido, n, suportes));
+              }}
+            >
+              Dividir em lotes
+            </Button>
+          </div>
+        </FormSection>
+      )}
+
+      {dividido ? (
+        <FormSection title={`Divisão em ${lotes.length} lotes`} denso>
+          <p className="text-xs text-muted-foreground">
+            Cada lote é uma produção separada: papel, Pedido de Material, OF, datas, negociação e entrega próprios. Faca, clichê e cadastro
+            continuam uma análise só da Engenharia. Para mudar a divisão depois de liberar, o Aceite precisa voltar a Vendas.
+          </p>
+          <EditorLotes modelos={modelosDoPedido} lotes={lotes} onChange={setLotes} comEstoque={acabado === "sim"} semPM={papeisSemPMPorLote} suportesBase={suportes} />
+          <div>
+            <Button type="button" size="sm" variant="ghost" className="text-bad" disabled={lotes.some((l) => l.comPM)} onClick={() => setLotes([])}>
+              Desfazer a divisão (voltar a um lote só)
+            </Button>
+          </div>
+        </FormSection>
+      ) : (
+        <FormSection title="Papel a ser utilizado" denso>
+          <p className="text-xs text-muted-foreground">
+            Uma linha por papel e formato que serão usados. Se o estoque tem mais de um formato, acrescente uma linha para cada. O que for
+            comprado vai no Pedido de Material, que pode ser de outro papel ou formato.
+          </p>
+          <EditorPapeis suportes={suportes} onChange={setSuportes} produzir={produzir} semPM={papeisSemPM} />
+        </FormSection>
+      )}
 
       {state?.erro && <div className="anexo-erro mt-3">{state.erro}</div>}
       {!state?.erro && state?.ok && <div className="mt-3 text-sm text-good">{state.ok}</div>}

@@ -299,3 +299,7 @@ export function producaoDoLote(l: Pick<LoteView, "itens">): { pedido: number; do
     produzir: l.itens.reduce((s, i) => s + aProduzir(i), 0),
   };
 }
+
+// Chave da funcionalidade. Fica desligada enquanto Compras, Engenharia, PCP e Atendimento ainda não
+// trabalham com lotes: a divisão só é oferecida em Vendas quando o resto está pronto (16/10/2026).
+export const LOTES_ATIVOS = false;
