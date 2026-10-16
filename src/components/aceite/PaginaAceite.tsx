@@ -10,7 +10,7 @@ import { parseQuantidade } from "@/lib/orcamentos/motor";
 import { lerItens, quantidadeTotal, calcularMontagens } from "@/lib/aceite/montagem";
 import { lerDatasCliente, textoDatasCliente } from "@/lib/aceite/datas-cliente";
 import { lerSuportes, suportesSemPM, textoSuporte, SITUACOES_SUPORTE, type SuporteAceite } from "@/lib/aceite/suportes";
-import { lerItensLote, lotesDoAceite, comoAceite } from "@/lib/aceite/lotes";
+import { lerItensLote, lotesDoAceite, comoAceite, loteGarantido } from "@/lib/aceite/lotes";
 import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente } from "@/lib/orcamentos/types";
@@ -192,7 +192,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
       {/* Tudo dentro de um cartão branco, como o formulário do Novo Orçamento: solto sobre o fundo
           creme, os campos pareciam texto fixo (pedido do Thiago em 11/10/2026). */}
       <div className="flex max-w-4xl flex-col gap-5 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-6">
-        <Andamento a={a} />
+        <Andamento a={a} papelOkLotes={base.lotes.length > 0 && !a.lote ? lotesDoAceite(base).every((l) => loteGarantido(l, base.pedidosMaterial)) : undefined} />
 
         <FichaResumo
           rows={[

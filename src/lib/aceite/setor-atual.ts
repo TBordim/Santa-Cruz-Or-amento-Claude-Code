@@ -3,7 +3,7 @@
 // banco: serve às telas.
 
 import { papelGarantido } from "./suportes";
-import { lotesDoAceite, comoAceite, type AceiteComLotes } from "./lotes";
+import { lotesDoAceite, comoAceite, loteGarantido, type AceiteComLotes } from "./lotes";
 
 export type SetorAtual = { setor: string; acao: string; cor: string };
 
@@ -69,7 +69,12 @@ function setoresDaEtapa(a: AceiteSetor): SetorAtual[] {
     case "ENGENHARIA_MATERIAL": {
       const lista: SetorAtual[] = [];
       if (!a.engenhariaEm) lista.push({ setor: "Engenharia", acao: "conferir o cadastro", cor: COR.engenharia });
-      if (!papelGarantido(a)) lista.push({ setor: "Compras", acao: "data de chegada do papel", cor: COR.compras });
+      // Aceite dividido: o papel só está garantido quando o de todos os lotes está.
+      const lotes = (a as { lotes?: unknown[] }).lotes;
+      const papelOk = lotes?.length
+        ? lotesDoAceite(a as unknown as AceiteComLotes).every((l) => loteGarantido(l, a.pedidosMaterial as never))
+        : papelGarantido(a);
+      if (!papelOk) lista.push({ setor: "Compras", acao: "data de chegada do papel", cor: COR.compras });
       return lista.length ? lista : [{ setor: "PCP", acao: "a caminho", cor: COR.pcp }];
     }
     case "PCP":
