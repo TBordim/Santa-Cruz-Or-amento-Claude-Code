@@ -10,7 +10,7 @@ import { parseQuantidade } from "@/lib/orcamentos/motor";
 import { lerItens, quantidadeTotal, calcularMontagens } from "@/lib/aceite/montagem";
 import { lerDatasCliente, textoDatasCliente } from "@/lib/aceite/datas-cliente";
 import { lerSuportes, suportesSemPM, textoSuporte, SITUACOES_SUPORTE, type SuporteAceite } from "@/lib/aceite/suportes";
-import { lerItensLote } from "@/lib/aceite/lotes";
+import { lerItensLote, lotesDoAceite } from "@/lib/aceite/lotes";
 import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente } from "@/lib/orcamentos/types";
@@ -36,6 +36,7 @@ import { FormEntrega } from "./FormEntrega";
 import { FormInformarCliente } from "./FormInformarCliente";
 import { BlocoNegociacao } from "./BlocoNegociacao";
 import { ResumoItens } from "./ResumoItens";
+import { ResumoLotes } from "./ResumoLotes";
 
 // "engenharia", "pcp" e "atendimento" são as telas dos módulos Engenharia, PCP e Atendimento ao
 // Cliente, que abrem o mesmo Aceite.
@@ -246,6 +247,12 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
         {a.etapa !== "VENDAS" && (
           <FormSection title={a.engenhariaEm ? "Itens e montagem" : "Itens do pedido"}>
             <ResumoItens itens={itens} capacidade={capacidade} />
+          </FormSection>
+        )}
+        {/* Aceite dividido: a Engenharia analisa uma vez só e enxerga aqui como o pedido foi dividido. */}
+        {a.etapa !== "VENDAS" && a.lotes.length > 0 && (
+          <FormSection title={`Lotes (${a.lotes.length})`}>
+            <ResumoLotes lotes={lotesDoAceite(a)} />
           </FormSection>
         )}
 
