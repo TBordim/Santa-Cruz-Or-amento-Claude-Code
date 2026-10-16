@@ -602,6 +602,9 @@ model TentativaTreinamento {
 enum EtapaAceite {
   VENDAS
   ENGENHARIA_MATERIAL
+  // Aceite dividido em lotes, depois da Engenharia: cada lote segue a própria etapa (PCP, pedido,
+  // atendimento, entrega) e o Aceite só conclui quando todos os lotes estão entregues (16/10/2026).
+  EM_LOTES
   PCP
   PEDIDO
   // Atendimento ao Cliente envia a data prevista ao cliente e/ou representante (08/10/2026).
@@ -710,6 +713,9 @@ model Aceite {
   entregaSaldoCancelado Decimal?  @db.Decimal(14, 3)
   entregaCancelamentoMotivo String?
   entregas        EntregaAceite[]
+  // Lotes (só em Aceite dividido por Vendas na etapa Vendas). Sem linhas aqui, o Aceite é um lote
+  // implícito só e tudo continua nas colunas do próprio Aceite, como sempre foi.
+  lotes           LoteAceite[]
 
   pedidosMaterial PedidoMaterial[]
   negociacoes     NegociacaoData[]
@@ -747,6 +753,9 @@ model PedidoMaterial {
   origem   String  @default("ACEITE")
   aceiteId String?
   aceite   Aceite? @relation(fields: [aceiteId], references: [id], onDelete: SetNull)
+  // Lote do Aceite a que este PM se destina (nulo = Aceite sem divisão, ou PM ainda sem lote).
+  loteId   String?
+  lote     LoteAceite? @relation(fields: [loteId], references: [id], onDelete: SetNull)
 
   material         TipoMaterial @default(PAPEL)
   // Código do material no ERP (ex.: 2025214) e formato (ex.: 96x66); formato mínimo que serve.
@@ -796,6 +805,7 @@ model PedidoMaterial {
 
   @@index([aceiteId])
   @@index([status])
+  @@index([loteId])
   @@map("pedidos_material")
 }
 
@@ -831,10 +841,74 @@ enum ResultadoNegociacao {
 }
 
 // Cada entrega ao cliente confirmada pelo PCP, inteira ou parcial (11/10/2026).
+// Lote de um Aceite dividido (16/10/2026). Vendas divide na etapa Vendas, com a quantidade de cada
+// modelo em cada lote; a soma por modelo tem que bater com o pedido do Aceite. Faca, clichê, cadastro e
+// montagem continuam no Aceite (a Engenharia analisa uma vez só); cada lote tem papel, PM, OF, datas,
+// negociação e entrega próprios.
+model LoteAceite {
+  id       String      @id @default(cuid())
+  aceiteId String
+  aceite   Aceite      @relation(fields: [aceiteId], references: [id], onDelete: Cascade)
+  // 1..N, na ordem em que Vendas definiu.
+  numero   Int
+  // Antes da Engenharia confirmar o lote espera em ENGENHARIA_MATERIAL; vai ao PCP quando a Engenharia
+  // confirmou e o papel DESTE lote está garantido. Depois: PCP, PEDIDO, ATENDIMENTO, ENTREGA, CONCLUIDO.
+  etapa    EtapaAceite @default(ENGENHARIA_MATERIAL)
+  // Quanto de cada modelo o lote leva: [{ modeloId, quantidade, emEstoque? }] (formato de ItemAceite;
+  // a montagem e as posições vêm do Aceite).
+  itens    Json
+  // Datas que o cliente pediu para este lote (pode ser mais de uma): [{ data, quantidade, obs }].
+  // dataCliente guarda a mais cedo.
+  dataCliente  DateTime? @db.Date
+  datasCliente Json?
+  // Papel a ser utilizado neste lote (mesmo formato de Aceite.suportes) e a situação dele.
+  suportes      Json?
+  situacaoPapel SituacaoPapel @default(NAO_VERIFICADO)
+  obs           String?
+
+  // OF própria do lote.
+  numeroOF String?
+
+  // PCP.
+  dataEntregaSugerida DateTime? @db.Date
+  dataEntrega         DateTime? @db.Date
+  pcpEm               DateTime?
+  pcpPor              String?
+  pcpObs              String?
+
+  // Cadastro do pedido no ERP (Vendas) e aviso da data ao cliente (Atendimento), por lote.
+  pedidoCadastradoEm  DateTime?
+  pedidoCadastradoPor String?
+  clienteInformadoEm  DateTime?
+  clienteInformadoPor String?
+
+  // Entrega confirmada pelo PCP (mesma regra do Aceite sem divisão: total, parcial ou saldo cancelado).
+  entregueEm                DateTime? @db.Date
+  entregaConfirmadaEm       DateTime?
+  entregaConfirmadaPor      String?
+  entregaObs                String?
+  entregaSaldoCancelado     Decimal?  @db.Decimal(14, 3)
+  entregaCancelamentoMotivo String?
+
+  pedidosMaterial PedidoMaterial[]
+  entregas        EntregaAceite[]
+  negociacoes     NegociacaoData[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([aceiteId, numero])
+  @@index([etapa])
+  @@map("lotes_aceite")
+}
+
 model EntregaAceite {
   id         String   @id @default(cuid())
   aceiteId   String
   aceite     Aceite   @relation(fields: [aceiteId], references: [id], onDelete: Cascade)
+  // Lote entregue (nulo = Aceite sem divisão).
+  loteId     String?
+  lote       LoteAceite? @relation(fields: [loteId], references: [id], onDelete: Cascade)
   quantidade Decimal? @db.Decimal(14, 3)
   entregueEm DateTime @db.Date
   obs        String?
@@ -842,6 +916,7 @@ model EntregaAceite {
   criadoEm   DateTime @default(now())
 
   @@index([aceiteId])
+  @@index([loteId])
   @@map("entregas_aceite")
 }
 
@@ -849,6 +924,9 @@ model NegociacaoData {
   id       String           @id @default(cuid())
   aceiteId String
   aceite   Aceite           @relation(fields: [aceiteId], references: [id], onDelete: Cascade)
+  // Lote cuja data está em negociação (nulo = Aceite sem divisão).
+  loteId   String?
+  lote     LoteAceite? @relation(fields: [loteId], references: [id], onDelete: Cascade)
   status   StatusNegociacao @default(AGUARDANDO_PCP)
 
   // Pedido do cliente (Atendimento).
@@ -872,6 +950,7 @@ model NegociacaoData {
 
   @@index([aceiteId])
   @@index([status])
+  @@index([loteId])
   @@map("negociacoes_data")
 }
 
