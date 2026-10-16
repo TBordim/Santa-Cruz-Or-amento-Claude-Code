@@ -1,6 +1,7 @@
 import { Agenda, type LinhaDaTela } from "@/components/painel-setor/Agenda";
 import { linhaDaAgenda, type LinhaAgenda, type Periodo } from "@/lib/aceite/agenda";
 import type { AceiteLinha } from "@/lib/aceite/dados";
+import { hrefDaLinha, rotuloLote, type LinhaLote } from "@/lib/aceite/lotes";
 import { fmtDia, temAlertaPendente } from "@/lib/aceite/constantes";
 
 export { LegendaAgenda } from "@/components/painel-setor/Agenda";
@@ -15,7 +16,7 @@ export function AgendaAceites({
   periodo,
   vazio = "Nenhum pedido em andamento.",
 }: {
-  aceites: AceiteLinha[];
+  aceites: LinhaLote<AceiteLinha>[];
   hrefBase: string;
   hoje: Date;
   periodo: Periodo;
@@ -25,11 +26,12 @@ export function AgendaAceites({
     .map((a) => ({ a, l: linhaDaAgenda(a, hoje, periodo) }))
     .sort((x, y) => Number(y.l.risco) - Number(x.l.risco) || ordemEntrega(x.a) - ordemEntrega(y.a))
     .map(({ a, l }) => ({
-      id: a.id,
-      href: `${hrefBase}/${a.id}`,
+      id: a.linha,
+      href: hrefDaLinha(hrefBase, a),
       titulo: (
         <>
-          <b className="font-mono font-semibold">{a.numero ?? "s/ nº"}</b> {a.orcamento.cliente}
+          <b className="font-mono font-semibold">{a.numero ?? "s/ nº"}</b>
+          {a.lote && <b className="font-semibold"> · {rotuloLote({ ...a.lote, implicito: false })}</b>} {a.orcamento.cliente}
         </>
       ),
       sub: situacao(a, l),
@@ -38,12 +40,12 @@ export function AgendaAceites({
   return <Agenda linhas={linhas} hoje={hoje} periodo={periodo} vazio={vazio} />;
 }
 
-function ordemEntrega(a: AceiteLinha): number {
+function ordemEntrega(a: LinhaLote<AceiteLinha>): number {
   return a.dataEntrega ? new Date(a.dataEntrega).getTime() : Number.MAX_SAFE_INTEGER;
 }
 
 // Frase curta de onde o pedido está, embaixo do nome do cliente.
-function situacao(a: AceiteLinha, l: LinhaAgenda): string {
+function situacao(a: LinhaLote<AceiteLinha>, l: LinhaAgenda): string {
   if (a.entregueEm) return `entregue em ${fmtDia(a.entregueEm)}`;
   if (l.risco && a.dataEntrega && a.etapa !== "PCP" && a.etapa !== "ENGENHARIA_MATERIAL" && !temAlertaPendente(a.pedidosMaterial)) return "passou da data: confirmar a entrega";
   if (l.risco) return "fornecedor mudou o prazo do papel";

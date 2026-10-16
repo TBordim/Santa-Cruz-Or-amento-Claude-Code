@@ -47,11 +47,13 @@ export async function carregarAceite(id: string) {
 export type AceiteTela = NonNullable<Awaited<ReturnType<typeof carregarAceite>>>;
 
 const resumoLista = {
-  entregas: { select: { quantidade: true } },
+  entregas: { select: { quantidade: true, loteId: true } },
+  // Aceite dividido: os lotes (a lista, o PCP e a planilha trabalham por lote).
+  lotes: { orderBy: { numero: "asc" } },
   orcamento: { select: { cliente: true, produtoDescricao: true, numeroOrcamento: true, modelos: true, codInterno: true, desfechoEm: true, classificacao: true, reqCliente: true } },
-  pedidosMaterial: { select: { status: true, prazoPrevisto: true, alertaEm: true, alertaVistoEm: true, suporteRef: true } },
+  pedidosMaterial: { select: { status: true, prazoPrevisto: true, alertaEm: true, alertaVistoEm: true, suporteRef: true, loteId: true } },
   // Negociação de data em andamento (no máximo uma), pra "Está com" e as pendências.
-  negociacoes: { where: { status: { not: "ENCERRADA" } }, select: { id: true, status: true, dataPedida: true, abertaEm: true } },
+  negociacoes: { where: { status: { not: "ENCERRADA" } }, select: { id: true, status: true, dataPedida: true, abertaEm: true, loteId: true, dataAtual: true } },
 } satisfies Prisma.AceiteInclude;
 
 export type AceiteLinha = Prisma.AceiteGetPayload<{ include: typeof resumoLista }>;

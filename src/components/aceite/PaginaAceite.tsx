@@ -10,7 +10,7 @@ import { parseQuantidade } from "@/lib/orcamentos/motor";
 import { lerItens, quantidadeTotal, calcularMontagens } from "@/lib/aceite/montagem";
 import { lerDatasCliente, textoDatasCliente } from "@/lib/aceite/datas-cliente";
 import { lerSuportes, suportesSemPM, textoSuporte, SITUACOES_SUPORTE, type SuporteAceite } from "@/lib/aceite/suportes";
-import { lerItensLote, lotesDoAceite } from "@/lib/aceite/lotes";
+import { lerItensLote, lotesDoAceite, comoAceite } from "@/lib/aceite/lotes";
 import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente } from "@/lib/orcamentos/types";
@@ -20,7 +20,7 @@ import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { ResumoBox, FormSection } from "@/components/form-section";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { voltarEtapaAceite, marcarAlertasVistos } from "@/app/(app)/aceite/actions";
+import { voltarEtapaAceite, voltarEtapaLote, marcarAlertasVistos } from "@/app/(app)/aceite/actions";
 import { Andamento } from "./Andamento";
 import { FormVendas } from "./FormVendas";
 import { AdminAceite } from "./AdminAceite";
@@ -37,6 +37,7 @@ import { FormInformarCliente } from "./FormInformarCliente";
 import { BlocoNegociacao } from "./BlocoNegociacao";
 import { ResumoItens } from "./ResumoItens";
 import { ResumoLotes } from "./ResumoLotes";
+import { EscolherLote } from "./EscolherLote";
 
 // "engenharia", "pcp" e "atendimento" são as telas dos módulos Engenharia, PCP e Atendimento ao
 // Cliente, que abrem o mesmo Aceite.
@@ -50,6 +51,15 @@ const AMBIENTES: Record<Ambiente, { voltar: string; nome: string }> = {
   atendimento: { voltar: "/atendimento", nome: "Atendimento ao Cliente" },
 };
 
+// Endereço da tela do Aceite em cada ambiente (sem o id), para os links do seletor de lotes.
+const ROTA_ACEITE: Record<Ambiente, string> = {
+  vendas: "/aceite/vendas",
+  acompanhamento: "/aceite/acompanhamento",
+  engenharia: "/engenharia/aceite",
+  pcp: "/pcp",
+  atendimento: "/atendimento/aceite",
+};
+
 function visto(quem: string | null | undefined, quando: Date | null | undefined) {
   return quando ? `${quem ?? "—"} · ${fmtDateTime(quando)}` : "—";
 }
@@ -60,9 +70,9 @@ function Aviso({ children }: { children: React.ReactNode }) {
 
 // Um Aceite visto de dentro do ambiente de um setor. Todos veem o mesmo resumo e o andamento; só o
 // setor dono da etapa vê o formulário dela. Em "acompanhamento" tudo é só leitura.
-export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Ambiente }) {
-  const a = await carregarAceite(id);
-  if (!a) notFound();
+export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambiente: Ambiente; loteId?: string }) {
+  const base = await carregarAceite(id);
+  if (!base) notFound();
 
   const [podeVendasArea, podeEngArea, podeComprasArea, podePcpArea, podeAtendArea] = await Promise.all([
     podeEditar("ACEITE_VENDAS"),
@@ -80,6 +90,25 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
 
   const voltarLista = AMBIENTES[ambiente].voltar;
   const nomeAmbiente = AMBIENTES[ambiente].nome;
+
+  // Aceite dividido, depois da Engenharia: sem lote escolhido, lista os lotes; com um lote, a página
+  // inteira passa a ser DAQUELE lote (os dados do lote no lugar dos do Aceite). Vendas e Engenharia, antes
+  // disso, veem o Aceite todo.
+  const emLotes = base.lotes.length > 0 && (base.etapa === "EM_LOTES" || base.etapa === "CONCLUIDO");
+  const visaoLote = emLotes ? lotesDoAceite(base).find((v) => v.id === loteId) : undefined;
+  if (emLotes && !visaoLote) {
+    return (
+      <EscolherLote
+        aceite={base}
+        voltarLista={voltarLista}
+        nomeAmbiente={nomeAmbiente}
+        rotaBase={ROTA_ACEITE[ambiente]}
+        podeVoltar={(podeVendas || podeEngenharia || podePcp) && base.etapa === "EM_LOTES"}
+        admin={admin}
+      />
+    );
+  }
+  const a = visaoLote ? comoAceite(base, visaoLote) : { ...base, linha: base.id, lote: null };
 
   const doc = a.orcamento;
   const modelos = modelosDoDoc(doc);
@@ -105,11 +134,15 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
     comPM: pms.some((p) => p.loteId === l.id && p.status !== "CANCELADO"),
   }));
   const alerta = temAlertaPendente(pms);
-  const podeVoltar =
-    (podeVendas && ["ENGENHARIA_MATERIAL", "EM_LOTES", "PEDIDO", "ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
-    (podeAtendimento && ["ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
-    (podeEngenharia && (a.etapa === "ENGENHARIA_MATERIAL" || a.etapa === "EM_LOTES")) ||
-    (podePcp && ["PCP", "PEDIDO", "CONCLUIDO"].includes(a.etapa));
+  // Em um lote só voltam as etapas do cadastro do pedido em diante; o resto é pelo Aceite.
+  const podeVoltar = a.lote
+    ? (podeVendas && ["PEDIDO", "ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
+      (podeAtendimento && ["ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
+      (podePcp && ["PEDIDO", "CONCLUIDO"].includes(a.etapa))
+    : (podeVendas && ["ENGENHARIA_MATERIAL", "EM_LOTES", "PEDIDO", "ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
+      (podeAtendimento && ["ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
+      (podeEngenharia && (a.etapa === "ENGENHARIA_MATERIAL" || a.etapa === "EM_LOTES")) ||
+      (podePcp && ["PCP", "PEDIDO", "CONCLUIDO"].includes(a.etapa));
   // Saldo a entregar: pedido do cliente menos as entregas já confirmadas (desconhecido sem quantidade).
   const totalPedido = quantidadeTotal(itens) || null;
   const jaEntregue = a.entregas.reduce((s, e) => s + Number(e.quantidade ?? 0), 0);
@@ -127,11 +160,11 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
 
   return (
     <>
-      <Link href={voltarLista} className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline hover:text-foreground">
-        <ArrowLeft className="h-3.5 w-3.5" /> {nomeAmbiente}
+      <Link href={a.lote ? `${ROTA_ACEITE[ambiente]}/${a.id}` : voltarLista} className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline hover:text-foreground">
+        <ArrowLeft className="h-3.5 w-3.5" /> {a.lote ? `Lotes do Aceite ${a.numero ?? ""}` : nomeAmbiente}
       </Link>
       <PageHeader
-        title={`${a.numero ? `Aceite ${a.numero}` : "Aceite sem nº"} · ${doc.cliente ?? ""}`}
+        title={`${a.numero ? `Aceite ${a.numero}` : "Aceite sem nº"}${a.lote ? ` · Lote ${a.lote.numero}/${a.lote.de}` : ""} · ${doc.cliente ?? ""}`}
         description={
           modelos.length > 1
             ? `${modelos.length} modelos na mesma faca: ${modelos.map((m) => m.descricao).filter(Boolean).join(" / ")}`
@@ -141,11 +174,12 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
           podeVoltar || admin ? (
             <div className="flex flex-wrap items-center gap-2">
               {podeVoltar && (
-                <form action={voltarEtapaAceite}>
+                <form action={a.lote ? voltarEtapaLote : voltarEtapaAceite}>
                   <input type="hidden" name="id" value={a.id} />
+                  {a.lote && <input type="hidden" name="loteId" value={a.lote.id} />}
                   <input type="hidden" name="voltarPara" value={voltarLista} />
                   <Button type="submit" variant="outline" size="sm" className="gap-1.5">
-                    <CornerUpLeft className="h-3.5 w-3.5" /> Voltar etapa
+                    <CornerUpLeft className="h-3.5 w-3.5" /> Voltar etapa{a.lote ? " do lote" : ""}
                   </Button>
                 </form>
               )}
@@ -250,9 +284,9 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
           </FormSection>
         )}
         {/* Aceite dividido: a Engenharia analisa uma vez só e enxerga aqui como o pedido foi dividido. */}
-        {a.etapa !== "VENDAS" && a.lotes.length > 0 && (
+        {base.etapa !== "VENDAS" && a.lotes.length > 0 && (
           <FormSection title={`Lotes (${a.lotes.length})`}>
-            <ResumoLotes lotes={lotesDoAceite(a)} />
+            <ResumoLotes lotes={lotesDoAceite(base)} />
           </FormSection>
         )}
 
@@ -305,7 +339,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
         {/* ---------- PCP ---------- */}
         {a.etapa === "PCP" &&
           (podePcp ? (
-            <FormPcp aceiteId={a.id} chegadaPapel={chegada ? chegada.toISOString().slice(0, 10) : null} dataCliente={datasCliente.length ? textoDatasCliente(datasCliente) : null} sugestao={sugestaoPcp} />
+            <FormPcp aceiteId={a.id} loteId={a.lote?.id} chegadaPapel={chegada ? chegada.toISOString().slice(0, 10) : null} dataCliente={datasCliente.length ? textoDatasCliente(datasCliente) : null} sugestao={sugestaoPcp} />
           ) : (
             <Aviso>Aguardando o PCP definir a data de entrega.</Aviso>
           ))}
@@ -360,7 +394,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
         {/* ---------- Entrega ao cliente (PCP) ---------- */}
         {a.etapa === "ENTREGA" &&
           (podePcp ? (
-            <FormEntrega aceiteId={a.id} dataEntrega={fmtDia(a.dataEntrega)} saldo={saldoEntrega} />
+            <FormEntrega aceiteId={a.id} loteId={a.lote?.id} dataEntrega={fmtDia(a.dataEntrega)} saldo={saldoEntrega} />
           ) : (
             <Aviso>Pedido em produção, entrega prevista para {fmtDia(a.dataEntrega)}. O PCP confirma quando a entrega ao cliente for feita.</Aviso>
           ))}

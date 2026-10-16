@@ -401,6 +401,47 @@ export async function voltarEtapaAceite(formData: FormData) {
   redirect(destino);
 }
 
+// Voltar etapa DE UM LOTE (Aceite dividido): do cadastro do pedido em diante, um passo por vez. Do PCP
+// para trás é pelo Aceite ("Voltar o Aceite"), porque a Engenharia e a divisão são do Aceite todo.
+const QUEM_VOLTA_LOTE: Record<string, AreaKey[]> = {
+  PEDIDO: ["ACEITE_VENDAS", "PCP_ENTREGA"],
+  ATENDIMENTO: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS"],
+  ENTREGA: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS"],
+  CONCLUIDO: ["PCP_ENTREGA"],
+};
+const ETAPA_ANTERIOR_LOTE: Record<string, "PCP" | "PEDIDO" | "ATENDIMENTO" | "ENTREGA"> = {
+  PEDIDO: "PCP",
+  ATENDIMENTO: "PEDIDO",
+  ENTREGA: "ATENDIMENTO",
+  CONCLUIDO: "ENTREGA",
+};
+
+export async function voltarEtapaLote(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const loteId = String(formData.get("loteId") ?? "");
+  const lote = await prisma.loteAceite.findFirstOrThrow({ where: { id: loteId, aceiteId: id } });
+  const quem = QUEM_VOLTA_LOTE[lote.etapa];
+  if (!quem) throw new Error("Esta etapa do lote não volta por aqui.");
+  await exigirArea(...quem);
+  await prisma.$transaction([
+    prisma.loteAceite.update({
+      where: { id: lote.id },
+      data: {
+        etapa: ETAPA_ANTERIOR_LOTE[lote.etapa],
+        ...(lote.etapa === "ENTREGA" ? { clienteInformadoEm: null, clienteInformadoPor: null } : {}),
+        ...(lote.etapa === "CONCLUIDO" ? { entregueEm: null, entregaConfirmadaEm: null, entregaConfirmadaPor: null, entregaObs: null, entregaSaldoCancelado: null, entregaCancelamentoMotivo: null } : {}),
+      },
+    }),
+    // Reabrir um lote concluído reabre o Aceite, que só conclui com todos os lotes concluídos.
+    ...(lote.etapa === "CONCLUIDO"
+      ? [prisma.aceite.update({ where: { id }, data: { etapa: "EM_LOTES", entregueEm: null, entregaConfirmadaEm: null, entregaConfirmadaPor: null } })]
+      : []),
+  ]);
+  revalidarAceite();
+  const voltarPara = String(formData.get("voltarPara") ?? "");
+  redirect(["/aceite", "/pcp", "/engenharia", "/atendimento"].some((p) => voltarPara.startsWith(p)) ? voltarPara : "/aceite");
+}
+
 // Datas válidas de uma lista vinda do formulário, da mais cedo para a mais tarde.
 function datasValidas(lista: unknown): DataCliente[] {
   return (Array.isArray(lista) ? (lista as { data?: string; quantidade?: number | null; obs?: string }[]) : [])

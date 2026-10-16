@@ -11,7 +11,7 @@ import { Escolha } from "./Escolha";
 
 // Entrega ao cliente (11/10/2026): o PCP confirma e isso conclui o Aceite. Pode ser total, parcial
 // (o saldo fica pendente, com nova previsão) ou cancelar o saldo (com motivo).
-export function FormEntrega({ aceiteId, dataEntrega, saldo }: { aceiteId: string; dataEntrega: string; saldo: number | null }) {
+export function FormEntrega({ aceiteId, loteId, dataEntrega, saldo }: { aceiteId: string; loteId?: string | null; dataEntrega: string; saldo: number | null }) {
   const [state, onSubmit, pending] = useFormActionSemReset(confirmarEntrega, undefined);
   const [modo, setModo] = useState("total");
   const [qtd, setQtd] = useState("");
@@ -23,6 +23,7 @@ export function FormEntrega({ aceiteId, dataEntrega, saldo }: { aceiteId: string
   return (
     <form id="form-aceite-entrega" onSubmit={onSubmit} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={aceiteId} />
+      <input type="hidden" name="loteId" value={loteId ?? ""} />
       <input type="hidden" name="modo" value={modo} />
       <FormSection title="Entrega ao cliente">
         <DiretrizBlock>
