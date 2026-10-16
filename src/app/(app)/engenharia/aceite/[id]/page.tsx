@@ -2,7 +2,8 @@ import { PaginaAceite } from "@/components/aceite/PaginaAceite";
 
 export const dynamic = "force-dynamic";
 
-export default async function EngenhariaAceitePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EngenhariaAceitePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ lote?: string }> }) {
   const { id } = await params;
-  return <PaginaAceite id={id} ambiente="engenharia" />;
+  const { lote } = await searchParams;
+  return <PaginaAceite id={id} ambiente="engenharia" loteId={lote} />;
 }

@@ -9,6 +9,7 @@ import { listarAceites, type AceiteLinha } from "@/lib/aceite/dados";
 import { FILAS } from "@/lib/aceite/filas";
 import { chegadaDoPapel, temAlertaPendente, fmtDia, fmtQuantidade } from "@/lib/aceite/constantes";
 import { hojeBrasil, lerPeriodo, fimDoPeriodo, PERIODOS, PERIODO_PADRAO, type Periodo } from "@/lib/aceite/agenda";
+import { linhasPorLote, hrefDaLinha, rotuloLote, type LinhaLote } from "@/lib/aceite/lotes";
 import { Input } from "@/components/ui/input";
 import { lerItens, calcularMontagens } from "@/lib/aceite/montagem";
 
@@ -36,7 +37,9 @@ export default async function PcpPage({ searchParams }: { searchParams: Promise<
   // os concluídos com entrega a partir do mês corrente.
   if (planilha) {
     const inicioMes = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), 1));
-    const todosPlanilha = await listarAceites({ OR: [{ etapa: { not: "CONCLUIDO" } }, { dataEntrega: { gte: inicioMes } }] }, { dataEntrega: "asc" });
+    const todosPlanilha = linhasPorLote(
+      await listarAceites({ OR: [{ etapa: { not: "CONCLUIDO" } }, { dataEntrega: { gte: inicioMes } }, { lotes: { some: { dataEntrega: { gte: inicioMes } } } }] }, { dataEntrega: "asc" }),
+    );
     return (
       <>
         <PageHeader title="PCP" description="Aceites e previsão de entrega, nas colunas da planilha do PCP." action={<TrocaVisao planilha />} />
@@ -45,26 +48,37 @@ export default async function PcpPage({ searchParams }: { searchParams: Promise<
     );
   }
 
-  const [data, negociacao, chegando, carteira, carteiraPeriodo, entregar] = await Promise.all([
+  const [dataB, negociacaoB, chegandoB, carteiraB, carteiraPeriodoB, entregarB] = await Promise.all([
     listarAceites(FILAS.pcp.data),
     // Cliente não aceitou a data e o Atendimento pediu reanálise.
     listarAceites({ negociacoes: { some: { status: "AGUARDANDO_PCP" } } }),
     listarAceites(FILAS.pcp.chegando),
-    listarAceites({ etapa: { in: ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"] }, dataEntrega: { gte: hoje } }, { dataEntrega: "asc" }),
+    listarAceites({ OR: [{ etapa: { in: ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"] }, dataEntrega: { gte: hoje } }, { etapa: "EM_LOTES" }] }, { dataEntrega: "asc" }),
     // Na agenda, as entregas com data dentro do período escolhido (pode começar antes de hoje).
-    listarAceites({ etapa: { in: ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"] }, dataEntrega: { gte: periodo.inicio, lte: fimPeriodo } }, { dataEntrega: "asc" }),
+    listarAceites(
+      { OR: [{ etapa: { in: ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"] }, dataEntrega: { gte: periodo.inicio, lte: fimPeriodo } }, { etapa: "EM_LOTES" }] },
+      { dataEntrega: "asc" },
+    ),
     listarAceites(FILAS.pcp.entregar, { dataEntrega: "asc" }),
   ]);
+  // Uma linha por lote (Aceite sem divisão: uma linha só). Cada fila é decidida pela etapa DA LINHA.
+  const ETAPAS_CARTEIRA = ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"];
+  const data = linhasPorLote(dataB).filter((a) => a.etapa === "PCP");
+  const negociacao = linhasPorLote(negociacaoB).filter((a) => a.negociacoes.some((n) => n.status === "AGUARDANDO_PCP"));
+  const chegando = linhasPorLote(chegandoB).filter((a) => a.etapa === "ENGENHARIA_MATERIAL");
+  const carteira = linhasPorLote(carteiraB).filter((a) => ETAPAS_CARTEIRA.includes(a.etapa) && !!a.dataEntrega && a.dataEntrega >= hoje);
+  const carteiraPeriodo = linhasPorLote(carteiraPeriodoB).filter((a) => ETAPAS_CARTEIRA.includes(a.etapa) && !!a.dataEntrega && a.dataEntrega >= periodo.inicio && a.dataEntrega <= fimPeriodo);
+  const entregar = linhasPorLote(entregarB).filter((a) => a.etapa === "ENTREGA");
   // Entregas a confirmar: cliente avisado e a data acordada já chegou (ou passou).
   const vencidas = entregar.filter((a) => a.dataEntrega && a.dataEntrega <= hoje);
   const todos = unicos([...data, ...chegando, ...carteiraPeriodo, ...negociacao, ...vencidas]);
   // Sem data de entrega ainda, o pedido aparece em qualquer período; com data, só se ela cai nele.
   // Entrega atrasada sem confirmação aparece sempre, até o PCP confirmar.
-  const noPeriodo = (a: AceiteLinha) =>
+  const noPeriodo = (a: Linha) =>
     !a.dataEntrega || (a.dataEntrega >= periodo.inicio && a.dataEntrega <= fimPeriodo) || (a.etapa === "ENTREGA" && a.dataEntrega < hoje);
   const alertas = [...data, ...carteira].filter((a) => temAlertaPendente(a.pedidosMaterial));
   const semana = carteira.filter((a) => !a.entregueEm && a.dataEntrega && a.dataEntrega < em7dias);
-  const doFiltro: Record<Filtro, AceiteLinha[]> = { data, negociacao, alertas, entregar: vencidas, chegando, semana };
+  const doFiltro: Record<Filtro, Linha[]> = { data, negociacao, alertas, entregar: vencidas, chegando, semana };
 
   const kpis: Kpi[] = [
     { key: "data", n: data.length, label: "Aceites para definir data", tom: "modulo" },
@@ -80,40 +94,40 @@ export default async function PcpPage({ searchParams }: { searchParams: Promise<
     ...negociacao.map((a) => {
       const n = a.negociacoes[0];
       return {
-        key: `neg-${a.id}`,
+        key: `neg-${a.linha}`,
         titulo: titulo(a),
         contexto: `O cliente não aceitou ${fmtDia(a.dataEntrega)}${n?.dataPedida ? ` e pediu ${fmtDia(n.dataPedida)}` : ""} · reanalise e responda ao Atendimento`,
         selo: { texto: "Outra data", tom: "bad" as const },
-        acao: { texto: "Reanalisar", href: `/pcp/${a.id}` },
+        acao: { texto: "Reanalisar", href: hrefDaLinha("/pcp", a) },
       };
     }),
     ...alertas.map((a) => ({
-      key: `alerta-${a.id}`,
+      key: `alerta-${a.linha}`,
       titulo: titulo(a),
       contexto: `O fornecedor mudou o papel${chegadaDoPapel(a.pedidosMaterial) ? `: agora chega ${fmtDia(chegadaDoPapel(a.pedidosMaterial))}` : ""}${a.dataEntrega ? ` · entrega prometida ${fmtDia(a.dataEntrega)}` : ""}`,
       selo: { texto: "Fornecedor mudou", tom: "bad" as const },
-      acao: { texto: "Rever", href: `/pcp/${a.id}`, primaria: false },
+      acao: { texto: "Rever", href: hrefDaLinha("/pcp", a), primaria: false },
     })),
     ...vencidas.map((a) => {
       const atraso = Math.round((hoje.getTime() - a.dataEntrega!.getTime()) / 86400000);
       return {
-        key: `ent-${a.id}`,
+        key: `ent-${a.linha}`,
         titulo: titulo(a),
         contexto: `Entrega acordada ${atraso > 0 ? `em ${fmtDia(a.dataEntrega)}, ${atraso} dia${atraso > 1 ? "s" : ""} atrás` : "para hoje"} · confirme quando o pedido for entregue`,
         selo: atraso > 0 ? { texto: "Atrasada", tom: "bad" as const } : { texto: "Hoje", tom: "good" as const },
-        acao: { texto: "Confirmar entrega", href: `/pcp/${a.id}` },
+        acao: { texto: "Confirmar entrega", href: hrefDaLinha("/pcp", a) },
       };
     }),
     ...data
       .filter((a) => !alertas.includes(a))
       .map((a) => ({
-        key: `data-${a.id}`,
+        key: `data-${a.linha}`,
         titulo: titulo(a),
         contexto: contextoData(a),
         selo: { texto: "Pronto", tom: "good" as const },
-        acao: { texto: "Definir data", href: `/pcp/${a.id}` },
+        acao: { texto: "Definir data", href: hrefDaLinha("/pcp", a) },
       })),
-  ].filter((t) => !filtro || doFiltro[filtro].some((a) => t.key.endsWith(a.id)));
+  ].filter((t) => !filtro || doFiltro[filtro].some((a) => t.key.endsWith(a.linha)));
 
   return (
     <>
@@ -149,15 +163,18 @@ export default async function PcpPage({ searchParams }: { searchParams: Promise<
   );
 }
 
-function titulo(a: AceiteLinha) {
+type Linha = LinhaLote<AceiteLinha>;
+
+function titulo(a: Linha) {
   return (
     <>
-      <span className="font-mono">{a.numero ?? "Aceite sem nº"}</span> · {a.orcamento.cliente}
+      <span className="font-mono">{a.numero ?? "Aceite sem nº"}</span>
+      {a.lote && <b className="font-semibold"> · {rotuloLote({ ...a.lote, implicito: false })}</b>} · {a.orcamento.cliente}
     </>
   );
 }
 
-function contextoData(a: AceiteLinha): string {
+function contextoData(a: Linha): string {
   const chegada = chegadaDoPapel(a.pedidosMaterial);
   const folhas = calcularMontagens(lerItens(a.itens)).reduce((s, m) => s + m.folhas, 0);
   const partes = [
@@ -218,8 +235,8 @@ function SeletorPeriodo({ periodo, fim, filtro }: { periodo: Periodo; fim: Date;
   );
 }
 
-// Um Aceite pode estar em mais de uma lista (ex.: negociação e carteira): fica a primeira ocorrência.
-function unicos(lista: AceiteLinha[]): AceiteLinha[] {
+// Uma linha (lote ou Aceite) pode estar em mais de uma lista (ex.: negociação e carteira): fica a primeira ocorrência.
+function unicos(lista: Linha[]): Linha[] {
   const vistos = new Set<string>();
-  return lista.filter((a) => (vistos.has(a.id) ? false : (vistos.add(a.id), true)));
+  return lista.filter((a) => (vistos.has(a.linha) ? false : (vistos.add(a.linha), true)));
 }

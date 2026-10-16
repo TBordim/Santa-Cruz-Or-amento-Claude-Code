@@ -3,9 +3,7 @@ import { prisma } from "@/lib/db";
 import { sessaoAtual, podeEditar } from "@/lib/permissions";
 import { modulosAcessiveis, type ModuloKey } from "@/lib/modulos";
 import { contarPendentes } from "@/lib/treinamentos/dados";
-import { contarPendenciasVendas, FILAS, FILAS_PM, ALERTAS_ONDE, FILA_ATENDIMENTO } from "@/lib/aceite/filas";
-import { listarAceitesComAlerta } from "@/lib/aceite/dados";
-import { hojeBrasil } from "@/lib/aceite/agenda";
+import { contarPendenciasVendas, contarPendenciasPcp, FILAS_PM, FILA_ATENDIMENTO } from "@/lib/aceite/filas";
 import { contarPendenciasEngenharia } from "@/lib/engenharia/pendencias";
 import { Entrada } from "./Entrada";
 
@@ -46,12 +44,7 @@ export default async function EntradaPage() {
     ...(abre("compras") && compras ? { compras: await prisma.pedidoMaterial.count({ where: FILAS_PM.prazo }) } : {}),
     ...(abre("pcp") && pcp
       ? {
-          pcp:
-            (await prisma.aceite.count({ where: FILAS.pcp.data })) +
-            (await prisma.negociacaoData.count({ where: { status: "AGUARDANDO_PCP" } })) +
-            // Entregas com a data já chegada, esperando o PCP confirmar.
-            (await prisma.aceite.count({ where: { ...FILAS.pcp.entregar, dataEntrega: { lte: hojeBrasil(new Date()) } } })) +
-            (await listarAceitesComAlerta(ALERTAS_ONDE.pcp)).length,
+          pcp: await contarPendenciasPcp(),
         }
       : {}),
   };

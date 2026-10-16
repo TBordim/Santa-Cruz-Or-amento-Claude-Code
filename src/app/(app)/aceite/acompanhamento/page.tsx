@@ -8,7 +8,7 @@ import { fmtDia, temAlertaPendente } from "@/lib/aceite/constantes";
 
 export const dynamic = "force-dynamic";
 
-const FILTROS = ["vendas", "engenharia", "pcp", "pedido", "atendimento", "entrega", "risco", "concluidos"] as const;
+const FILTROS = ["vendas", "engenharia", "lotes", "pcp", "pedido", "atendimento", "entrega", "risco", "concluidos"] as const;
 type Filtro = (typeof FILTROS)[number];
 
 // Acompanhamento no formato "painel" (08/10/2026), só leitura: quantos pedidos estão em cada etapa
@@ -25,6 +25,7 @@ export default async function AcompanhamentoPage({ searchParams }: { searchParam
   const grupos: Record<Exclude<Filtro, "concluidos">, AceiteLinha[]> = {
     vendas: porEtapa("VENDAS"),
     engenharia: porEtapa("ENGENHARIA_MATERIAL"),
+    lotes: porEtapa("EM_LOTES"),
     pcp: porEtapa("PCP"),
     pedido: porEtapa("PEDIDO"),
     atendimento: porEtapa("ATENDIMENTO"),
@@ -35,6 +36,7 @@ export default async function AcompanhamentoPage({ searchParams }: { searchParam
   const kpis: Kpi[] = [
     { key: "vendas", n: grupos.vendas.length, label: "Em Vendas", tom: "modulo" },
     { key: "engenharia", n: grupos.engenharia.length, label: "Engenharia e papel", tom: "modulo" },
+    { key: "lotes", n: grupos.lotes.length, label: "Em lotes (cada lote no seu passo)", tom: "modulo" },
     { key: "pcp", n: grupos.pcp.length, label: "No PCP", tom: "modulo" },
     { key: "pedido", n: grupos.pedido.length, label: "Cadastro do pedido (Vendas)", tom: "modulo" },
     { key: "atendimento", n: grupos.atendimento.length, label: "Informar o cliente (Atendimento)", tom: "modulo" },

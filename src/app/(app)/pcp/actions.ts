@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { chegadaDoPapel, fmtDia, fmtQuantidade, lerData, lerQuantidade } from "@/lib/aceite/constantes";
 import { lerItens, quantidadeTotal } from "@/lib/aceite/montagem";
 import { nomeSePode, revalidarAceite, type FormState } from "@/lib/aceite/servidor";
+import { carregarAlvo, gravarAlvo, fecharAceiteSeLotesConcluidos } from "@/lib/aceite/alvo";
 import { hojeBrasil } from "@/lib/aceite/agenda";
 
 // Ações do módulo PCP: a data de entrega dos Aceites, a negociação de data e a confirmação da entrega.
@@ -17,8 +18,10 @@ export async function salvarPcp(_prev: FormState, formData: FormData): Promise<F
   const id = String(formData.get("id") ?? "");
   const nome = await nomeSePode("PCP_ENTREGA");
   if (!nome) return { erro: "Sem permissão para definir a data (área PCP)." };
-  const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, include: { pedidosMaterial: true } });
-  if (a.etapa !== "PCP") return { erro: "O Aceite não está no PCP." };
+  const alvo = await carregarAlvo(id, formData.get("loteId"));
+  if ("erro" in alvo) return alvo;
+  const { a, lote } = alvo;
+  if (a.etapa !== "PCP") return { erro: lote ? "Este lote não está no PCP." : "O Aceite não está no PCP." };
   const data = lerData(formData.get("dataEntrega"));
   if (!data) return { erro: "Informe a data de entrega." };
   const chegada = chegadaDoPapel(a.pedidosMaterial);
@@ -26,12 +29,9 @@ export async function salvarPcp(_prev: FormState, formData: FormData): Promise<F
 
   const agora = new Date();
   await prisma.$transaction([
-    prisma.aceite.update({
-      where: { id },
-      data: { dataEntrega: data, pcpEm: agora, pcpPor: nome, pcpObs: String(formData.get("pcpObs") ?? "").trim() || null, etapa: "PEDIDO" },
-    }),
-    // Definir a data com os PMs na tela conta como ter visto as mudanças do fornecedor.
-    prisma.pedidoMaterial.updateMany({ where: { aceiteId: id, alertaEm: { not: null } }, data: { alertaVistoEm: agora } }),
+    gravarAlvo(id, lote, { dataEntrega: data, pcpEm: agora, pcpPor: nome, pcpObs: String(formData.get("pcpObs") ?? "").trim() || null, etapa: "PEDIDO" }),
+    // Definir a data com os PMs na tela conta como ter visto as mudanças do fornecedor (do lote, se for um lote).
+    prisma.pedidoMaterial.updateMany({ where: { aceiteId: id, ...(lote ? { loteId: lote.id } : {}), alertaEm: { not: null } }, data: { alertaVistoEm: agora } }),
   ]);
   revalidarAceite();
   redirect("/pcp");
@@ -47,6 +47,8 @@ export async function responderNegociacao(_prev: FormState, formData: FormData):
   const nome = await nomeSePode("PCP_ENTREGA");
   if (!nome) return { erro: "Sem permissão para responder (área PCP)." };
   const n = await prisma.negociacaoData.findUniqueOrThrow({ where: { id: negId }, include: { aceite: { include: { pedidosMaterial: true } } } });
+  // Negociação de um lote: o papel e a data que valem são os do lote.
+  const pmsDaNegociacao = n.loteId ? n.aceite.pedidosMaterial.filter((x) => x.loteId === n.loteId) : n.aceite.pedidosMaterial;
   if (n.status !== "AGUARDANDO_PCP") return { erro: "Esta negociação não está esperando o PCP." };
   const resultado = String(formData.get("resultado") ?? "");
   if (resultado !== "ATENDE" && resultado !== "OUTRA_DATA" && resultado !== "MANTIDA") return { erro: "Escolha a resposta do PCP." };
@@ -62,7 +64,7 @@ export async function responderNegociacao(_prev: FormState, formData: FormData):
   } else if (!obs) {
     return { erro: "Explique por que a data não pode mudar: o Atendimento vai repassar ao cliente." };
   }
-  const chegada = chegadaDoPapel(n.aceite.pedidosMaterial);
+  const chegada = chegadaDoPapel(pmsDaNegociacao);
   if (novaData && chegada && novaData < chegada) return { erro: `A data não pode ser antes da chegada do papel (${fmtDia(chegada)}).` };
 
   const agora = new Date();
@@ -71,7 +73,7 @@ export async function responderNegociacao(_prev: FormState, formData: FormData):
       where: { id: negId },
       data: { status: "AGUARDANDO_ATENDIMENTO", resultado, dataProposta: novaData, respostaObs: obs || null, respondidaEm: agora, respondidaPor: nome },
     }),
-    ...(novaData ? [prisma.aceite.update({ where: { id: n.aceiteId }, data: { dataEntrega: novaData, pcpEm: agora, pcpPor: nome } })] : []),
+    ...(novaData ? [gravarAlvo(n.aceiteId, n.loteId ? { id: n.loteId } : null, { dataEntrega: novaData, pcpEm: agora, pcpPor: nome })] : []),
   ]);
   revalidarAceite();
   return { ok: "Resposta enviada ao Atendimento." };
@@ -85,8 +87,10 @@ export async function confirmarEntrega(_prev: FormState, formData: FormData): Pr
   const id = String(formData.get("id") ?? "");
   const nome = await nomeSePode("PCP_ENTREGA");
   if (!nome) return { erro: "Sem permissão para confirmar a entrega (área PCP)." };
-  const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, include: { negociacoes: true, entregas: true } });
-  if (a.etapa !== "ENTREGA") return { erro: "O Aceite não está esperando a confirmação da entrega." };
+  const alvo = await carregarAlvo(id, formData.get("loteId"));
+  if ("erro" in alvo) return alvo;
+  const { a, lote } = alvo;
+  if (a.etapa !== "ENTREGA") return { erro: lote ? "Este lote não está esperando a confirmação da entrega." : "O Aceite não está esperando a confirmação da entrega." };
   if (a.negociacoes.some((n) => n.status !== "ENCERRADA")) {
     return { erro: "Há uma negociação de data em andamento. Encerre-a antes de confirmar a entrega." };
   }
@@ -128,11 +132,12 @@ export async function confirmarEntrega(_prev: FormState, formData: FormData): Pr
         : obs;
   await prisma.$transaction([
     ...(qtdAgora !== null || modo === "parcial"
-      ? [prisma.entregaAceite.create({ data: { aceiteId: id, quantidade: qtdAgora, entregueEm, obs: registro, porNome: nome } })]
+      ? [prisma.entregaAceite.create({ data: { aceiteId: id, loteId: lote?.id ?? null, quantidade: qtdAgora, entregueEm, obs: registro, porNome: nome } })]
       : []),
-    prisma.aceite.update({
-      where: { id },
-      data: concluir
+    gravarAlvo(
+      id,
+      lote,
+      concluir
         ? {
             entregueEm,
             entregaConfirmadaEm: agora,
@@ -142,8 +147,10 @@ export async function confirmarEntrega(_prev: FormState, formData: FormData): Pr
             etapa: "CONCLUIDO",
           }
         : { dataEntrega: novaData }, // parcial: a data do saldo vira a data vigente
-    }),
+    ),
   ]);
+  // Aceite dividido: ele só conclui quando todos os lotes estão concluídos.
+  if (lote && concluir) await fecharAceiteSeLotesConcluidos(id);
   revalidarAceite();
   if (modo === "parcial") return { ok: `Entrega parcial registrada. Saldo previsto para ${fmtDia(novaData)}.` };
   redirect("/pcp");

@@ -12,11 +12,14 @@ import { Button } from "@/components/ui/button";
 // módulo (branch própria) vão sugerir a data por capacidade e regras, e este passo confirma a sugestão.
 export function FormPcp({
   aceiteId,
+  loteId,
   chegadaPapel,
   dataCliente,
   sugestao,
 }: {
   aceiteId: string;
+  // Aceite dividido: o lote cuja data o PCP está definindo.
+  loteId?: string | null;
   chegadaPapel: string | null;
   dataCliente: string | null;
   // Data sugerida pelas regras do PCP (lib/pcp/sugestao.ts), em AAAA-MM-DD, com o passo a passo.
@@ -27,6 +30,7 @@ export function FormPcp({
   return (
     <form id="form-aceite-pcp" onSubmit={onSubmit} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={aceiteId} />
+      <input type="hidden" name="loteId" value={loteId ?? ""} />
       <FormSection title="PCP: data de entrega">
         <DiretrizBlock>
           {chegadaPapel

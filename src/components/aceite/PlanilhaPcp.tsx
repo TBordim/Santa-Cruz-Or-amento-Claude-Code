@@ -3,6 +3,7 @@ import { fmtMoney, classificacaoLabel } from "@/lib/orcamentos/constantes";
 import { parseQuantidade } from "@/lib/orcamentos/motor";
 import type { PrecificacaoTier, ReqCliente } from "@/lib/orcamentos/types";
 import type { AceiteLinha } from "@/lib/aceite/dados";
+import { hrefDaLinha, rotuloLote, type LinhaLote } from "@/lib/aceite/lotes";
 import { chegadaDoPapel, fmtDia, fmtQuantidade, temAlertaPendente } from "@/lib/aceite/constantes";
 import { lerItens, quantidadeTotal, calcularMontagens } from "@/lib/aceite/montagem";
 import { lerSuportes } from "@/lib/aceite/suportes";
@@ -17,7 +18,7 @@ function unicos(lista: string[]): string {
 
 // Uma linha por Aceite, nas colunas da planilha "Aceites e Previsão de entrega" que o PCP usa hoje
 // (PDF enviado pelo Thiago em 08/10/2026), tudo vindo do que o app já registra.
-function linha(a: AceiteLinha) {
+function linha(a: LinhaLote<AceiteLinha>) {
   const so = a.soEscolhida as unknown as PrecificacaoTier | null;
   const itens = lerItens(a.itens);
   const tiragem = quantidadeTotal(itens) || (so ? parseQuantidade(so.quantidade) : null) || 0;
@@ -45,7 +46,7 @@ function linha(a: AceiteLinha) {
   };
 }
 
-export function PlanilhaPcp({ aceites, hoje }: { aceites: AceiteLinha[]; hoje: Date }) {
+export function PlanilhaPcp({ aceites, hoje }: { aceites: LinhaLote<AceiteLinha>[]; hoje: Date }) {
   const linhas = aceites.map((a) => ({ a, l: linha(a) }));
 
   // Previsão de faturamento (TP de PCP 3.6): mês corrente e os dois seguintes, pela data acordada.
@@ -89,11 +90,12 @@ export function PlanilhaPcp({ aceites, hoje }: { aceites: AceiteLinha[]; hoje: D
             </thead>
             <tbody>
               {linhas.map(({ a, l }) => (
-                <tr key={a.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${l.alerta ? "shadow-[inset_3px_0_0_var(--bad)]" : ""}`}>
+                <tr key={a.linha} className={`border-b border-border last:border-0 hover:bg-muted/30 ${l.alerta ? "shadow-[inset_3px_0_0_var(--bad)]" : ""}`}>
                   <td className="whitespace-nowrap px-2.5 py-1.5 font-mono">
-                    <Link href={`/pcp/${a.id}`} className="font-semibold text-foreground underline-offset-2 hover:underline">
+                    <Link href={hrefDaLinha("/pcp", a)} className="font-semibold text-foreground underline-offset-2 hover:underline">
                       {a.numero ?? "s/ nº"}
                     </Link>
+                    {a.lote && <span className="ml-1.5 text-xs font-sans text-muted-foreground">{rotuloLote({ ...a.lote, implicito: false })}</span>}
                   </td>
                   <td className="px-2.5 py-1.5 font-mono">{a.numeroOF ?? "—"}</td>
                   <td className="px-2.5 py-1.5 text-right font-mono">{fmtQuantidade(l.tiragem)}</td>

@@ -3,6 +3,7 @@
 // banco: serve às telas.
 
 import { papelGarantido } from "./suportes";
+import { lotesDoAceite, comoAceite, type AceiteComLotes } from "./lotes";
 
 export type SetorAtual = { setor: string; acao: string; cor: string };
 
@@ -24,7 +25,25 @@ type AceiteSetor = Parameters<typeof papelGarantido>[0] & {
   pedidoInterno?: string | null;
 };
 
+// Aceite dividido em lotes: com quem está cada lote, agrupado por setor e ação ("PCP: definir a data de
+// entrega (2 lotes)"). Os lotes já concluídos não aparecem.
+function setoresDosLotes(a: AceiteSetor & { id?: string }): SetorAtual[] {
+  const base = a as unknown as AceiteComLotes & { id: string };
+  const grupos = new Map<string, SetorAtual & { n: number }>();
+  for (const l of lotesDoAceite(base)) {
+    if (l.etapa === "CONCLUIDO") continue;
+    for (const s of setoresDaEtapa(comoAceite(base, l) as unknown as AceiteSetor)) {
+      const chave = `${s.setor}|${s.acao}`;
+      const g = grupos.get(chave);
+      if (g) g.n++;
+      else grupos.set(chave, { ...s, n: 1 });
+    }
+  }
+  return [...grupos.values()].map(({ n, ...s }) => ({ ...s, acao: `${s.acao} (${n} ${n === 1 ? "lote" : "lotes"})` }));
+}
+
 export function setoresAtuais(a: AceiteSetor): SetorAtual[] {
+  if (a.etapa === "EM_LOTES" && (a as { lotes?: unknown[] }).lotes?.length) return setoresDosLotes(a);
   // Negociação de data em andamento: quem precisa agir nela aparece primeiro.
   const neg = a.negociacoes?.find((n) => n.status !== "ENCERRADA");
   const daNegociacao: SetorAtual[] =
@@ -36,7 +55,7 @@ export function setoresAtuais(a: AceiteSetor): SetorAtual[] {
   // Pedido cadastrado sem OF: Vendas ainda deve registrar (pode ser depois, mas fica à vista).
   const faltaOF = !!a.pedidoCadastradoEm && !a.numeroOF && ["ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa);
   const of: SetorAtual = { setor: "Vendas", acao: "registrar a OF", cor: COR.vendas };
-  const faltaInterno = !!a.engenhariaEm && !a.pedidoInterno && ["ENGENHARIA_MATERIAL", "PCP", "ATENDIMENTO", "ENTREGA"].includes(a.etapa);
+  const faltaInterno = !!a.engenhariaEm && !a.pedidoInterno && ["ENGENHARIA_MATERIAL", "EM_LOTES", "PCP", "ATENDIMENTO", "ENTREGA"].includes(a.etapa);
   const interno: SetorAtual = { setor: "Vendas", acao: "informar o pedido interno", cor: COR.vendas };
   // Concluído com OF pendente: só Vendas. Nos demais, o setor da etapa e, junto, as pendências de Vendas.
   const daEtapa = a.etapa === "CONCLUIDO" && faltaOF ? [of] : [...setoresDaEtapa(a), ...(faltaInterno ? [interno] : []), ...(faltaOF ? [of] : [])];

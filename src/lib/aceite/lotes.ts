@@ -260,6 +260,69 @@ export function rotuloLote(l: Pick<LoteView, "numero" | "de" | "implicito">): st
   return l.implicito ? "" : `Lote ${l.numero}/${l.de}`;
 }
 
+// ---------- lote visto como Aceite (PCP, Atendimento e telas por lote) ----------
+
+export type LoteRef = { id: string; numero: number; de: number };
+
+// Um Aceite (ou uma linha de lista) acrescido do lote que ela representa. `linha` é a chave única da
+// linha: o id do Aceite, ou "idDoAceite:idDoLote" quando é um lote de Aceite dividido.
+export type LinhaLote<A> = A & { linha: string; lote: LoteRef | null };
+
+type ComRelacoes = {
+  id: string;
+  entregas?: { loteId?: string | null }[];
+  negociacoes?: { loteId?: string | null }[];
+  pedidosMaterial?: { loteId?: string | null }[];
+};
+
+// O lote enxergado "como se fosse o Aceite": os campos que o lote tem (etapa, itens, papel, datas, OF,
+// PCP, entrega...) substituem os do Aceite, e entregas, negociações e PMs são só os do lote. Assim as
+// telas e as ações que já trabalham com um Aceite funcionam por lote sem serem reescritas. Aceite sem
+// divisão volta como está (o lote implícito é o próprio Aceite).
+export function comoAceite<A extends AceiteComLotes & ComRelacoes>(a: A, l: LoteView): LinhaLote<A> {
+  if (l.implicito) return { ...a, linha: a.id, lote: null };
+  const doLote = <T extends { loteId?: string | null }>(lista: T[] | undefined) => lista?.filter((x) => x.loteId === l.id);
+  const primeiraData = l.datasCliente[0]?.data;
+  const sobre: Record<string, unknown> = {
+    etapa: l.etapa,
+    itens: l.itens,
+    suportes: l.suportes,
+    situacaoPapel: l.situacaoPapel,
+    dataCliente: primeiraData ? new Date(primeiraData + "T00:00:00.000Z") : null,
+    datasCliente: l.datasCliente,
+    numeroOF: l.numeroOF,
+    dataEntregaSugerida: l.dataEntregaSugerida,
+    dataEntrega: l.dataEntrega,
+    pcpEm: l.pcpEm,
+    pcpPor: l.pcpPor,
+    pcpObs: l.pcpObs,
+    pedidoCadastradoEm: l.pedidoCadastradoEm,
+    pedidoCadastradoPor: l.pedidoCadastradoPor,
+    clienteInformadoEm: l.clienteInformadoEm,
+    clienteInformadoPor: l.clienteInformadoPor,
+    entregueEm: l.entregueEm,
+    entregaConfirmadaEm: l.entregaConfirmadaEm,
+    entregaConfirmadaPor: l.entregaConfirmadaPor,
+    entregaObs: l.entregaObs,
+    entregaSaldoCancelado: l.entregaSaldoCancelado,
+    entregaCancelamentoMotivo: l.entregaCancelamentoMotivo,
+  };
+  if (a.entregas) sobre.entregas = doLote(a.entregas);
+  if (a.negociacoes) sobre.negociacoes = doLote(a.negociacoes);
+  if (a.pedidosMaterial) sobre.pedidosMaterial = doLote(a.pedidosMaterial);
+  return { ...a, ...sobre, linha: `${a.id}:${l.id}`, lote: { id: l.id as string, numero: l.numero, de: l.de } } as unknown as LinhaLote<A>;
+}
+
+// Uma linha por lote (Aceite sem divisão: uma linha só, com os dados do próprio Aceite).
+export function linhasPorLote<A extends AceiteComLotes & ComRelacoes>(aceites: A[]): LinhaLote<A>[] {
+  return aceites.flatMap((a) => lotesDoAceite(a).map((l) => comoAceite(a, l)));
+}
+
+// Endereço da tela do Aceite para uma linha: com `?lote=` quando é um lote.
+export function hrefDaLinha(base: string, a: { id: string; lote: LoteRef | null }): string {
+  return `${base}/${a.id}${a.lote ? `?lote=${a.lote.id}` : ""}`;
+}
+
 // ---------- papel e PM do lote ----------
 
 type PMComLote = { status: string; prazoPrevisto: Date | string | null; loteId?: string | null; alertaEm?: Date | null; alertaVistoEm?: Date | null };
