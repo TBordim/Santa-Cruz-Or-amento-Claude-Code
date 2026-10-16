@@ -10,6 +10,9 @@ import { hojeBrasil } from "@/lib/aceite/agenda";
 // PM com a própria origem; hoje só o Aceite (Vendas) pede. Compras responde com fornecedor, prazo,
 // pedido mínimo e sobra.
 
+// Etapas em que o PCP já pode ter planejado em cima da chegada do papel (do Aceite ou do lote).
+const ETAPAS_PLANEJADAS = ["PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"];
+
 // ---------- Pedido de Material (PM) ----------
 // Tabela independente do Aceite: `origem` diz qual módulo pediu (hoje só "ACEITE").
 
@@ -19,6 +22,12 @@ export async function criarPedidoMaterial(_prev: FormState, formData: FormData):
   if (!nome) return { erro: "Sem permissão para emitir Pedido de Material (área Vendas)." };
   const a = await prisma.aceite.findUniqueOrThrow({ where: { id: aceiteId } });
   if (["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa)) return { erro: "O Aceite já passou do PCP; não dá mais para pedir material por ele." };
+  // Aceite dividido: o PM é sempre de um lote (16/10/2026), e o lote não pode já ter passado do PCP.
+  const lotes = await prisma.loteAceite.findMany({ where: { aceiteId }, select: { id: true, numero: true, etapa: true } });
+  const loteIdTxt = String(formData.get("loteId") ?? "").trim();
+  const lote = lotes.find((l) => l.id === loteIdTxt) ?? null;
+  if (lotes.length && !lote) return { erro: "Escolha de qual lote é este Pedido de Material." };
+  if (lote && ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(lote.etapa)) return { erro: `O lote ${lote.numero} já passou do PCP; não dá mais para pedir material por ele.` };
 
   const materialTxt = String(formData.get("material") ?? "PAPEL");
   const material = (TIPOS_MATERIAL.some((t) => t.key === materialTxt) ? materialTxt : "PAPEL") as (typeof TIPOS_MATERIAL)[number]["key"];
@@ -35,6 +44,7 @@ export async function criarPedidoMaterial(_prev: FormState, formData: FormData):
     data: {
       origem: "ACEITE",
       aceiteId,
+      loteId: lote?.id ?? null,
       material,
       descricao,
       quantidade,
@@ -48,7 +58,7 @@ export async function criarPedidoMaterial(_prev: FormState, formData: FormData):
       // Sem vínculo com um papel do Aceite: o PM é independente do papel a ser utilizado.
       obs: String(formData.get("obs") ?? "").trim() || null,
       solicitadoPor: nome,
-      eventos: { create: { tipo: "CRIADO", texto: `PM emitido: ${fmtQuantidade(quantidade, unidade)} de ${descricao}.`, porNome: nome } },
+      eventos: { create: { tipo: "CRIADO", texto: `PM emitido${lote ? ` para o lote ${lote.numero}` : ""}: ${fmtQuantidade(quantidade, unidade)} de ${descricao}.`, porNome: nome } },
     },
   });
   revalidarAceite();
@@ -58,7 +68,7 @@ export async function criarPedidoMaterial(_prev: FormState, formData: FormData):
 export async function cancelarPedidoMaterial(formData: FormData) {
   const pedidoId = String(formData.get("pedidoId") ?? "");
   const nome = await exigirArea("ACEITE_VENDAS", "COMPRAS_PM");
-  const pm = await prisma.pedidoMaterial.findUniqueOrThrow({ where: { id: pedidoId }, include: { aceite: true } });
+  const pm = await prisma.pedidoMaterial.findUniqueOrThrow({ where: { id: pedidoId }, include: { aceite: true, lote: true } });
   if (pm.status === "CANCELADO") return;
   // Com data de chegada já definida, cancelar também muda o que o PCP planejou: acende o alerta.
   const avisar = !!pm.prazoPrevisto || pm.status === "PRAZO_CONFIRMADO" || (pm.aceite && pm.aceite.etapa !== "VENDAS" && pm.aceite.etapa !== "ENGENHARIA_MATERIAL");
@@ -83,7 +93,7 @@ export async function atualizarPedidoMaterial(_prev: FormState, formData: FormDa
   const pedidoId = String(formData.get("pedidoId") ?? "");
   const nome = await nomeSePode("COMPRAS_PM");
   if (!nome) return { erro: "Sem permissão para atualizar Pedido de Material (área Compras)." };
-  const pm = await prisma.pedidoMaterial.findUniqueOrThrow({ where: { id: pedidoId }, include: { aceite: true } });
+  const pm = await prisma.pedidoMaterial.findUniqueOrThrow({ where: { id: pedidoId }, include: { aceite: true, lote: true } });
   if (pm.status === "CANCELADO") return { erro: "PM cancelado não pode ser alterado." };
 
   const statusTxt = String(formData.get("status") ?? pm.status);
@@ -146,7 +156,7 @@ export async function atualizarPedidoMaterial(_prev: FormState, formData: FormDa
 
   // Com data de chegada já definida, o PCP pode ter planejado em cima dela: mudança alerta.
   const jaPlanejado =
-    !!pm.prazoPrevisto || pm.status === "PRAZO_CONFIRMADO" || pm.status === "RECEBIDO" || (pm.aceite && ["PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(pm.aceite.etapa));
+    !!pm.prazoPrevisto || pm.status === "PRAZO_CONFIRMADO" || pm.status === "RECEBIDO" || (pm.lote ? ETAPAS_PLANEJADAS.includes(pm.lote.etapa) : !!pm.aceite && ETAPAS_PLANEJADAS.includes(pm.aceite.etapa));
   const mudouAlgoQueImporta = eventos.some((e) => e.tipo === "PRAZO" || e.tipo === "QUANTIDADE") || (status !== pm.status && status !== "RECEBIDO");
   const alertar = !!jaPlanejado && mudouAlgoQueImporta;
 
@@ -183,7 +193,7 @@ export async function registrarRecebimento(_prev: FormState, formData: FormData)
   const pedidoId = String(formData.get("pedidoId") ?? "");
   const nome = await nomeSePode("COMPRAS_PM");
   if (!nome) return { erro: "Sem permissão para confirmar recebimento (área Compras)." };
-  const pm = await prisma.pedidoMaterial.findUniqueOrThrow({ where: { id: pedidoId }, include: { aceite: true } });
+  const pm = await prisma.pedidoMaterial.findUniqueOrThrow({ where: { id: pedidoId }, include: { aceite: true, lote: true } });
   if (pm.status === "CANCELADO" || pm.status === "RECEBIDO") return { erro: "Este PM não tem saldo a receber." };
 
   const pedido = Number(pm.quantidade ?? 0);
@@ -219,7 +229,7 @@ export async function registrarRecebimento(_prev: FormState, formData: FormData)
     });
   }
   // O saldo atrasar em relação ao prazo em que o PCP se baseou é mudança que importa.
-  const alertar = mudouPrazo && !!pm.aceite && ["PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(pm.aceite.etapa);
+  const alertar = mudouPrazo && (pm.lote ? ETAPAS_PLANEJADAS.includes(pm.lote.etapa) : !!pm.aceite && ETAPAS_PLANEJADAS.includes(pm.aceite.etapa));
 
   await prisma.pedidoMaterial.update({
     where: { id: pedidoId },

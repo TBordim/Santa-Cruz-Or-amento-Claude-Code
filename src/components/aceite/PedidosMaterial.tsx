@@ -35,6 +35,7 @@ export function PedidosMaterial({
   podeCancelar,
   nota,
   papeis = [],
+  lotes = [],
 }: {
   aceiteId: string;
   pms: PMTela[];
@@ -44,7 +45,10 @@ export function PedidosMaterial({
   nota?: string;
   // Papéis a utilizar do Aceite: o PM pode copiar os dados de um deles, mas não fica preso a ele.
   papeis?: Papel[];
+  // Aceite dividido: o PM é de um lote. `papeis` de cada lote servem só para copiar dados.
+  lotes?: { id: string; rotulo: string; papeis: Papel[]; folhas: number | null }[];
 }) {
+  const rotuloDoLote = (loteId: string | null) => lotes.find((l) => l.id === loteId)?.rotulo;
   return (
     <FormSection title="Pedidos de Material (PM)">
       {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
@@ -53,11 +57,23 @@ export function PedidosMaterial({
       ) : (
         <div className="flex flex-col gap-2.5">
           {pms.map((p) => (
-            <CartaoPM key={p.id} pm={p} podeCompras={podeCompras} podeCancelar={podeCancelar} />
+            <CartaoPM
+              key={p.id}
+              pm={p}
+              podeCompras={podeCompras}
+              podeCancelar={podeCancelar}
+              cabecalho={
+                p.loteId ? (
+                  <div className="mb-1.5 text-xs font-semibold text-foreground">{rotuloDoLote(p.loteId) ?? "Lote"}</div>
+                ) : lotes.length > 0 && p.status !== "CANCELADO" ? (
+                  <div className="mb-1.5 text-xs font-semibold text-warn">Sem lote: cancele este PM e emita de novo escolhendo o lote</div>
+                ) : undefined
+              }
+            />
           ))}
         </div>
       )}
-      {podeEmitir && <NovoPM aceiteId={aceiteId} papeis={papeis} />}
+      {podeEmitir && <NovoPM aceiteId={aceiteId} papeis={papeis} lotes={lotes} />}
     </FormSection>
   );
 }
@@ -329,7 +345,18 @@ function Calculado({ rotulo, valor, destaque = false }: { rotulo: string; valor:
 
 type Papel = { id: string; codigo: string; descricao: string; folhas: number | null; formato: string; gramatura: string };
 
-function NovoPM({ aceiteId, papeis }: { aceiteId: string; papeis: Papel[] }) {
+function NovoPM({
+  aceiteId,
+  papeis: papeisDoAceite,
+  lotes,
+}: {
+  aceiteId: string;
+  papeis: Papel[];
+  lotes: { id: string; rotulo: string; papeis: Papel[]; folhas: number | null }[];
+}) {
+  // Aceite dividido: escolhe o lote, e o "preencher com os dados de um papel" lista os papéis DELE.
+  const [loteId, setLoteId] = useState("");
+  const papeis = lotes.length ? (lotes.find((l) => l.id === loteId)?.papeis ?? []) : papeisDoAceite;
   // O PM é independente do papel a ser utilizado: pode ser de outro papel e outro formato, conforme
   // a oferta do mercado (11/10/2026). O papel escolhido aqui só preenche os campos, não cria vínculo.
   const [papelId, setPapelId] = useState<string>("");
@@ -385,7 +412,24 @@ function NovoPM({ aceiteId, papeis }: { aceiteId: string; papeis: Papel[] }) {
       className="flex flex-col gap-3 rounded-lg border border-border p-3"
     >
       <input type="hidden" name="aceiteId" value={aceiteId} />
+      <input type="hidden" name="loteId" value={loteId} />
       <input type="hidden" name="material" value={material} />
+      {lotes.length > 0 && (
+        <Field label="De qual lote é este Pedido de Material?">
+          <Escolha
+            rotulo="Lote do Pedido de Material"
+            valor={loteId}
+            onChange={(id) => {
+              setLoteId(id);
+              setPapelId("");
+            }}
+            opcoes={lotes.map((l) => ({ key: l.id, label: l.rotulo }))}
+          />
+          {loteId && lotes.find((l) => l.id === loteId)?.folhas ? (
+            <p className="mt-1 text-xs text-muted-foreground">O papel principal deste lote usa cerca de {fmtQuantidade(lotes.find((l) => l.id === loteId)!.folhas)} folhas.</p>
+          ) : null}
+        </Field>
+      )}
       {material === "PAPEL" && papeis.length > 0 && (
         <Field label="Preencher com os dados de um papel a ser utilizado (opcional)" hint="Só copia os dados; o PM pode ser de outro papel ou formato.">
           <Escolha rotulo="Copiar dados do papel" valor={papelId} onChange={copiarDe} opcoes={papeis.map((x, n) => ({ key: x.id, label: `Papel ${n + 1}: ${x.descricao}` }))} />

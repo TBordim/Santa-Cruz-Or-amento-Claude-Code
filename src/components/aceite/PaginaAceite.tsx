@@ -122,7 +122,7 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
     return { data: s.data.toISOString().slice(0, 10), passos: s.passos, ajustada: salvo };
   })();
   const temPMs = pms.length > 0 || a.situacaoPapel === "RESERVADO_PARCIAL" || a.situacaoPapel === "SEM_ESTOQUE";
-  const emitirPM = podeVendas && ["VENDAS", "ENGENHARIA_MATERIAL", "PCP"].includes(a.etapa);
+  const emitirPM = podeVendas && ["VENDAS", "ENGENHARIA_MATERIAL", "EM_LOTES", "PCP"].includes(a.etapa);
 
   return (
     <>
@@ -259,6 +259,15 @@ export async function PaginaAceite({ id, ambiente }: { id: string; ambiente: Amb
             podeCancelar={podeVendas}
             nota={podeComprasArea ? "Fornecedor e prazo são lançados no módulo Compras." : undefined}
             papeis={suportes.map((x) => ({ id: x.id, codigo: x.codigo, descricao: textoSuporte(x), folhas: x.folhas, formato: x.formato, gramatura: x.gramatura }))}
+            lotes={a.lotes.map((l) => {
+              const sup = Array.isArray(l.suportes) ? (l.suportes as SuporteAceite[]) : [];
+              return {
+                id: l.id,
+                rotulo: `Lote ${l.numero}/${a.lotes.length}`,
+                folhas: sup[0]?.folhas ?? null,
+                papeis: sup.map((x) => ({ id: x.id, codigo: x.codigo, descricao: textoSuporte(x), folhas: x.folhas, formato: x.formato, gramatura: x.gramatura })),
+              };
+            })}
           />
         )}
 
