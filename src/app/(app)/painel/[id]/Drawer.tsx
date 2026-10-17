@@ -7,6 +7,7 @@ import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { voltarEtapa } from "../actions";
+import { contarArtesPendentes } from "@/lib/protocolos/arte";
 import { Button } from "@/components/ui/button";
 import { ExcluirCardButton } from "./ExcluirCardButton";
 import { DrawerSheet } from "./DrawerSheet";
@@ -27,6 +28,7 @@ export async function Drawer({ id }: { id: string }) {
   if (!raw) notFound();
   const doc = { ...raw, precoAnterior: raw.precoAnterior ? Number(raw.precoAnterior) : null };
 
+  const artesPendentes = await contarArtesPendentes(doc.id);
   const et = etapaInfo(doc.etapa ?? "");
   const modelos = modelosDoDoc(doc);
 
@@ -109,6 +111,14 @@ export async function Drawer({ id }: { id: string }) {
         </form>
         <ExcluirCardButton id={doc.id} />
       </div>
+
+      {/* Arte do cliente sem protocolo de Vendas: o card não avança até ser protocolada. */}
+      {artesPendentes > 0 && (
+        <div className="rounded-lg border border-warn/30 bg-warn-soft px-3 py-2 text-sm text-warn">
+          <strong>{artesPendentes === 1 ? "1 arte aguarda" : `${artesPendentes} artes aguardam`} o protocolo de Vendas.</strong>{" "}
+          Este card só avança depois que for protocolada.
+        </div>
+      )}
 
       <EtapasAnteriores doc={doc} />
 

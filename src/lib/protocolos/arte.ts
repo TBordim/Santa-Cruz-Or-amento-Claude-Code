@@ -39,7 +39,8 @@ export async function registrarArteDeAnexo(d: {
 export async function sincronizarArteDeLink(orcamentoId: string, linkBruto: string | null | undefined, enviadoPor: string) {
   const link = normalizarLink(linkBruto) || "";
   await prisma.arteEnviada.deleteMany({
-    where: { orcamentoId, anexoId: null, estado: "PENDENTE", link: { not: null }, ...(link ? { NOT: { link } } : {}) },
+    // Só as do próprio card (origem ORCAMENTO): link que o Atendimento enviou não some quando o card é salvo.
+    where: { orcamentoId, anexoId: null, estado: "PENDENTE", origem: "ORCAMENTO", link: { not: null }, ...(link ? { NOT: { link } } : {}) },
   });
   if (!link) return;
   const jaTem = await prisma.arteEnviada.findFirst({ where: { orcamentoId, link }, select: { id: true } });
