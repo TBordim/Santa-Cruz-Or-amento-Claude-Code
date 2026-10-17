@@ -106,6 +106,7 @@ model Cliente {
   atualizadoEm        DateTime      @updatedAt
 
   orcamentos Orcamento[]
+  protocolos Protocolo[]
 
   @@index([busca])
   @@map("clientes")
@@ -274,6 +275,7 @@ model Orcamento {
   atualizadoEm     DateTime         @updatedAt
 
   anexos           Anexo[]
+  artes            ArteEnviada[]
   // Aceite de Pedido aberto quando o cliente aprova (desfecho positivo). No máximo um por orçamento.
   aceite           Aceite?
 
@@ -308,8 +310,118 @@ model Anexo {
   enviadoPorId String?
   enviadoPor   Usuario?  @relation("AnexoEnviadoPor", fields: [enviadoPorId], references: [id])
   enviadoEm    DateTime  @default(now())
+  // Arte do cliente aguardando protocolo (ver ArteEnviada). Só existe pra arte anexada depois de
+  // 17/10/2026; anexo antigo não tem e nunca é bloqueado.
+  arte         ArteEnviada?
 
   @@map("anexos")
+}
+
+// ============================================================
+// Protocolo de arte do cliente (decisões do Thiago em 17/10/2026)
+// Toda arte que o cliente envia é propriedade intelectual dele e recebe um número de protocolo
+// (feito por Vendas), em qualquer etapa em que chegue. Só não é protocolada quando já foi
+// protocolada antes: aí a arte nova é descartada e o modelo aponta pro protocolo que já existia.
+// O protocolo é da ARTE, não do pedido: o mesmo número serve a vários orçamentos e Aceites do cliente.
+// Um protocolo por modelo (sabor). Revisão nunca é apagada nem sobrescrita.
+// ============================================================
+
+enum OrigemArte {
+  ORCAMENTO
+  ATENDIMENTO
+  ORDEM_DE_COMPRA
+}
+
+enum EstadoArte {
+  PENDENTE
+  PROTOCOLADA
+  DESCARTADA
+}
+
+model Protocolo {
+  id          String  @id @default(cuid())
+  // Número do protocolo. Formato livre por enquanto (vem de planilha, não é gerado pelo app).
+  numero      String  @unique
+  clienteId   String?
+  cliente     Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  // Nome do cliente no momento do protocolo (o cadastro pode mudar; o registro da arte não).
+  clienteNome String
+  descricao   String
+  codInterno  String?
+  criadoPor   String
+  criadoEm    DateTime @default(now())
+
+  revisoes ProtocoloRevisao[]
+  // Artes que chegaram depois e foram descartadas por já existir este protocolo.
+  descartes ArteEnviada[] @relation("ArteDescartadaPor")
+
+  @@index([clienteId])
+  @@map("protocolos")
+}
+
+// Rev 00, 01, 02... A arte pode ser um arquivo, um link (que é aberto, impresso, carimbado e
+// protocolado) ou os dois; a cópia carimbada/digitalizada é opcional. Arquivos ficam num caminho
+// PRÓPRIO do storage (cópia), pra não sumirem quando o anexo do orçamento for apagado.
+model ProtocoloRevisao {
+  id          String    @id @default(cuid())
+  protocoloId String
+  // Restrict: um protocolo com revisões não se apaga (propriedade intelectual do cliente).
+  protocolo   Protocolo @relation(fields: [protocoloId], references: [id], onDelete: Restrict)
+  revisao     Int
+  arquivoNome     String?
+  arquivoMime     String?
+  arquivoUrl      String?
+  arquivoPathname String?
+  link            String?
+  copiaNome       String?
+  copiaUrl        String?
+  copiaPathname   String?
+  // O que mudou em relação à revisão anterior (a Rev 00 não tem).
+  mudou           String?
+  deRevisaoId     String?
+  deRevisao       ProtocoloRevisao?  @relation("RevisaoAnterior", fields: [deRevisaoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  seguintes       ProtocoloRevisao[] @relation("RevisaoAnterior")
+  origem          OrigemArte
+  criadoPor       String
+  criadoEm        DateTime  @default(now())
+
+  artes ArteEnviada[]
+
+  @@unique([protocoloId, revisao])
+  @@map("protocolo_revisoes")
+}
+
+// Cada arte que chega (arquivo anexado ou link) e o que Vendas decidiu. É daqui que nasce a fila
+// "Artes a protocolar", e é ela que trava o card enquanto estiver PENDENTE. Nasce só pra arte
+// nova: orçamento e Aceite que já existem não têm linha aqui e não são bloqueados.
+model ArteEnviada {
+  id          String     @id @default(cuid())
+  orcamentoId String?
+  orcamento   Orcamento? @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  // Modelo (sabor) a que a arte pertence, dentro de Orcamento.modelos.
+  modeloId    String?
+  clienteNome String?
+  origem      OrigemArte
+  // Arte em arquivo (Anexo do orçamento) ou por link.
+  anexoId     String?    @unique
+  anexo       Anexo?     @relation(fields: [anexoId], references: [id], onDelete: Cascade)
+  link        String?
+  rotulo      String
+  estado      EstadoArte @default(PENDENTE)
+  // PROTOCOLADA: a revisão a que a arte ficou ligada.
+  revisaoId   String?
+  revisao     ProtocoloRevisao? @relation(fields: [revisaoId], references: [id], onDelete: Restrict)
+  // DESCARTADA: o protocolo que já existia.
+  protocoloExistenteId String?
+  protocoloExistente   Protocolo? @relation("ArteDescartadaPor", fields: [protocoloExistenteId], references: [id], onDelete: Restrict)
+  enviadoPor  String
+  enviadoEm   DateTime   @default(now())
+  decididaPor String?
+  decididaEm  DateTime?
+
+  @@index([estado])
+  @@index([orcamentoId])
+  @@map("artes_enviadas")
 }
 
 // ============================================================
