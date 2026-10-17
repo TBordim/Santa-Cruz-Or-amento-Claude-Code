@@ -44,6 +44,11 @@ export type Modelo = {
   // Cores de impressão no formato Frente/Verso ("3/0", "2/1"); ver cores.ts. Ausente nos
   // orçamentos de antes de 05/10/2026.
   cores?: string;
+  // Protocolo da arte deste modelo (Vendas): número, e a revisão em uso (0 = Rev 00). Ver
+  // src/lib/protocolos. Ausente em orçamentos de antes de 17/10/2026.
+  protocoloId?: string;
+  protocoloNumero?: string;
+  protocoloRevisao?: number;
 };
 
 // Etapa 1 — Solicitação de Orçamento (Em Aberto). Medidas/suportes/acabamento/verniz/

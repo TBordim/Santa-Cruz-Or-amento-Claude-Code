@@ -44,7 +44,10 @@ export type AreaKey =
   | "CONSULTA_LABORATORIO"
   // Módulo Treinamentos: todo colaborador entra e vê os vídeos do seu perfil sem área nenhuma; esta é só a
   // permissão do painel de acompanhamento (Diretoria). O cadastro de vídeos é só do administrador.
-  | "TREINAMENTOS_ACOMPANHAMENTO";
+  | "TREINAMENTOS_ACOMPANHAMENTO"
+  // Módulo Protocolos de arte do cliente (Vendas protocola; Consulta só vê).
+  | "PROTOCOLOS_VENDAS"
+  | "CONSULTA_PROTOCOLOS";
 
 export type Area = {
   key: AreaKey;
@@ -79,6 +82,8 @@ export const AREAS: Area[] = [
   { key: "COR_LABORATORIO", label: "Laboratório", hint: "Testes, fórmulas e ajustes de cor", modulo: "laboratorio" },
   { key: "COR_ENGENHARIA", label: "Engenharia de cor", hint: "Registro e gestão das fórmulas de cor", modulo: "laboratorio" },
   { key: "CONSULTA_LABORATORIO", label: "Consulta", hint: "Só ver o módulo Laboratório, sem editar nada", modulo: "laboratorio" },
+  { key: "PROTOCOLOS_VENDAS", label: "Protocolos (Vendas)", hint: "Protocola as artes do cliente: novo, alterado ou já protocolado", modulo: "protocolos" },
+  { key: "CONSULTA_PROTOCOLOS", label: "Consulta", hint: "Só ver o módulo Protocolos, sem editar nada", modulo: "protocolos" },
   { key: "TREINAMENTOS_ACOMPANHAMENTO", label: "Acompanhamento", hint: "Ver quem já fez cada treinamento, com nota e data", modulo: "treinamentos" },
 ];
 

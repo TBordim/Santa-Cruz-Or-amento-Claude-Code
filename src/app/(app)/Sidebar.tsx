@@ -28,6 +28,7 @@ import {
   Wrench,
   ShoppingCart,
   CalendarClock,
+  Stamp,
   Headset,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -132,6 +133,12 @@ function SidebarContent({
     { href: "/pcp/parametros", label: "Parâmetros", icon: SlidersHorizontal, color: "#5B6270", prefixo: true },
   ];
 
+  // Protocolos de arte: a fila de Vendas e a consulta por cliente.
+  const itemsProtocolos: NavItem[] = [
+    { href: "/protocolos", label: "Artes a protocolar", icon: Stamp, color: "#7A5C2E" },
+    { href: "/protocolos/clientes", label: "Protocolos por cliente", icon: Users, color: "#5B6270", prefixo: true },
+  ];
+
   const itemsLaboratorio: NavItem[] = [
     { href: "/laboratorio", label: "Início", icon: LayoutGrid, color: "#5C3D75" },
     { href: "/laboratorio/cor", label: "Cor", icon: Palette, color: "#7A3B69" },
@@ -167,6 +174,8 @@ function SidebarContent({
       ? itemsCompras
       : modulo === "pcp"
       ? itemsPcp
+      : modulo === "protocolos"
+      ? itemsProtocolos
       : modulo === "laboratorio"
       ? itemsLaboratorio
       : modulo === "treinamentos"

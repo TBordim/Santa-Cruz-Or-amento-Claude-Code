@@ -9,6 +9,7 @@ import {
   FlaskConical,
   GraduationCap,
   Settings2,
+  Stamp,
 } from "lucide-react";
 import type { ModuloKey } from "./modulos";
 
@@ -21,6 +22,7 @@ export const VISUAL_MODULO: Record<ModuloKey, { icon: React.ComponentType<{ clas
   engenharia: { icon: DraftingCompass, cor: "#6C63B5" },
   compras: { icon: ShoppingCart, cor: "#8C5A21" },
   pcp: { icon: CalendarClock, cor: "#2C7A8C" },
+  protocolos: { icon: Stamp, cor: "#7A5C2E" },
   laboratorio: { icon: FlaskConical, cor: "#7A3B69" },
   treinamentos: { icon: GraduationCap, cor: "#2F6B5E" },
   administracao: { icon: Settings2, cor: "#233248" },
