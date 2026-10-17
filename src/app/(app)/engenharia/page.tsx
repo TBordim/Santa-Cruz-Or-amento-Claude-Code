@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Kpis, type Kpi } from "@/components/painel-setor/Kpis";
 import { PrecisaDeVoce, type Tarefa } from "@/components/painel-setor/PrecisaDeVoce";
@@ -23,13 +25,14 @@ const COR_MODULO: Record<Atividade["modulo"], string> = {
 // Módulo Engenharia no formato "painel" (08/10/2026): tudo que espera a Engenharia, de qualquer
 // módulo (Orçamento e Aceite hoje), com os números por origem (clicar filtra), a lista do que fazer
 // e, embaixo, o registro do que a Engenharia já fez em cada módulo.
-export default async function EngenhariaPage({ searchParams }: { searchParams: Promise<{ filtro?: string }> }) {
-  const { filtro: f } = await searchParams;
+export default async function EngenhariaPage({ searchParams }: { searchParams: Promise<{ filtro?: string; q?: string }> }) {
+  const { filtro: f, q: qBruto } = await searchParams;
+  const q = (qBruto ?? "").trim().slice(0, 100);
   const filtro = (FILTROS as readonly string[]).includes(f ?? "") ? (f as Filtro) : null;
 
   const pend = await listarPendenciasEngenharia();
   const { origens } = pend;
-  const atividades = await listarAtividadesEngenharia(origens);
+  const atividades = await listarAtividadesEngenharia(origens, { q });
 
   const kpis: Kpi[] = [
     ...(origens.aceite ? [{ key: "aceites", n: pend.aceites.length, label: "Aceites a conferir", tom: "modulo" as const }] : []),
@@ -93,12 +96,38 @@ export default async function EngenhariaPage({ searchParams }: { searchParams: P
         <PrecisaDeVoce tarefas={tarefas} vazio="Nada esperando a Engenharia agora." />
 
         <section className="flex flex-col gap-2.5">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Registro de atividades</h3>
-            <p className="text-xs text-muted-foreground">O que a Engenharia fez em cada módulo, mais recente primeiro.</p>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">{q ? `Registro de atividades: "${q}"` : "Registro de atividades"}</h3>
+              <p className="text-xs text-muted-foreground">
+                {q
+                  ? `${atividades.length} resultado${atividades.length === 1 ? "" : "s"}${atividades.length >= 300 ? " (mostrando os 300 mais recentes: refine a busca)" : ""}, mais recente primeiro.`
+                  : "O que a Engenharia fez em cada módulo, mais recente primeiro (as 60 últimas; use a busca para achar uma atividade antiga)."}
+              </p>
+            </div>
+            {/* Busca por código (cadastro, cliente, faca), cliente, produto, pré-cadastro, Nº do Aceite, orçamento, OF,
+                pedido ou quem fez. Várias palavras: todas precisam aparecer. */}
+            <form action="/engenharia" className="flex w-full gap-2 sm:w-auto">
+              {filtro && <input type="hidden" name="filtro" value={filtro} />}
+              <Input
+                name="q"
+                defaultValue={q}
+                placeholder="Código, cliente, produto, pré-cadastro, Aceite, OF…"
+                className="sm:w-96"
+                aria-label="Buscar no registro de atividades"
+              />
+              <Button type="submit" variant="outline" className="gap-1.5">
+                <Search className="h-3.5 w-3.5" /> Buscar
+              </Button>
+              {q && (
+                <Button asChild variant="ghost">
+                  <Link href={filtro ? `/engenharia?filtro=${filtro}` : "/engenharia"}>Limpar</Link>
+                </Button>
+              )}
+            </form>
           </div>
           {atividades.length === 0 ? (
-            <div className="empty-state">Nenhuma atividade registrada ainda.</div>
+            <div className="empty-state">{q ? `Nada encontrado para "${q}". Tente só um pedaço do código ou do nome.` : "Nenhuma atividade registrada ainda."}</div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
               <Table>
