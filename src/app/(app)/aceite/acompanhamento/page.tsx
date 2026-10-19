@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { prisma } from "@/lib/db";
 import { Kpis, type Kpi } from "@/components/painel-setor/Kpis";
 import { ListaAceites } from "@/components/aceite/ListaAceites";
 import { listarAceites, type AceiteLinha } from "@/lib/aceite/dados";
@@ -8,7 +9,7 @@ import { fmtDia, temAlertaPendente } from "@/lib/aceite/constantes";
 
 export const dynamic = "force-dynamic";
 
-const FILTROS = ["vendas", "engenharia", "lotes", "pcp", "pedido", "atendimento", "entrega", "risco", "concluidos"] as const;
+const FILTROS = ["vendas", "engenharia", "lotes", "pcp", "pedido", "atendimento", "entrega", "risco", "concluidos", "cancelados"] as const;
 type Filtro = (typeof FILTROS)[number];
 
 // Acompanhamento no formato "painel" (08/10/2026), só leitura: quantos pedidos estão em cada etapa
@@ -17,12 +18,14 @@ export default async function AcompanhamentoPage({ searchParams }: { searchParam
   const { filtro: f } = await searchParams;
   const filtro = (FILTROS as readonly string[]).includes(f ?? "") ? (f as Filtro) : null;
 
-  const [andamento, concluidos] = await Promise.all([
-    listarAceites({ etapa: { not: "CONCLUIDO" } }, { criadoEm: "asc" }),
+  const [andamento, concluidos, cancelados, nCancelados] = await Promise.all([
+    listarAceites({ etapa: { notIn: ["CONCLUIDO", "CANCELADO"] } }, { criadoEm: "asc" }),
     filtro === "concluidos" ? listarAceites({ etapa: "CONCLUIDO" }, { atualizadoEm: "desc" }, 200) : Promise.resolve([]),
+    filtro === "cancelados" ? listarAceites({ etapa: "CANCELADO" }, { canceladoEm: "desc" }, 200) : Promise.resolve([]),
+    prisma.aceite.count({ where: { etapa: "CANCELADO" } }),
   ]);
   const porEtapa = (e: string) => andamento.filter((a) => a.etapa === e);
-  const grupos: Record<Exclude<Filtro, "concluidos">, AceiteLinha[]> = {
+  const grupos: Record<Exclude<Filtro, "concluidos" | "cancelados">, AceiteLinha[]> = {
     vendas: porEtapa("VENDAS"),
     engenharia: porEtapa("ENGENHARIA_MATERIAL"),
     lotes: porEtapa("EM_LOTES"),
@@ -50,14 +53,28 @@ export default async function AcompanhamentoPage({ searchParams }: { searchParam
         title="Acompanhamento"
         description="Todos os Aceites em andamento e com quem está cada um. Só leitura; cada setor trabalha no próprio ambiente."
         action={
-          <Button asChild variant={filtro === "concluidos" ? "default" : "outline"} size="sm">
-            <Link href={filtro === "concluidos" ? "/aceite/acompanhamento" : "/aceite/acompanhamento?filtro=concluidos"}>
-              {filtro === "concluidos" ? "Voltar ao painel" : "Ver concluídos"}
-            </Link>
-          </Button>
+          <div className="flex gap-1.5">
+            <Button asChild variant={filtro === "concluidos" ? "default" : "outline"} size="sm">
+              <Link href={filtro === "concluidos" ? "/aceite/acompanhamento" : "/aceite/acompanhamento?filtro=concluidos"}>
+                {filtro === "concluidos" ? "Voltar ao painel" : "Ver concluídos"}
+              </Link>
+            </Button>
+            <Button asChild variant={filtro === "cancelados" ? "default" : "outline"} size="sm">
+              <Link href={filtro === "cancelados" ? "/aceite/acompanhamento" : "/aceite/acompanhamento?filtro=cancelados"}>
+                {filtro === "cancelados" ? "Voltar ao painel" : `Ver cancelados (${nCancelados})`}
+              </Link>
+            </Button>
+          </div>
         }
       />
-      {filtro === "concluidos" ? (
+      {filtro === "cancelados" ? (
+        <ListaAceites
+          aceites={cancelados}
+          hrefBase="/aceite/acompanhamento"
+          extra={{ titulo: "Motivo", valor: (a) => <span className="text-xs">{a.canceladoMotivo ?? "—"}</span> }}
+          vazio="Nenhum pedido cancelado."
+        />
+      ) : filtro === "concluidos" ? (
         <ListaAceites
           aceites={concluidos}
           hrefBase="/aceite/acompanhamento"
@@ -68,7 +85,7 @@ export default async function AcompanhamentoPage({ searchParams }: { searchParam
         <div className="flex flex-col gap-6">
           <Kpis itens={kpis} base="/aceite/acompanhamento" ativo={filtro} corModulo="#2E6B4F" />
           <ListaAceites
-            aceites={filtro ? grupos[filtro] : andamento}
+            aceites={filtro ? grupos[filtro as Exclude<Filtro, "concluidos" | "cancelados">] : andamento}
             hrefBase="/aceite/acompanhamento"
             extra={{ titulo: "Entrega", valor: (a) => fmtDia(a.dataEntrega) }}
             vazio="Nenhum Aceite em andamento."

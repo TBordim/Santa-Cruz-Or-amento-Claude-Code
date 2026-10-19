@@ -38,6 +38,9 @@ import { BlocoNegociacao } from "./BlocoNegociacao";
 import { ResumoItens } from "./ResumoItens";
 import { ResumoLotes } from "./ResumoLotes";
 import { EscolherLote } from "./EscolherLote";
+import { FormCancelarPedido } from "./FormCancelarPedido";
+import { BannerCancelado } from "./BannerCancelado";
+import { avaliarCancelamento } from "@/lib/aceite/cancelamento";
 
 // "engenharia", "pcp" e "atendimento" são as telas dos módulos Engenharia, PCP e Atendimento ao
 // Cliente, que abrem o mesmo Aceite.
@@ -91,6 +94,13 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
   const voltarLista = AMBIENTES[ambiente].voltar;
   const nomeAmbiente = AMBIENTES[ambiente].nome;
 
+  // Cancelar o pedido: só Vendas, com o Aceite aberto e sem entrega confirmada (19/10/2026).
+  const cancelamento = avaliarCancelamento(base as never);
+  const podeCancelar = podeVendas && !["CONCLUIDO", "CANCELADO"].includes(base.etapa) && base.entregas.length === 0;
+  const cancelar = podeCancelar ? (
+    <FormCancelarPedido aceiteId={base.id} avisos={cancelamento.avisos} avisarPreImpressao={cancelamento.avisarPreImpressao} temOF={cancelamento.temOF} />
+  ) : null;
+
   // Aceite dividido, depois da Engenharia: sem lote escolhido, lista os lotes; com um lote, a página
   // inteira passa a ser DAQUELE lote (os dados do lote no lugar dos do Aceite). Vendas e Engenharia, antes
   // disso, veem o Aceite todo.
@@ -105,6 +115,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         rotaBase={ROTA_ACEITE[ambiente]}
         podeVoltar={(podeVendas || podeEngenharia || podePcp) && base.etapa === "EM_LOTES"}
         admin={admin}
+        cancelar={cancelar}
       />
     );
   }
@@ -192,7 +203,9 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
       {/* Tudo dentro de um cartão branco, como o formulário do Novo Orçamento: solto sobre o fundo
           creme, os campos pareciam texto fixo (pedido do Thiago em 11/10/2026). */}
       <div className="flex max-w-4xl flex-col gap-5 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-6">
-        <Andamento a={a} papelOkLotes={base.lotes.length > 0 && !a.lote ? lotesDoAceite(base).every((l) => loteGarantido(l, base.pedidosMaterial)) : undefined} />
+        {base.etapa === "CANCELADO" && <BannerCancelado aceite={base} podeVendas={podeVendas} />}
+        {cancelar}
+        {base.etapa !== "CANCELADO" && <Andamento a={a} papelOkLotes={base.lotes.length > 0 && !a.lote ? lotesDoAceite(base).every((l) => loteGarantido(l, base.pedidosMaterial)) : undefined} />}
 
         <FichaResumo
           rows={[

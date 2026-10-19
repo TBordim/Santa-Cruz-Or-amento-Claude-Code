@@ -43,7 +43,7 @@ export async function PainelAtendimento({ filtro: f, q: qBruto }: { filtro?: str
       : Promise.resolve([]),
     // Pedidos em acompanhamento (só consulta): os Aceites em andamento e os que o PCP confirmou como
     // entregues na última semana. Quem conclui é o PCP, ao confirmar a entrega (11/10/2026).
-    listarAceites({ OR: [{ etapa: { not: "CONCLUIDO" } }, { entregueEm: { gte: umaSemanaAtras } }] }, { dataEntrega: "asc" }),
+    listarAceites({ OR: [{ etapa: { notIn: ["CONCLUIDO", "CANCELADO"] } }, { entregueEm: { gte: umaSemanaAtras } }] }, { dataEntrega: "asc" }),
     q
       ? listarAceites(
           {

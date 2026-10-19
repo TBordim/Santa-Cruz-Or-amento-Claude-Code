@@ -85,6 +85,8 @@ function setoresDaEtapa(a: AceiteSetor): SetorAtual[] {
       return [{ setor: "Atendimento", acao: "enviar a data ao cliente", cor: COR.atendimento }];
     case "ENTREGA":
       return [{ setor: "PCP", acao: "confirmar a entrega ao cliente", cor: COR.pcp }];
+    case "CANCELADO":
+      return [{ setor: "Cancelado", acao: "pedido cancelado", cor: COR.concluido }];
     default:
       return [{ setor: "Concluído", acao: "entregue ao cliente", cor: COR.concluido }];
   }
