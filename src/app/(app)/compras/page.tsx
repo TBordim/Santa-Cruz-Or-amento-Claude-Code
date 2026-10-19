@@ -8,6 +8,8 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Kpis, type Kpi } from "@/components/painel-setor/Kpis";
 import { CartaoPM } from "@/components/aceite/PedidosMaterial";
+import { AvisosCancelamento } from "@/components/aceite/AvisosCancelamento";
+import { listarAvisosCancelamento } from "@/lib/aceite/avisos";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +37,7 @@ export default async function ComprasPage({ searchParams }: { searchParams: Prom
 
   const incluir = {
     eventos: { orderBy: { criadoEm: "desc" as const } },
-    aceite: { select: { id: true, numero: true, orcamento: { select: { cliente: true, produtoDescricao: true } }, _count: { select: { lotes: true } } } },
+    aceite: { select: { id: true, numero: true, etapa: true, orcamento: { select: { cliente: true, produtoDescricao: true } }, _count: { select: { lotes: true } } } },
     lote: { select: { numero: true } },
   };
   const [totais, ativos, doFiltro, podeCompras] = await Promise.all([
@@ -66,7 +68,8 @@ export default async function ComprasPage({ searchParams }: { searchParams: Prom
   const cartoes = doFiltro ?? [...ativos.filter(atrasado), ...ativos.filter((p) => !p.prazoPrevisto)];
   const cabecalho = (p: (typeof ativos)[number]) =>
     p.aceite ? (
-      <div className="mb-1.5 truncate text-xs text-muted-foreground">
+      <div className="mb-1.5 text-xs text-muted-foreground">
+        {p.aceite.etapa === "CANCELADO" && <div className="mb-0.5 font-semibold text-bad">Pedido cancelado: decida se esta Ordem de Compra pode ser cancelada.</div>}
         {p.aceite.numero ? `Aceite ${p.aceite.numero}` : "Aceite sem nº"}
         {p.lote ? <b className="text-foreground"> · Lote {p.lote.numero}/{p.aceite._count.lotes}</b> : ""}: <b className="text-foreground">{p.aceite.orcamento.cliente}</b> — {p.aceite.orcamento.produtoDescricao}
       </div>
@@ -86,6 +89,7 @@ export default async function ComprasPage({ searchParams }: { searchParams: Prom
         }
       />
       <div className="flex flex-col gap-6">
+        {filtro !== "encerrados" && <AvisosCancelamento avisos={await listarAvisosCancelamento("COMPRAS")} />}
         {filtro !== "encerrados" && <Kpis itens={kpis} base="/compras" ativo={filtro} corModulo="#8C5A21" />}
 
         <section className="flex flex-col gap-2.5">

@@ -5,6 +5,7 @@ import { modulosAcessiveis, type ModuloKey } from "@/lib/modulos";
 import { contarPendentes } from "@/lib/treinamentos/dados";
 import { contarPendenciasVendas, contarPendenciasPcp, contarFilaAtendimento, FILAS_PM } from "@/lib/aceite/filas";
 import { contarPendenciasEngenharia } from "@/lib/engenharia/pendencias";
+import { contarAvisosCancelamento } from "@/lib/aceite/avisos";
 import { Entrada } from "./Entrada";
 
 export const dynamic = "force-dynamic";
@@ -40,8 +41,8 @@ export default async function EntradaPage() {
       ? { diretoria: await prisma.orcamento.count({ where: { origem: "NOVO", etapa: "DIRETORIA", statusDiretoria: "PENDENTE" } }) }
       : {}),
     ...(abre("aceite") && vendas ? { aceite: await contarPendenciasVendas() } : {}),
-    ...(abre("engenharia") ? { engenharia: await contarPendenciasEngenharia() } : {}),
-    ...(abre("compras") && compras ? { compras: await prisma.pedidoMaterial.count({ where: FILAS_PM.prazo }) } : {}),
+    ...(abre("engenharia") ? { engenharia: (await contarPendenciasEngenharia()) + (await contarAvisosCancelamento("ENGENHARIA")) } : {}),
+    ...(abre("compras") && compras ? { compras: (await prisma.pedidoMaterial.count({ where: FILAS_PM.prazo })) + (await contarAvisosCancelamento("COMPRAS")) } : {}),
     ...(abre("pcp") && pcp
       ? {
           pcp: await contarPendenciasPcp(),

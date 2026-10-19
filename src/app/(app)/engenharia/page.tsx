@@ -10,6 +10,8 @@ import { chegadaDoPapel, fmtDia } from "@/lib/aceite/constantes";
 import { modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { classificacaoLabel, fmtDateTime } from "@/lib/orcamentos/constantes";
 import { listarPendenciasEngenharia } from "@/lib/engenharia/pendencias";
+import { AvisosCancelamento } from "@/components/aceite/AvisosCancelamento";
+import { listarAvisosCancelamento } from "@/lib/aceite/avisos";
 import { listarAtividadesEngenharia, type Atividade } from "@/lib/engenharia/atividades";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +94,7 @@ export default async function EngenhariaPage({ searchParams }: { searchParams: P
         description="Tudo que espera decisão ou preenchimento da Engenharia: Aceites a conferir, orçamentos na etapa Engenharia e cadastros de produto."
       />
       <div className="flex flex-col gap-6">
+        <AvisosCancelamento avisos={await listarAvisosCancelamento("ENGENHARIA")} />
         <Kpis itens={kpis} base="/engenharia" ativo={filtro} corModulo="#6C63B5" />
         <PrecisaDeVoce tarefas={tarefas} vazio="Nada esperando a Engenharia agora." />
 

@@ -17,6 +17,7 @@ export function EscolherLote({
   rotaBase,
   podeVoltar,
   admin,
+  cancelar,
 }: {
   aceite: AceiteTela;
   voltarLista: string;
@@ -25,6 +26,8 @@ export function EscolherLote({
   rotaBase: string;
   podeVoltar: boolean;
   admin: boolean;
+  // Formulário de cancelar o pedido (só Vendas), quando cabe.
+  cancelar?: React.ReactNode;
 }) {
   const lotes = lotesDoAceite(aceite);
   const concluidos = lotes.filter((l) => l.etapa === "CONCLUIDO").length;
@@ -54,6 +57,7 @@ export function EscolherLote({
         }
       />
       <div className="flex max-w-5xl flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-6">
+        {cancelar}
         <ResumoLotes lotes={lotes} href={(l) => `${rotaBase}/${aceite.id}?lote=${l.id}`} />
       </div>
     </>

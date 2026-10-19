@@ -18,6 +18,8 @@ import { erroNaDivisao, lerItensLote, pmsDoLote, type ItemLote } from "@/lib/ace
 import type { DataCliente } from "@/lib/aceite/datas-cliente";
 import { exigirArea, nomeSePode, revalidarAceite, avancarSePronto, type FormState } from "@/lib/aceite/servidor";
 import { carregarAlvo, gravarAlvo } from "@/lib/aceite/alvo";
+import { SETOR_AVISO, type SetorAviso } from "@/lib/aceite/cancelamento";
+import { executarCancelamento } from "@/lib/aceite/cancelar";
 import { erroPorArtePendente } from "@/lib/protocolos/arte";
 
 // Ações do módulo Aceite (Vendas e Engenharia). Pedido de Material mora no módulo Compras
@@ -555,4 +557,40 @@ export async function excluirPedidoCompleto(formData: FormData) {
   revalidatePath("/painel");
   revalidatePath("/historico");
   redirect("/aceite");
+}
+
+// ---------- Pedido cancelado (19/10/2026, regras da Karen) ----------
+// Só Vendas cancela, com motivo livre, depois do Aceite aberto e antes de qualquer entrega. Estado final:
+// não reabre (cliente que volta = outro Aceite). Os setores que já tinham trabalhado no pedido recebem um
+// aviso para dar ciência; o papel e as Ordens de Compra NÃO são canceladas aqui (Compras decide caso a caso).
+export async function cancelarPedido(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const nome = await nomeSePode("ACEITE_VENDAS");
+  if (!nome) return { erro: "Só Vendas pode cancelar o pedido." };
+  const r = await executarCancelamento(id, nome, String(formData.get("motivo") ?? ""), {
+    pedido: formData.get("feitoPedido") === "on",
+    of: formData.get("feitoOF") === "on",
+    envelope: formData.get("feitoEnvelope") === "on",
+  });
+  if ("erro" in r) return r;
+  revalidarAceite();
+  revalidatePath("/painel");
+  redirect("/aceite/vendas");
+}
+
+// Vendas marca que terminou o que faltava no ERP (cancelar pedido/OF, recolher o envelope da OF).
+export async function concluirCancelamentoErp(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  await exigirArea("ACEITE_VENDAS");
+  await prisma.aceite.update({ where: { id }, data: { canceladoErpPendente: false } });
+  revalidarAceite();
+}
+
+// O setor avisado (PCP, Compras ou Engenharia) dá ciência do pedido cancelado.
+export async function darCienteCancelamento(formData: FormData) {
+  const avisoId = String(formData.get("avisoId") ?? "");
+  const aviso = await prisma.avisoCancelamento.findUniqueOrThrow({ where: { id: avisoId } });
+  const nome = await exigirArea(SETOR_AVISO[aviso.setor as SetorAviso].area);
+  await prisma.avisoCancelamento.update({ where: { id: avisoId }, data: { vistoEm: new Date(), vistoPor: nome } });
+  revalidarAceite();
 }

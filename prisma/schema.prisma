@@ -724,6 +724,9 @@ enum EtapaAceite {
   // Cliente avisado, pedido em produção: o PCP confirma quando entregou, e só aí conclui (11/10/2026).
   ENTREGA
   CONCLUIDO
+  // Pedido cancelado por Vendas depois do Aceite aberto (19/10/2026). Estado final: não reabre; se o
+  // cliente voltar, abre-se outro Aceite. Fica consultável, com motivo, quem e quando.
+  CANCELADO
 }
 
 enum SituacaoPapel {
@@ -828,6 +831,18 @@ model Aceite {
   // Lotes (só em Aceite dividido por Vendas na etapa Vendas). Sem linhas aqui, o Aceite é um lote
   // implícito só e tudo continua nas colunas do próprio Aceite, como sempre foi.
   lotes           LoteAceite[]
+
+  // Cancelamento do pedido (só Vendas, motivo livre): quando, quem, por quê e em que etapa estava.
+  canceladoEm                DateTime?
+  canceladoPor               String?
+  canceladoMotivo            String?
+  canceladoNaEtapa           String?
+  // OF e pedido são cancelados no ERP por Vendas, que também recolhe o envelope da OF para a Qualidade:
+  // se algo ficou sem fazer na hora, vira pendência de Vendas até marcar como feito.
+  canceladoErpPendente       Boolean   @default(false)
+  // OF já aberta: a Pré-impressão precisa ser avisada (fora do sistema, por enquanto).
+  canceladoAvisarPreImpressao Boolean  @default(false)
+  avisosCancelamento         AvisoCancelamento[]
 
   pedidosMaterial PedidoMaterial[]
   negociacoes     NegociacaoData[]
@@ -1085,4 +1100,22 @@ model PcpParametros {
   atualizadoPor         String?
 
   @@map("pcp_parametros")
+}
+
+// Aviso de pedido cancelado a um setor que já tinha trabalhado nele (19/10/2026): PCP (já programado),
+// Compras (papel reservado ou comprado) e Engenharia (faca, clichê ou cadastro novos). O setor dá ciência.
+model AvisoCancelamento {
+  id       String    @id @default(cuid())
+  aceiteId String
+  aceite   Aceite    @relation(fields: [aceiteId], references: [id], onDelete: Cascade)
+  // "PCP", "COMPRAS" ou "ENGENHARIA".
+  setor    String
+  texto    String
+  criadoEm DateTime  @default(now())
+  vistoEm  DateTime?
+  vistoPor String?
+
+  @@index([setor, vistoEm])
+  @@index([aceiteId])
+  @@map("avisos_cancelamento")
 }

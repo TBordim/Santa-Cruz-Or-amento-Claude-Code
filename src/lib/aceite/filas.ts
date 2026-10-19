@@ -5,6 +5,7 @@ import { listarAceites, listarAceitesComAlerta } from "./dados";
 import { linhasPorLote } from "./lotes";
 import { temAlertaPendente } from "./constantes";
 import { hojeBrasil } from "./agenda";
+import { contarAvisosCancelamento } from "./avisos";
 
 // Filas de trabalho dos setores do Aceite e das telas do Aceite nos módulos Compras e PCP. Ficam
 // juntas pra todas as telas contarem do mesmo jeito.
@@ -48,7 +49,7 @@ export const FILAS_PM = {
 // Alertas de mudança do fornecedor que importam pra cada setor: Vendas vê todos os Aceites em
 // andamento; o PCP, os que já passaram por ele ou estão nele.
 export const ALERTAS_ONDE: Record<"vendas" | "pcp", Prisma.AceiteWhereInput> = {
-  vendas: { etapa: { not: "CONCLUIDO" } },
+  vendas: { etapa: { notIn: ["CONCLUIDO", "CANCELADO"] } },
   pcp: { etapa: { in: ["PCP", "EM_LOTES", "PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"] } },
 };
 
@@ -69,7 +70,9 @@ export async function contarPendenciasVendas() {
   ]);
   const vPedido = linhasPorLote(pedidoB).filter(noCadastroDoPedido).length;
   const vOF = linhasPorLote(ofB).filter(semOFRegistrada).length;
-  return vPreencher + vPedido + vOF + vInterno + alertasVendas.length;
+  // Cancelamentos com algo por fazer no ERP também esperam Vendas.
+  const vCancelados = await prisma.aceite.count({ where: { etapa: "CANCELADO", canceladoErpPendente: true } });
+  return vPreencher + vPedido + vOF + vInterno + alertasVendas.length + vCancelados;
 }
 
 // Atendimento: lotes (ou Aceites) esperando a data ser enviada ao cliente.
@@ -94,6 +97,6 @@ export async function contarPendenciasPcp(): Promise<number> {
   const negociacoes = linhasPorLote(negB).filter((a) => a.negociacoes.some((n) => n.status === "AGUARDANDO_PCP"));
   const vencidas = linhasPorLote(entB).filter((a) => a.etapa === "ENTREGA" && !!a.dataEntrega && a.dataEntrega <= hoje);
   const alertas = linhasPorLote(alertasB).filter((a) => temAlertaPendente(a.pedidosMaterial));
-  return data.length + negociacoes.length + vencidas.length + alertas.length;
+  return data.length + negociacoes.length + vencidas.length + alertas.length + (await contarAvisosCancelamento("PCP"));
 }
 

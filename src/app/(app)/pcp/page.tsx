@@ -7,6 +7,8 @@ import { PrecisaDeVoce, type Tarefa } from "@/components/painel-setor/PrecisaDeV
 import { AgendaAceites, LegendaAgenda } from "@/components/aceite/AgendaAceites";
 import { listarAceites, type AceiteLinha } from "@/lib/aceite/dados";
 import { FILAS } from "@/lib/aceite/filas";
+import { AvisosCancelamento } from "@/components/aceite/AvisosCancelamento";
+import { listarAvisosCancelamento } from "@/lib/aceite/avisos";
 import { chegadaDoPapel, temAlertaPendente, fmtDia, fmtQuantidade } from "@/lib/aceite/constantes";
 import { hojeBrasil, lerPeriodo, fimDoPeriodo, PERIODOS, PERIODO_PADRAO, type Periodo } from "@/lib/aceite/agenda";
 import { linhasPorLote, hrefDaLinha, rotuloLote, type LinhaLote } from "@/lib/aceite/lotes";
@@ -38,7 +40,7 @@ export default async function PcpPage({ searchParams }: { searchParams: Promise<
   if (planilha) {
     const inicioMes = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), 1));
     const todosPlanilha = linhasPorLote(
-      await listarAceites({ OR: [{ etapa: { not: "CONCLUIDO" } }, { dataEntrega: { gte: inicioMes } }, { lotes: { some: { dataEntrega: { gte: inicioMes } } } }] }, { dataEntrega: "asc" }),
+      await listarAceites({ etapa: { not: "CANCELADO" }, OR: [{ etapa: { not: "CONCLUIDO" } }, { dataEntrega: { gte: inicioMes } }, { lotes: { some: { dataEntrega: { gte: inicioMes } } } }] }, { dataEntrega: "asc" }),
     );
     return (
       <>
@@ -137,6 +139,7 @@ export default async function PcpPage({ searchParams }: { searchParams: Promise<
         action={<TrocaVisao planilha={false} />}
       />
       <div className="flex flex-col gap-6">
+        <AvisosCancelamento avisos={await listarAvisosCancelamento("PCP")} />
         <Kpis itens={kpis} base="/pcp" ativo={filtro} corModulo="#2C7A8C" manter={qPeriodo} />
         <PrecisaDeVoce tarefas={tarefas} vazio="Nada esperando o PCP agora." />
         <section className="flex flex-col gap-2.5">
