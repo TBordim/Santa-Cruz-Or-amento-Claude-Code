@@ -7,7 +7,7 @@ import { sessaoAtual, podeEditar, ehAdmin } from "@/lib/permissions";
 import { lerCamposComerciais, lerReqTecnicos, parseValorBR } from "@/lib/orcamentos/leitura";
 import { erroNosCores } from "@/lib/orcamentos/cores";
 import { erroNoLink } from "@/lib/orcamentos/link";
-import { erroPorArtePendente, sincronizarArteDeLink } from "@/lib/protocolos/arte";
+import { gerarPendenciasDeArte } from "@/lib/protocolos/arte";
 import { mesclarProtocolos } from "@/lib/protocolos/comum";
 import { faltaNosDetalhesTecnicos } from "@/lib/orcamentos/tecnicos";
 import { montarPrecificacao, decidirFaixa, type FaixaInput } from "@/lib/orcamentos/tiers";
@@ -55,8 +55,6 @@ export async function salvarAberto(_prev: FormState, formData: FormData): Promis
   if (erroLink) return { erro: erroLink };
   campos.modelos = await modelosComProtocolo(id, campos.modelos);
   await prisma.orcamento.update({ where: { id }, data: campos });
-  // O link da arte também precisa de protocolo (ver protocolos/arte.ts).
-  await sincronizarArteDeLink(id, campos.reqCliente.linkArte, (await sessaoAtual())?.nome ?? "Orçamento");
   revalidatePath(`/painel/${id}`);
   return undefined;
 }
@@ -88,10 +86,6 @@ export async function avancarEngenharia(_prev: FormState, formData: FormData): P
       erro: `Indique se o material ${semUso + 1} (${textoMaterial(campos.reqCliente.suportes[semUso])}) é opção de fornecimento (outro papel) ou de uso conjunto.`,
     };
   }
-  // Arte do cliente (arquivo ou link) sem protocolo de Vendas trava o card (17/10/2026).
-  await sincronizarArteDeLink(id, campos.reqCliente.linkArte, (await sessaoAtual())?.nome ?? "Orçamento");
-  const erroArte = await erroPorArtePendente(id);
-  if (erroArte) return { erro: erroArte };
   campos.modelos = await modelosComProtocolo(id, campos.modelos);
   await prisma.orcamento.update({ where: { id }, data: { ...campos, etapa: "ENGENHARIA" } });
   // Fecha a gaveta ao avançar de etapa (volta pro /painel em vez de /painel/[id]) — só reabre
@@ -138,8 +132,6 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
 
   const preCadastro = String(formData.get("preCadastro") ?? "").trim();
   if (!preCadastro) return { erro: "Informe o Nº de Pré Cadastro antes de liberar para o Orçamento." };
-  const erroArte = await erroPorArtePendente(id);
-  if (erroArte) return { erro: erroArte };
 
   // Produto novo não exige mais Código interno nesta etapa — gerar um código pra cada produto
   // que só vira orçamento (nunca produção) inflava o cadastro à toa. Agora o código só é
@@ -396,8 +388,6 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   const id = String(formData.get("id") ?? "");
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   await exigirEdicao(id);
-  const erroArte = await erroPorArtePendente(id);
-  if (erroArte) return { erro: erroArte };
 
   const combinacoes = combinacoesSO(doc.reqCliente as ReqCliente | null);
   if (!combinacoes.length) {
@@ -626,11 +616,6 @@ export async function registrarDesfecho(_prev: FormState, formData: FormData): P
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   const sessao = await sessaoAtual();
   const desfecho = String(formData.get("desfecho") ?? "AGUARDANDO") as "AGUARDANDO" | "POSITIVO" | "NEGATIVO" | "SEM_RETORNO";
-  // Pedido aprovado abre o Aceite: arte que chegou com a ordem de compra precisa estar protocolada.
-  if (desfecho === "POSITIVO") {
-    const erroArte = await erroPorArtePendente(id);
-    if (erroArte) return { erro: erroArte };
-  }
 
   // As SOs são alternativas — o cliente fecha UMA (resposta do Thiago em 30/09/2026). No
   // positivo, registra qual; em qualquer outro desfecho, nenhuma fica marcada.
@@ -670,7 +655,12 @@ export async function registrarDesfecho(_prev: FormState, formData: FormData): P
   // Todo desfecho positivo vira Aceite de Pedido, com a SO que o cliente fechou (decisão do Thiago
   // em 08/10/2026). Produto novo sem código segue também pra etapa 7: a Engenharia lança o código
   // pelo Aceite e isso resolve a etapa 7 (ver aceite/actions.ts).
-  if (desfecho === "POSITIVO") await abrirAceite(id);
+  if (desfecho === "POSITIVO") {
+    await abrirAceite(id);
+    // Pedido confirmado: só agora a arte do cliente precisa de protocolo (Vendas, no Aceite). As artes
+    // que vinham junto do orçamento entram na fila "Artes a protocolar" (correção de 19/10/2026).
+    await gerarPendenciasDeArte(id, sessao?.nome ?? "Pedido confirmado");
+  }
   revalidatePath("/historico");
   revalidatePath("/atendimento", "layout");
   // Desfecho registrado (qualquer um que não seja "aguardando") tira o card da etapa atual:

@@ -116,7 +116,7 @@ function SidebarContent({
   // Atendimento ao Cliente: retorno dos orçamentos, data ao cliente e acompanhamento dos pedidos.
   const itemsAtendimento: NavItem[] = [
     { href: "/atendimento", label: "Painel", icon: Headset, color: "#3E6E9E", prefixo: true },
-    { href: "/atendimento/arte", label: "Enviar arte para Vendas", icon: Stamp, color: "#7A5C2E" },
+    { href: "/atendimento/arte", label: "Enviar arte do cliente", icon: Stamp, color: "#7A5C2E" },
   ];
 
   // Engenharia: pendências de todos os módulos que dependem dela.
