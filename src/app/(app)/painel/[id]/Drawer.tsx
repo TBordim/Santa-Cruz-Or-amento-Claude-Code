@@ -112,11 +112,11 @@ export async function Drawer({ id }: { id: string }) {
         <ExcluirCardButton id={doc.id} />
       </div>
 
-      {/* Arte do cliente sem protocolo de Vendas: o card não avança até ser protocolada. */}
+      {/* Pedido confirmado, arte do cliente ainda sem protocolo de Vendas: o Aceite não segue até ser protocolada. */}
       {artesPendentes > 0 && (
         <div className="rounded-lg border border-warn/30 bg-warn-soft px-3 py-2 text-sm text-warn">
           <strong>{artesPendentes === 1 ? "1 arte aguarda" : `${artesPendentes} artes aguardam`} o protocolo de Vendas.</strong>{" "}
-          Este card só avança depois que for protocolada.
+          O Aceite deste pedido só segue para a Engenharia depois que for protocolada.
         </div>
       )}
 

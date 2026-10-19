@@ -16,8 +16,8 @@ export default async function EnviarArtePage() {
   return (
     <>
       <PageHeader
-        title="Enviar arte para Vendas"
-        description="Toda arte do cliente é propriedade intelectual dele e precisa de protocolo. Envie aqui; Vendas protocola, e o card do orçamento só avança depois."
+        title="Enviar arte do cliente"
+        description="A arte do cliente é propriedade intelectual dele. Antes do pedido ela fica junto do orçamento; quando o cliente confirma o pedido, Vendas protocola e o Aceite só segue depois."
       />
       <EnviarArteForm
         orcamentos={orcs.map((o) => ({ id: o.id, rotulo: `${o.cliente ?? "Sem cliente"} — ${o.produtoDescricao ?? "sem produto"} (${fmtDate(o.criadoEm)})` }))}

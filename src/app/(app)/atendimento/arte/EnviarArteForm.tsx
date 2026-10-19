@@ -35,7 +35,7 @@ export function EnviarArteForm({ orcamentos }: { orcamentos: Opcao[] }) {
       {estado?.erro && <div className="anexo-erro">{estado.erro}</div>}
       {estado?.ok && <div className="rounded-lg border border-border bg-good-soft px-3 py-2 text-sm text-good">{estado.ok}</div>}
       <div>
-        <Button type="submit" disabled={pending}>{pending ? "Enviando…" : "Enviar para Vendas"}</Button>
+        <Button type="submit" disabled={pending}>{pending ? "Enviando…" : "Enviar arte"}</Button>
       </div>
     </form>
   );

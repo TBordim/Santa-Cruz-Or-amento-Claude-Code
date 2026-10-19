@@ -6,13 +6,14 @@ import { nomeSePode } from "@/lib/aceite/servidor";
 import { salvarAnexoNoBlob } from "@/lib/anexos/storage";
 import { MAX_ARQUIVOS_NOVO, MAX_TOTAL_BYTES_NOVO, tipoAnexoAceito } from "@/lib/anexos/limites";
 import { erroNoLink, normalizarLink } from "@/lib/orcamentos/link";
-import { registrarArteDeAnexo } from "@/lib/protocolos/arte";
+import { registrarArteDeAnexo, registrarArteDeLinkAvulso } from "@/lib/protocolos/arte";
 
 export type FormState = { erro?: string; ok?: string } | undefined;
 
-// O Atendimento ao Cliente recebe arte do cliente (por e-mail, link ou junto da ordem de compra) e
-// a ENVIA pra Vendas: a arte entra na fila "Artes a protocolar" e trava o card do orçamento até
-// Vendas protocolar. Quem protocola é só Vendas. Decisão do Thiago em 17/10/2026.
+// O Atendimento ao Cliente recebe arte do cliente (por e-mail, link ou junto da ordem de compra) e a
+// ENVIA. Se o pedido já foi confirmado (há Aceite), a arte entra na fila "Artes a protocolar" de
+// Vendas e o Aceite não segue até ser protocolada; antes do pedido ela só fica junto do orçamento.
+// Quem protocola é só Vendas. Decisões do Thiago em 17/10 e 19/10/2026.
 export async function enviarArteParaVendas(_prev: FormState, fd: FormData): Promise<FormState> {
   const nome = await nomeSePode("ATENDIMENTO_CLIENTE");
   if (!nome) return { erro: "Sem permissão (área Atendimento)." };
@@ -39,16 +40,19 @@ export async function enviarArteParaVendas(_prev: FormState, fd: FormData): Prom
     });
     await registrarArteDeAnexo({ anexoId: anexo.id, orcamentoId: orc.id, rotulo: arquivo.name, origem, enviadoPor: nome });
   }
+  // Link enviado pelo Atendimento: registra à parte (não mexe no link do pedido de orçamento). Em
+  // orçamento sem pedido confirmado o link só fica guardado aqui, sem protocolo.
+  let link: string | null = null;
   if (linkBruto) {
-    // Link enviado pelo Atendimento: registra à parte (não mexe no link do pedido de orçamento).
-    const link = normalizarLink(linkBruto)!;
-    const jaTem = await prisma.arteEnviada.findFirst({ where: { orcamentoId: orc.id, link }, select: { id: true } });
-    if (!jaTem) {
-      await prisma.arteEnviada.create({
-        data: { orcamentoId: orc.id, link, clienteNome: orc.cliente, rotulo: "Link da arte", origem, enviadoPor: nome },
-      });
-    }
+    link = normalizarLink(linkBruto)!;
+    await registrarArteDeLinkAvulso({ orcamentoId: orc.id, link, origem, enviadoPor: nome });
   }
+  const comPedido = !!(await prisma.aceite.findUnique({ where: { orcamentoId: orc.id }, select: { id: true } }));
   revalidatePath("/protocolos");
-  return { ok: `Arte enviada para Vendas (${arquivos.length} arquivo(s)${linkBruto ? " e 1 link" : ""}). O card só avança depois que Vendas protocolar.` };
+  const enviado = `${arquivos.length} arquivo(s)${linkBruto ? " e 1 link" : ""}`;
+  return {
+    ok: comPedido
+      ? `Arte enviada para Vendas (${enviado}). O Aceite só segue para a Engenharia depois que Vendas protocolar.`
+      : `Arte guardada junto do orçamento (${enviado}). Ela será protocolada quando o cliente confirmar o pedido.`,
+  };
 }

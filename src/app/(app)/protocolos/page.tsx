@@ -13,13 +13,14 @@ import { DecisaoArte } from "./DecisaoArte";
 
 export const dynamic = "force-dynamic";
 
-// Fila de Vendas: toda arte que chegou (pelo card do orçamento, pelo Atendimento ao Cliente ou junto
-// da ordem de compra) e ainda não tem protocolo. Enquanto estiver aqui, o card do orçamento não
-// avança. Decisões do Thiago em 17/10/2026.
+// Fila de Vendas: a arte de um PEDIDO CONFIRMADO (o cliente aprovou e o Aceite foi aberto) que ainda
+// não tem protocolo. Antes do pedido a arte é só um arquivo do orçamento e não entra aqui. Enquanto
+// estiver na fila, o Aceite não segue para a Engenharia. Decisões do Thiago em 17/10 e 19/10/2026.
 export default async function ArtesAProtocolarPage() {
   const pode = await podeEditar("PROTOCOLOS_VENDAS");
   const artes = await prisma.arteEnviada.findMany({
-    where: { estado: "PENDENTE" },
+    // Só pedido confirmado (com Aceite); arte de orçamento ainda sem pedido não é protocolada.
+    where: { estado: "PENDENTE", orcamento: { aceite: { isNot: null } } },
     include: { anexo: true, orcamento: true },
     orderBy: { enviadoEm: "asc" },
   });
@@ -42,11 +43,11 @@ export default async function ArtesAProtocolarPage() {
     <>
       <PageHeader
         title="Artes a protocolar"
-        description="Toda arte do cliente é propriedade intelectual dele e precisa de um número de protocolo. O card do orçamento só avança depois que Vendas protocola."
+        description="Quando o cliente confirma o pedido, a arte dele (propriedade intelectual) recebe um número de protocolo. O Aceite só segue para a Engenharia depois que Vendas protocola."
       />
 
       {itens.length === 0 ? (
-        <div className="empty-state">Nenhuma arte esperando protocolo.</div>
+        <div className="empty-state">Nenhuma arte de pedido confirmado esperando protocolo.</div>
       ) : (
         <div className="flex max-w-[900px] flex-col gap-4">
           {itens.map(({ a, modelos, modelo, sugestoes }) => (
