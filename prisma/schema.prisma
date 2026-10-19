@@ -384,6 +384,8 @@ model ProtocoloRevisao {
   origem          OrigemArte
   criadoPor       String
   criadoEm        DateTime  @default(now())
+  // Data do protocolo (vale a mais recente); muda a cada reprotocolo, com o mesmo número.
+  dataProtocolo   DateTime  @default(now())
 
   artes ArteEnviada[]
 

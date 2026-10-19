@@ -1,5 +1,5 @@
 import { fmtDateTime } from "@/lib/orcamentos/constantes";
-import { origemLabel, rotuloRevisao } from "@/lib/protocolos/comum";
+import { fmtDataProtocolo, origemLabel } from "@/lib/protocolos/comum";
 import { ExternalLink } from "lucide-react";
 
 export type RevisaoVista = {
@@ -9,6 +9,7 @@ export type RevisaoVista = {
   origem: string;
   criadoPor: string;
   criadoEm: Date;
+  dataProtocolo: Date;
   arquivoNome: string | null;
   arquivoUrl: string | null;
   link: string | null;
@@ -24,7 +25,7 @@ function Abrir({ href, texto }: { href: string; texto: string }) {
   );
 }
 
-// Linha do tempo das revisões de um protocolo, da mais recente pra mais antiga. Nenhuma sai da lista:
+// Histórico de datas de um protocolo (cada reprotocolo), da mais recente pra mais antiga. Nenhum sai da lista:
 // a arte anterior é propriedade do cliente e fica guardada.
 export function RevisoesProtocolo({ revisoes }: { revisoes: RevisaoVista[] }) {
   const ordenadas = [...revisoes].sort((a, b) => b.revisao - a.revisao);
@@ -33,8 +34,8 @@ export function RevisoesProtocolo({ revisoes }: { revisoes: RevisaoVista[] }) {
       {ordenadas.map((r, i) => (
         <div key={r.id} className="rounded-lg border border-border bg-muted/20 p-3">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-            <span className="font-mono text-sm font-semibold text-foreground">{rotuloRevisao(r.revisao)}</span>
-            {i === 0 && <span className="text-xs font-medium text-good">em uso</span>}
+            <span className="font-mono text-sm font-semibold text-foreground">{fmtDataProtocolo(r.dataProtocolo)}</span>
+            {i === 0 && <span className="text-xs font-medium text-good">data vigente</span>}
             <span className="text-xs text-muted-foreground">
               {origemLabel(r.origem)} · {r.criadoPor} · {fmtDateTime(r.criadoEm)}
             </span>

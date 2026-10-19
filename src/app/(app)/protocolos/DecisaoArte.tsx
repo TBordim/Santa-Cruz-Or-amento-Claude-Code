@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
 import { decidirArte } from "./actions";
-import { rotuloRevisao, type Sugestao } from "@/lib/protocolos/comum";
+import { fmtDataProtocolo, type Sugestao } from "@/lib/protocolos/comum";
 import { Field } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,8 +14,8 @@ type Modelo = { id: string; descricao: string };
 type Modo = "novo" | "alterado" | "existente";
 
 const MODOS: { key: Modo; titulo: string; ajuda: string }[] = [
-  { key: "novo", titulo: "Arte nova", ajuda: "Cria o protocolo (Rev 00)." },
-  { key: "alterado", titulo: "Arte alterada", ajuda: "Nova revisão de um protocolo existente; a anterior fica guardada." },
+  { key: "novo", titulo: "Arte nova", ajuda: "Cria o protocolo, com a data de hoje." },
+  { key: "alterado", titulo: "Reprotocolar (arte alterada)", ajuda: "Mesmo número, data nova; a data anterior fica no histórico." },
   { key: "existente", titulo: "Já protocolada", ajuda: "É a mesma arte: esta é desconsiderada e o modelo usa o protocolo existente." },
 ];
 
@@ -79,7 +79,7 @@ export function DecisaoArte({
 
       {modo === "novo" ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Nº do protocolo" hint="Formato livre (vem da planilha).">
+          <Field label="Nº do protocolo" hint="Formato livre (vem da planilha). Sabores do mesmo produto: 2101/1, 2101/2…; sem sabores: 2101.">
             <Input name="numero" required />
           </Field>
           <Field label="Cód. interno (se houver)">
@@ -100,7 +100,7 @@ export function DecisaoArte({
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="font-mono font-semibold text-foreground">{s.numero}</span>
-                  <span className="text-xs text-muted-foreground">{rotuloRevisao(s.ultimaRevisao)}</span>
+                  <span className="text-xs text-muted-foreground">{fmtDataProtocolo(s.ultimaData)}</span>
                   {s.id === melhor?.id && <Badge className="border-0 bg-good-soft text-good">Sugerido</Badge>}
                 </span>
                 <span className="block break-words text-muted-foreground">{s.descricao}</span>
@@ -112,11 +112,17 @@ export function DecisaoArte({
             <Input name="numeroExistente" onChange={() => setProtocoloId("")} />
           </Field>
           {modo === "alterado" && (
-            <Field label="O que mudou" hint="Em relação à revisão anterior.">
-              <Textarea name="mudou" rows={2} required />
+            <Field label="O que mudou (opcional)" hint="Em relação à arte anterior.">
+              <Textarea name="mudou" rows={2} />
             </Field>
           )}
         </div>
+      )}
+
+      {modo !== "existente" && (
+        <Field label="Data do protocolo" hint="Hoje, se não mudar. É a data que garante a rastreabilidade.">
+          <Input name="dataProtocolo" type="date" defaultValue={new Date().toLocaleDateString("sv-SE")} />
+        </Field>
       )}
 
       {modo !== "existente" && (
@@ -128,7 +134,7 @@ export function DecisaoArte({
       {estado?.erro && <div className="anexo-erro">{estado.erro}</div>}
       <div>
         <Button type="submit" disabled={pending}>
-          {pending ? "Salvando…" : modo === "novo" ? "Criar protocolo" : modo === "alterado" ? "Abrir nova revisão" : "Confirmar: já protocolada"}
+          {pending ? "Salvando…" : modo === "novo" ? "Criar protocolo" : modo === "alterado" ? "Reprotocolar com a data nova" : "Confirmar: já protocolada"}
         </Button>
       </div>
     </form>

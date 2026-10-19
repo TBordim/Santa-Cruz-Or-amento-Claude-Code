@@ -6,8 +6,9 @@ import type { Modelo } from "@/lib/orcamentos/types";
 import { guardarArquivoDeProtocolo, lerArquivoGuardado } from "@/lib/anexos/storage";
 
 // As três decisões de Vendas sobre uma arte pendente (17/10/2026):
-//  - NOVO: cria o protocolo (número livre) e a Rev 00;
-//  - ALTERADO: abre a revisão seguinte do protocolo que já existia, guardando a anterior;
+//  - NOVO: cria o protocolo (número livre; sabores do mesmo produto usam 2101/1, 2101/2...), com a data;
+//  - ALTERADO: reprotocola com o MESMO número e a data nova (Karen, 19/10/2026), guardando o registro
+//    anterior como histórico (o contador `revisao` é interno, não aparece nas telas);
 //  - JÁ PROTOCOLADO: a arte que chegou é desconsiderada e o modelo aponta pro protocolo existente.
 // Cada uma amarra o modelo (sabor) do orçamento ao protocolo e à revisão em uso. Revisão nunca é
 // apagada nem sobrescrita: é propriedade intelectual do cliente.
@@ -21,6 +22,8 @@ type Entrada = {
   modeloId?: string | null;
   // Cópia carimbada/digitalizada (opcional): o link é aberto, impresso, carimbado e protocolado.
   copia?: File | null;
+  // Data do protocolo (padrão: hoje); Vendas pode corrigir.
+  data?: Date;
 };
 
 async function carregarArte(arteId: string) {
@@ -56,7 +59,7 @@ async function arquivosDaRevisao(protocoloId: string, arte: Awaited<ReturnType<t
 
 // Aponta o modelo do orçamento pro protocolo/revisão. Sem orçamento (arte do Atendimento sem
 // pedido) não há modelo a atualizar.
-async function ligarModelo(orcamentoId: string | null, modeloId: string | null, ref: { id: string; numero: string; revisao: number }) {
+async function ligarModelo(orcamentoId: string | null, modeloId: string | null, ref: { id: string; numero: string; revisao: number; data: Date }) {
   if (!orcamentoId) return;
   const orc = await prisma.orcamento.findUnique({ where: { id: orcamentoId } });
   if (!orc) return;
@@ -66,7 +69,7 @@ async function ligarModelo(orcamentoId: string | null, modeloId: string | null, 
   // Só grava em orçamento que já tem a lista `modelos` (os antigos, de produto único, ainda não têm).
   if (!Array.isArray(orc.modelos)) return;
   const novos: Modelo[] = modelos.map((m) =>
-    m.id === alvo ? { ...m, protocoloId: ref.id, protocoloNumero: ref.numero, protocoloRevisao: ref.revisao } : m,
+    m.id === alvo ? { ...m, protocoloId: ref.id, protocoloNumero: ref.numero, protocoloRevisao: ref.revisao, protocoloData: ref.data.toISOString() } : m,
   );
   await prisma.orcamento.update({ where: { id: orcamentoId }, data: { modelos: JSON.parse(JSON.stringify(novos)) } });
 }
@@ -88,7 +91,7 @@ export async function protocolarNovo(e: Entrada & { numero: string; descricao: s
   const modeloId = e.modeloId ?? arte.modeloId;
   await exigirModelo(arte.orcamentoId, modeloId);
   if (await prisma.protocolo.findUnique({ where: { numero }, select: { id: true } })) {
-    throw new ErroProtocolo(`O protocolo ${numero} já existe. Se a arte é uma versão alterada, use "Alterada".`);
+    throw new ErroProtocolo(`O protocolo ${numero} já existe. Se a arte é uma versão alterada, use "Reprotocolar (arte alterada)".`);
   }
 
   const orc = arte.orcamentoId ? await prisma.orcamento.findUnique({ where: { id: arte.orcamentoId } }) : null;
@@ -104,18 +107,17 @@ export async function protocolarNovo(e: Entrada & { numero: string; descricao: s
   });
   const arquivos = await arquivosDaRevisao(protocolo.id, arte, e.copia);
   const revisao = await prisma.protocoloRevisao.create({
-    data: { protocoloId: protocolo.id, revisao: 0, origem: arte.origem, criadoPor: e.por, ...arquivos },
+    data: { protocoloId: protocolo.id, revisao: 0, origem: arte.origem, criadoPor: e.por, dataProtocolo: e.data ?? new Date(), ...arquivos },
   });
   await prisma.arteEnviada.update({
     where: { id: arte.id },
     data: { estado: "PROTOCOLADA", revisaoId: revisao.id, modeloId, decididaPor: e.por, decididaEm: new Date() },
   });
-  await ligarModelo(arte.orcamentoId, modeloId, { id: protocolo.id, numero, revisao: 0 });
+  await ligarModelo(arte.orcamentoId, modeloId, { id: protocolo.id, numero, revisao: 0, data: revisao.dataProtocolo });
   return { protocoloId: protocolo.id };
 }
 
 export async function protocolarAlterado(e: Entrada & { protocoloId: string; mudou: string }) {
-  if (!e.mudou.trim()) throw new ErroProtocolo("Descreva o que mudou em relação à revisão anterior.");
   const arte = await carregarArte(e.arteId);
   const modeloId = e.modeloId ?? arte.modeloId;
   await exigirModelo(arte.orcamentoId, modeloId);
@@ -132,10 +134,11 @@ export async function protocolarAlterado(e: Entrada & { protocoloId: string; mud
     data: {
       protocoloId: protocolo.id,
       revisao: proxima,
-      mudou: e.mudou.trim(),
+      mudou: e.mudou.trim() || null,
       deRevisaoId: anterior?.id ?? null,
       origem: arte.origem,
       criadoPor: e.por,
+      dataProtocolo: e.data ?? new Date(),
       ...arquivos,
     },
   });
@@ -143,7 +146,7 @@ export async function protocolarAlterado(e: Entrada & { protocoloId: string; mud
     where: { id: arte.id },
     data: { estado: "PROTOCOLADA", revisaoId: revisao.id, modeloId, decididaPor: e.por, decididaEm: new Date() },
   });
-  await ligarModelo(arte.orcamentoId, modeloId, { id: protocolo.id, numero: protocolo.numero, revisao: proxima });
+  await ligarModelo(arte.orcamentoId, modeloId, { id: protocolo.id, numero: protocolo.numero, revisao: proxima, data: revisao.dataProtocolo });
   return { protocoloId: protocolo.id, revisao: proxima };
 }
 
@@ -159,11 +162,12 @@ export async function protocolarJaExistente(e: Entrada & { protocoloId: string }
   });
   if (!protocolo) throw new ErroProtocolo("Protocolo não encontrado.");
   const revisao = protocolo.revisoes[0]?.revisao ?? 0;
+  const data = protocolo.revisoes[0]?.dataProtocolo ?? protocolo.criadoEm;
   await prisma.arteEnviada.update({
     where: { id: arte.id },
     data: { estado: "DESCARTADA", protocoloExistenteId: protocolo.id, modeloId, decididaPor: e.por, decididaEm: new Date() },
   });
-  await ligarModelo(arte.orcamentoId, modeloId, { id: protocolo.id, numero: protocolo.numero, revisao });
+  await ligarModelo(arte.orcamentoId, modeloId, { id: protocolo.id, numero: protocolo.numero, revisao, data });
   return { protocoloId: protocolo.id, revisao };
 }
 
@@ -172,7 +176,7 @@ export async function candidatosDoCliente(clienteId: string | null, clienteNome:
   const nome = chave(clienteNome);
   const todos = await prisma.protocolo.findMany({
     where: clienteId || nome.length >= 5 ? undefined : { id: "nenhum" },
-    include: { revisoes: { orderBy: { revisao: "desc" }, take: 1, select: { revisao: true } } },
+    include: { revisoes: { orderBy: { revisao: "desc" }, take: 1, select: { dataProtocolo: true } } },
     orderBy: { criadoEm: "desc" },
     take: 500,
   });
@@ -184,6 +188,6 @@ export async function candidatosDoCliente(clienteId: string | null, clienteNome:
       clienteNome: p.clienteNome,
       descricao: p.descricao,
       codInterno: p.codInterno,
-      ultimaRevisao: p.revisoes[0]?.revisao ?? 0,
+      ultimaData: (p.revisoes[0]?.dataProtocolo ?? p.criadoEm).toISOString(),
     }));
 }
