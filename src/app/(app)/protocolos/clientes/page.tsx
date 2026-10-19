@@ -10,7 +10,7 @@ import { RevisoesProtocolo } from "../RevisoesProtocolo";
 
 export const dynamic = "force-dynamic";
 
-// Rastreabilidade por cliente: todos os protocolos e TODAS as versões (revisões) da arte de um
+// Rastreabilidade por cliente: todos os protocolos e TODAS as versões (datas) da arte de um
 // cliente. Pedido do Thiago em 17/10/2026.
 export default async function ProtocolosPorClientePage({ searchParams }: { searchParams: Promise<{ q?: string; cliente?: string }> }) {
   const { q, cliente } = await searchParams;
@@ -40,7 +40,7 @@ export default async function ProtocolosPorClientePage({ searchParams }: { searc
     <>
       <PageHeader
         title="Protocolos por cliente"
-        description="Todas as artes protocoladas de cada cliente, com todas as revisões. Nada é apagado: a arte é propriedade do cliente."
+        description="Todas as artes protocoladas de cada cliente, com o histórico de datas. Nada é apagado: a arte é propriedade do cliente."
       />
 
       {escolhido ? (

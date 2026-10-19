@@ -12,7 +12,7 @@ import { RevisoesProtocolo } from "../RevisoesProtocolo";
 
 export const dynamic = "force-dynamic";
 
-// Um protocolo: as revisões da arte, os orçamentos/modelos que usam esse protocolo e as artes que
+// Um protocolo: o histórico de datas e artes, os orçamentos/modelos que usam esse protocolo e as artes que
 // chegaram depois e foram descartadas por já existir este protocolo.
 export default async function ProtocoloPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
