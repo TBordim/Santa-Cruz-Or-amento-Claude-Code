@@ -116,7 +116,7 @@ export async function Drawer({ id }: { id: string }) {
       {artesPendentes > 0 && (
         <div className="rounded-lg border border-warn/30 bg-warn-soft px-3 py-2 text-sm text-warn">
           <strong>{artesPendentes === 1 ? "1 arte aguarda" : `${artesPendentes} artes aguardam`} o protocolo de Vendas.</strong>{" "}
-          O Aceite deste pedido só segue para a Engenharia depois que for protocolada.
+          O Aceite deste pedido só segue para a Engenharia depois que {artesPendentes === 1 ? "for protocolada" : "forem protocoladas"}.
         </div>
       )}
 
