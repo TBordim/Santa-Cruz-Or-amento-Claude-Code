@@ -5,7 +5,7 @@
 // de rotas nova — não mexer na lógica da sidebar.
 import { AREAS } from "./areas";
 
-export type ModuloKey = "orcamento" | "diretoria" | "atendimento" | "aceite" | "engenharia" | "compras" | "pcp" | "laboratorio" | "treinamentos" | "administracao";
+export type ModuloKey = "orcamento" | "diretoria" | "atendimento" | "aceite" | "engenharia" | "compras" | "pcp" | "protocolos" | "laboratorio" | "treinamentos" | "administracao";
 
 // Grupos da página de entrada: com cada vez mais módulos, a entrada mostra por área da empresa em
 // vez de uma grade única (pedido do Thiago em 08/10/2026).
@@ -47,6 +47,9 @@ export const MODULOS: Modulo[] = [
   { key: "compras", label: "Compras", descricao: "Pedidos de Material: fornecedor, prazo, mudanças e sobras no fornecedor.", basePath: "/compras", grupo: "producao" },
   // PCP: por enquanto a data de entrega dos Aceites; capacidade, programação e painéis vêm depois.
   { key: "pcp", label: "PCP", descricao: "Datas de entrega dos pedidos e acompanhamento dos prazos de material.", basePath: "/pcp", grupo: "producao" },
+  // Protocolos de arte do cliente (17/10/2026): toda arte do cliente é propriedade intelectual dele e
+  // recebe um número de protocolo, feito por Vendas; o mesmo número serve a vários pedidos.
+  { key: "protocolos", label: "Protocolos", descricao: "Artes do cliente: protocolo, revisões e rastreabilidade.", basePath: "/protocolos", grupo: "comercial" },
   { key: "laboratorio", label: "Laboratório", descricao: "Formulação, ajuste e aprovação de cores.", basePath: "/laboratorio", grupo: "producao" },
   // Aberto a qualquer colaborador logado (ver modulosAcessiveis); cada pessoa só enxerga os vídeos do seu perfil.
   { key: "treinamentos", label: "Treinamentos", descricao: "Vídeos de treinamento do seu perfil e quiz de cada um.", basePath: "/treinamentos", grupo: "pessoas" },

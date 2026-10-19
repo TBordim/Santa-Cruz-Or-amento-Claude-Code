@@ -37,3 +37,31 @@ export async function excluirAnexoDoBlob(pathname: string) {
     // exclusão do registro no banco por causa disso.
   });
 }
+
+// ---------- Protocolos de arte (17/10/2026) ----------
+// A arte protocolada é propriedade intelectual do cliente: a revisão guarda uma CÓPIA num caminho
+// próprio ("protocolos/<id do protocolo>/..."), pra não sumir se o anexo do orçamento for apagado.
+export async function guardarArquivoDeProtocolo(protocoloId: string, nome: string, bytes: Buffer, mime: string) {
+  const pathname = `protocolos/${nomeSeguro(protocoloId)}/${Date.now()}-${nomeSeguro(path.basename(nome))}`;
+  if (GUARDAR_LOCAL) {
+    const destino = path.join(PASTA_LOCAL, pathname);
+    await mkdir(path.dirname(destino), { recursive: true });
+    await writeFile(destino, bytes);
+    return { url: `/_anexos-dev/${pathname.split("/").map(encodeURIComponent).join("/")}`, pathname };
+  }
+  const resultado = await put(pathname, bytes, { access: "public", contentType: mime || undefined });
+  return { url: resultado.url, pathname: resultado.pathname };
+}
+
+// Lê um arquivo já guardado (anexo do orçamento) pra copiá-lo pro protocolo.
+export async function lerArquivoGuardado(url: string, pathname: string): Promise<Buffer> {
+  if (GUARDAR_LOCAL) {
+    const { readFile } = await import("node:fs/promises");
+    const alvo = path.resolve(PASTA_LOCAL, pathname);
+    if (!alvo.startsWith(PASTA_LOCAL + path.sep)) throw new Error("Caminho de arquivo inválido.");
+    return readFile(alvo);
+  }
+  const resp = await fetch(url, { cache: "no-store" });
+  if (!resp.ok) throw new Error("Não foi possível ler o arquivo da arte para copiar ao protocolo.");
+  return Buffer.from(await resp.arrayBuffer());
+}

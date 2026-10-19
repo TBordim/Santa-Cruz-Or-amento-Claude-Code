@@ -18,6 +18,7 @@ import { erroNaDivisao, lerItensLote, pmsDoLote, type ItemLote } from "@/lib/ace
 import type { DataCliente } from "@/lib/aceite/datas-cliente";
 import { exigirArea, nomeSePode, revalidarAceite, avancarSePronto, type FormState } from "@/lib/aceite/servidor";
 import { carregarAlvo, gravarAlvo } from "@/lib/aceite/alvo";
+import { erroPorArtePendente } from "@/lib/protocolos/arte";
 
 // Ações do módulo Aceite (Vendas e Engenharia). Pedido de Material mora no módulo Compras
 // (compras/actions.ts) e a data de entrega no módulo PCP (pcp/actions.ts).
@@ -43,6 +44,12 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
   const suportes = lerSuportesDoForm(formData.get("suportes"), lerSuportes(a));
   if (!suportes) return { erro: "Não consegui ler os papéis do pedido. Recarregue a página e tente de novo." };
   const liberar = formData.get("liberar") === "1";
+  // Arte do cliente sem protocolo (por exemplo, a que chegou com a ordem de compra) trava a liberação
+  // para a Engenharia (17/10/2026).
+  if (liberar) {
+    const erroArte = await erroPorArtePendente(a.orcamentoId);
+    if (erroArte) return { erro: erroArte };
+  }
   // Quantidade de cada modelo que o cliente pediu (campo "qtd_" + id do modelo).
   const itens: ItemAceite[] = lerItens(a.itens).map((i) => {
     const q = lerQuantidade(formData.get(`qtd_${i.modeloId}`));
@@ -217,6 +224,8 @@ export async function confirmarEngenharia(_prev: FormState, formData: FormData):
   const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, include: { orcamento: true } });
   if (a.etapa !== "ENGENHARIA_MATERIAL") return { erro: "O Aceite não está na etapa de Engenharia." };
   if (a.engenhariaEm) return { erro: "A Engenharia já confirmou este Aceite." };
+  const erroArte = await erroPorArtePendente(a.orcamentoId);
+  if (erroArte) return { erro: erroArte };
 
   const atuais = modelosDoDoc(a.orcamento);
   const novos = atuais.filter((m) => !m.codInterno);

@@ -4,6 +4,7 @@ import type { ReqCliente, ReqTecnicos, PrecificacaoTier, SuporteTecnico } from "
 import { ETAPAS, classificacaoLabel, fmtMoney, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { fmtPct } from "@/lib/orcamentos/motor";
+import { rotuloRevisao } from "@/lib/protocolos/comum";
 import { modelosDoDoc, anexosDoModelo, usoDoMaterial, textoMaterial, rotuloSO, soEscolhida } from "@/lib/orcamentos/modelos";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { ResumoBox } from "@/components/form-section";
@@ -159,6 +160,7 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
               { label: "Descrição", value: m.descricao },
               { label: "Classificação", value: classificacaoLabel(m.classificacao) },
               { label: "Código do cliente", value: m.codigoCliente },
+              { label: "Protocolo da arte", value: m.protocoloNumero && `${m.protocoloNumero} · ${rotuloRevisao(m.protocoloRevisao ?? 0)}` },
               { label: "Nº de cores (Frente/Verso)", value: m.cores },
               { label: "Código interno", value: m.codInterno && formatarCodigoInterno(m.codInterno) },
             ],

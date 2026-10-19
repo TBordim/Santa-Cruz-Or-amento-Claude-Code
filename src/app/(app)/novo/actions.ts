@@ -9,6 +9,7 @@ import { textoBusca } from "@/lib/clientes/busca";
 import { salvarAnexoNoBlob } from "@/lib/anexos/storage";
 import { erroNosCores } from "@/lib/orcamentos/cores";
 import { erroNoLink } from "@/lib/orcamentos/link";
+import { registrarArteDeAnexo, sincronizarArteDeLink } from "@/lib/protocolos/arte";
 import { MAX_ARQUIVOS_NOVO, MAX_TOTAL_BYTES_NOVO, tipoAnexoAceito } from "@/lib/anexos/limites";
 
 export type AnexoEnviado = { nome: string; url: string; mime: string };
@@ -68,7 +69,7 @@ export async function criarOrcamento(_prev: FormState, formData: FormData): Prom
   for (const arquivo of arquivos) {
     try {
       const { url, pathname } = await salvarAnexoNoBlob(orcamento.id, arquivo);
-      await prisma.anexo.create({
+      const anexo = await prisma.anexo.create({
         data: {
           orcamentoId: orcamento.id,
           tipo: "ARTE",
@@ -80,11 +81,16 @@ export async function criarOrcamento(_prev: FormState, formData: FormData): Prom
           enviadoPorId: sessao?.usuarioId ?? null,
         },
       });
+      // Toda arte que o cliente manda precisa de protocolo de Vendas (17/10/2026).
+      await registrarArteDeAnexo({ anexoId: anexo.id, orcamentoId: orcamento.id, rotulo: arquivo.name, origem: "ORCAMENTO", enviadoPor: sessao?.nome ?? "Representante" });
       enviados.push({ nome: arquivo.name, url, mime: arquivo.type });
     } catch {
       falhas++;
     }
   }
+
+  // O link da arte (Drive, WeTransfer...) também entra na fila de Vendas.
+  await sincronizarArteDeLink(orcamento.id, campos.reqCliente.linkArte, sessao?.nome ?? "Representante");
 
   // Representante só abre o Novo Orçamento — não tem como ver o Painel, então fica na própria
   // tela com uma confirmação.
