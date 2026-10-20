@@ -30,6 +30,7 @@ import {
   CalendarClock,
   Stamp,
   Headset,
+  Repeat2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -96,6 +97,7 @@ function SidebarContent({
   const itemsOrcamento: NavItem[] = [
     { href: "/painel", label: "Painel", icon: KanbanSquare, color: "#26405C" },
     { href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" },
+    { href: "/solicitacoes", label: "Solicitações anteriores", icon: Repeat2, color: "#3D6B49" },
     { href: "/clientes", label: "Clientes", icon: Users, color: "#3D6B6B" },
     { href: "/historico", label: "Histórico", icon: History, color: "#5B6270" },
     { href: "/legado", label: "Arquivo legado", icon: Archive, color: "#8C3B21" },
