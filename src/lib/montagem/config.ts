@@ -49,8 +49,8 @@ export const CONFIG = {
   espacoFacasMm: 4,
 
   // Produzir de 100% a 110% do pedido, nunca menos.
-  // Aproveitamento mínimo: montagens abaixo disso não são consideradas em nenhum caso (decisão do Thiago, 20/10/2026).
-  aproveitamentoMinimo: 0.7,
+  // Aproveitamento mínimo: montagens abaixo disso não são consideradas em nenhum caso (Thiago: 70% em 20/10/2026, baixado para 50% no mesmo dia).
+  aproveitamentoMinimo: 0.5,
 
   // Entre duas montagens com as mesmas poses, a que encosta a ponta preferida (tampa com tampa) ganha se
   // perder no máximo isto de aproveitamento (0,005 = meio ponto percentual).
