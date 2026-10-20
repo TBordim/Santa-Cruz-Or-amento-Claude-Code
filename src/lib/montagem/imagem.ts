@@ -28,7 +28,7 @@ const COR = { tinta: "#16282a", suave: "#5d7173", linha: "#d9e2e2", faca: "#0f76
 
 // Uma peça (cola, arte recortada pelo contorno, vincos e contorno de corte), para reusar com <use>.
 function peca(faca: Faca, id: string, arte: Arte | null | undefined, sw: number, comVincos: boolean): string {
-  const contorno = caminhoSvg(faca.contorno);
+  const contorno = faca.partes ? faca.partes.map((p) => caminhoSvg(p)).join("") : caminhoSvg(faca.contorno);
   const r = arte ? retanguloDaArte(faca, arte.modo) : null;
   let s = `<g id="${id}">`;
   if (faca.cola) s += `<path d="${caminhoSvg(faca.cola)}" fill="${COR.cola}" fill-opacity="0.7"/>`;

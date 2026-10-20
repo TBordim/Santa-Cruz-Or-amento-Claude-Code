@@ -75,9 +75,9 @@ export const CONFIG = {
 
   // Formato ideal de compra: o fornecedor produz em bobinas e corta no formato pedido, sem limite de
   // tamanho, mas leva cerca de 10 dias. O formato padrão em estoque é só carregar e entregar.
-  // A folha sob medida tem de ter centímetros inteiros (83 ou 84, nunca 83,4): o fator é arredondado
-  // para cima em múltiplos de `multiploMm` (10 mm = 1 cm) e a folha é o fator vezes o nº de partes.
-  formatoIdeal: { multiploMm: 10, prazoDias: 10 },
+  // A folha sob medida tem de ter medida redonda, em múltiplos de meio centímetro (83 ou 83,5, nunca 83,4): o fator é arredondado
+  // para cima em múltiplos de `multiploMm` (5 mm = 0,5 cm; use 10 para cm inteiros) e a folha é o fator vezes o nº de partes.
+  formatoIdeal: { multiploMm: 5, prazoDias: 10 },
 
   // Busca de blocos exatos para a folha sob medida: até quantas colunas e linhas testar e quantas opções
   // sob medida manter (as de melhor aproveitamento, uma por número de poses).

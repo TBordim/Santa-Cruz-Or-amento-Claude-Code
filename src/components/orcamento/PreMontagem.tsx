@@ -11,8 +11,10 @@ import { MontagemSvg } from "@/components/orcamento/MontagemSvg";
 import { FacaAbertaSvg } from "@/components/orcamento/FacaAbertaSvg";
 import { Cubo3D } from "@/components/orcamento/Cubo3D";
 import { calcularOpcoes, type Entrada, type FibraCartucho, type FibraMaquina, type Opcao } from "@/lib/montagem/calcular";
+import { calcularComBerco } from "@/lib/montagem/berco";
 import { conjugar } from "@/lib/montagem/conjugar";
-import { facaFundoCartucho, facaRetangular, type Arte, type Faca, type ModoArte } from "@/lib/montagem/geometria";
+import { facaFundoCartucho, OPCOES_FUNDO, OPCOES_TAMPA, type Cabeca, type Fechamento } from "@/lib/montagem/cartucho";
+import { facaRetangular, type Arte, type Faca, type ModoArte } from "@/lib/montagem/geometria";
 import { arteDaPagina, lerFacaDoPdf, type PdfJsLike } from "@/lib/montagem/pdf";
 import { facaDaSalva, montarPreMontagemSalva, type PreMontagemSalva } from "@/lib/montagem/salva";
 import { CONFIG } from "@/lib/montagem/config";
@@ -26,6 +28,8 @@ import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
 const selectCls =
   "h-11 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:h-8 md:text-sm dark:bg-input/30";
 
+// Máximo de modelos na mesma faca (as montagens reais chegam a 10 tipos).
+const MAX_CONJUGADO = 12;
 const fmt = (n: number, d = 1) => n.toLocaleString("pt-BR", { maximumFractionDigits: d });
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 // "30.000" (formato BR) -> 30000; aceita vírgula decimal nos campos em mm.
@@ -107,9 +111,19 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
   const [medLs, setMedLs] = useState(c?.medidaL ?? "");
   const [medA, setMedA] = useState(c?.medidaA ?? "");
   const [cola, setCola] = useState("15");
+  // Tampa e fundo do cartucho genérico (nomes do ERP) e o painel da cabeça de cada um.
+  const [tampaIdx, setTampaIdx] = useState(0);
+  const [fundoIdx, setFundoIdx] = useState(0);
+  const [cabecaTampa, setCabecaTampa] = useState<Cabeca>("canto");
+  const [cabecaFundo, setCabecaFundo] = useState<Cabeca>("meio");
   const [facaL, setFacaL] = useState("");
   const [facaA, setFacaA] = useState("");
   const [facaPdf, setFacaPdf] = useState<Faca | null>(null);
+  // Berço (segunda faca na mesma folha, uma por caixa): vem de um segundo PDF.
+  const [bercoFaca, setBercoFaca] = useState<Faca | null>(null);
+  const [bercoInfo, setBercoInfo] = useState<string | null>(null);
+  const [bercoLendo, setBercoLendo] = useState(false);
+  const [bercoErro, setBercoErro] = useState<string | null>(null);
   const [infoPdf, setInfoPdf] = useState<string | null>(null);
   const [lendoPdf, setLendoPdf] = useState(false);
   const [erroPdf, setErroPdf] = useState<string | null>(null);
@@ -161,8 +175,13 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     const Ls = mm(medLs);
     const A = mm(medA);
     const g = mm(cola);
-    return F >= 25 && Ls >= 10 && A > 0 && g >= 5 ? facaFundoCartucho(F, Ls, A, g) : null;
-  }, [origem, facaPdf, facaL, facaA, medF, medLs, medA, cola]);
+    const fecho: Fechamento = {
+      tampa: { tipo: OPCOES_TAMPA[tampaIdx].tipo, cabeca: cabecaTampa },
+      fundo: { tipo: OPCOES_FUNDO[fundoIdx].tipo, cabeca: cabecaFundo },
+      nomes: { tampa: OPCOES_TAMPA[tampaIdx].nome, fundo: OPCOES_FUNDO[fundoIdx].nome },
+    };
+    return F >= 25 && Ls >= 10 && A > 0 && g >= 5 ? facaFundoCartucho(F, Ls, A, g, fecho) : null;
+  }, [origem, facaPdf, facaL, facaA, medF, medLs, medA, cola, tampaIdx, fundoIdx, cabecaTampa, cabecaFundo]);
 
   const entrada: Omit<Entrada, "faca"> | null = useMemo(() => {
     const q = qtdBR(quantidade);
@@ -183,7 +202,17 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     };
   }, [quantidade, cores, espessura, fibra, fibraMaq, barra, seco, sobMedida, manual, pinca]);
 
-  const resultado = useMemo(() => (faca && entrada ? calcularOpcoes({ ...entrada, faca }) : null), [faca, entrada]);
+  // Com berço, cada pose da folha leva uma caixa e o seu berço (peça composta) e o corte é sempre duplo.
+  const resultado = useMemo(() => {
+    if (!faca || !entrada) return null;
+    if (bercoFaca) {
+      const r = calcularComBerco(entrada, faca, bercoFaca);
+      return { opcoes: r.opcoes, maquinas: r.maquinas, avisos: r.avisos, facas: r.faca as Map<Opcao, Faca> | null };
+    }
+    return { ...calcularOpcoes({ ...entrada, faca }), facas: null as Map<Opcao, Faca> | null };
+  }, [faca, entrada, bercoFaca]);
+  // Peça que a opção usa na folha: a composta (caixa + berço) ou a própria faca.
+  const facaDe = (o: Opcao): Faca => resultado?.facas?.get(o) ?? faca!;
   // Mostra as 5 melhores folhas sob medida e as 4 melhores em estoque, na ordem de aproveitamento.
   const opcoes = useMemo(() => {
     const todas = resultado?.opcoes ?? [];
@@ -243,6 +272,26 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     }
   }
 
+  async function aoEscolherBerco(e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!arquivo) return;
+    setBercoLendo(true);
+    setBercoErro(null);
+    try {
+      const pdfjs = await carregarPdfjs();
+      const { resultado: lido } = await lerFacaDoPdf(pdfjs, new Uint8Array(await arquivo.arrayBuffer()));
+      if (!lido) throw new Error("Não achei a faca vetorial neste PDF do berço.");
+      setBercoFaca(lido.faca);
+      setBercoInfo(`${arquivo.name}: ${fmt(lido.faca.W)} × ${fmt(lido.faca.H)} mm`);
+      setSel(0);
+    } catch (err) {
+      setBercoErro(err instanceof Error ? err.message : "Não consegui ler o PDF do berço.");
+    } finally {
+      setBercoLendo(false);
+    }
+  }
+
   async function aoEscolherPdf(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0];
     e.target.value = "";
@@ -263,6 +312,8 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     setPinca(String(s.entrada.pincaMm ?? CONFIG.pincaMm));
     setSobMedida(s.entrada.incluirSobMedida !== false);
     const f = facaDaSalva(s);
+    setBercoFaca(null);
+    setBercoInfo(null);
     if (f.origem === "pdf") {
       setOrigem("pdf");
       setFacaPdf(f);
@@ -273,6 +324,14 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
       setMedLs(String(f.medidas.Ls));
       setMedA(String(f.medidas.A));
       setCola(String(f.medidas.xs[1]));
+      if (f.fechamento) {
+        const ti = OPCOES_TAMPA.findIndex((o) => o.nome === f.fechamento?.nomes?.tampa);
+        const fi = OPCOES_FUNDO.findIndex((o) => o.nome === f.fechamento?.nomes?.fundo);
+        setTampaIdx(ti >= 0 ? ti : Math.max(0, OPCOES_TAMPA.findIndex((o) => o.tipo === f.fechamento?.tampa.tipo)));
+        setFundoIdx(fi >= 0 ? fi : Math.max(0, OPCOES_FUNDO.findIndex((o) => o.tipo === f.fechamento?.fundo.tipo)));
+        setCabecaTampa(f.fechamento.tampa.cabeca);
+        setCabecaFundo(f.fechamento.fundo.cabeca);
+      }
     } else {
       setOrigem("retangulo");
       setFacaL(String(f.W));
@@ -301,13 +360,16 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         ["Quantidade pedida", fmt(ent.quantidade, 0)],
         ["Peças produzidas", `${fmt(o.pecasProduzidas, 0)} (${o.excesso >= 0 ? "+" : ""}${fmt(o.excesso * 100, 2)}%)`],
         ["Aproveitamento do fator", `${fmt(o.aproveitamento * 100)}%`],
+        ...(f.partes ? [["Berço", "1 por caixa, na mesma folha (corte duplo)"] as [string, string]] : []),
         ["Encaixe", `${o.arranjo.estrategia === "virada" ? "tampa com tampa (linhas viradas 180°)" : o.arranjo.estrategia === "deslocada" ? "linhas deslocadas" : "grade simples"}${o.arranjo.tijolo ? ", em tijolo" : ""}${o.girada90 ? " · girada 90°" : ""}`],
         ["Corte entre peças", ent.corteSeco ? "seco (lâmina compartilhada)" : "duplo (lâminas separadas)"],
         ["Fibra do papel na máquina", ent.fibraMaquina === "74" ? "no sentido do 74" : "no sentido do 53"],
         ["Fibra pedida pelo cliente", ent.fibraCartucho === "livre" ? "livre" : ent.fibraCartucho === "altura" ? "paralela à altura" : "paralela à largura"],
         ["Pinça / barra de controle", `${o.pincaMm} mm / ${ent.barraControle ? `${o.barraMm} mm` : "sem barra"}`],
         ["Corte e vinco", o.exigeCorteManual ? "manual ou guilhotina (fator menor que 32 × 40 cm)" : "automática (Bobst)"],
-        ["Lâmina da faca (estim.)", `${fmt(o.laminaMm / 1000, 2)} m · ${brl(o.custoFaca)}`],
+        ["Perda de papel no interior", `${fmt(o.perdaInterior * 100, 2)}%`],
+        ["Largura / altura corte a corte", `${fmt(o.corteACorteW / 10)} × ${fmt(o.corteACorteH / 10)} cm`],
+        ["Total de lâminas (estim.)", `${fmt(o.laminaMm / 1000, 2)} m · ${brl(o.custoFaca)}`],
         ["Máquina", maquinas.join(" ou ") || "—"],
         ["Cores · espessura", `${ent.cores} · ${fmt(ent.espessuraMm, 2)} mm`],
       ];
@@ -318,7 +380,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         aprovadaEm: agora.toLocaleString("pt-BR"),
         op: o,
         faca: f,
-        arte: arteUrl ? { url: arteUrl, modo: modoArte } : null,
+        arte: arteUrl && !f.partes ? { url: arteUrl, modo: modoArte } : null,
         barraControle: ent.barraControle,
         linhas,
       });
@@ -358,6 +420,8 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
 
   function aprovar() {
     if (!op || !faca || !entrada || !resultado) return;
+    const fOp = facaDe(op);
+    const entradaOp = fOp.partes ? { ...entrada, corteSeco: false } : entrada;
     preencher("suporteTecFormato", material, `${fmt(op.formato.w / 10)} x ${fmt(op.formato.h / 10)}`);
     preencher("suporteTecCorte", material, String(op.corte));
     preencher("suporteTecFatorC", material, fmt(Math.max(op.wf, op.hf) / 10));
@@ -369,12 +433,12 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
       preencher("suporteTecIdealC", material, fmt(Math.max(op.formato.w, op.formato.h) / 10));
       preencher("suporteTecIdealL", material, fmt(Math.min(op.formato.w, op.formato.h) / 10));
     }
-    const salva = montarPreMontagemSalva({ materialIdx: material, entrada: { ...entrada, faca }, op, maquinas: resultado.maquinas.map((m) => m.nome) });
+    const salva = montarPreMontagemSalva({ materialIdx: material, entrada: { ...entradaOp, faca: fOp }, op, maquinas: resultado.maquinas.map((m) => m.nome) });
     const json = JSON.stringify(salva);
     setAviso(`Pré-montagem aprovada: campos do Material ${material + 1} preenchidos. Gerando a imagem para os anexos…`);
     setAberto(false);
     // O card só é gravado depois do anexo: se a imagem foi anexada, "Anexos previstos" já vai marcado.
-    void anexarImagem(op, faca, entrada, resultado.maquinas.map((m) => m.nome), material).then((anexou) => {
+    void anexarImagem(op, fOp, entradaOp, resultado.maquinas.map((m) => m.nome), material).then((anexou) => {
       if (anexou) marcarMontagemEmAnexosPrevistos();
       salvarAoRenderizar.current = true;
       setPendente(json);
@@ -447,6 +511,20 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                   )}
                   <div className="text-xs text-muted-foreground">{pdfsDaArte.length ? "Ou escolha um PDF no seu computador:" : "Escolha o PDF da arte (com a faca em vetor):"}</div>
                   <input type="file" accept="application/pdf" onChange={aoEscolherPdf} className="text-sm" disabled={lendoPdf} />
+                  <div className="mt-2 rounded-md border border-dashed p-2">
+                    <div className="text-xs font-medium">Berço (opcional): segundo PDF com a faca do berço, um por caixa, na mesma folha</div>
+                    <input type="file" accept="application/pdf" onChange={aoEscolherBerco} className="mt-1 text-sm" disabled={bercoLendo || !facaPdf} />
+                    {!facaPdf && <p className="text-xs text-muted-foreground">Leia primeiro a faca da caixa.</p>}
+                    {bercoInfo && bercoFaca && (
+                      <p className="text-xs text-muted-foreground">
+                        {bercoInfo}.{" "}
+                        <button type="button" className="underline" onClick={() => { setBercoFaca(null); setBercoInfo(null); }}>
+                          Tirar o berço
+                        </button>
+                      </p>
+                    )}
+                    {bercoErro && <p className="text-xs text-destructive">{bercoErro}</p>}
+                  </div>
                   {infoPdf && <p className="text-xs text-muted-foreground">{infoPdf}. A leitura é automática: confira o contorno na aba “Faca aberta e 3D”.</p>}
                   {erroPdf && <p className="text-xs text-destructive">{erroPdf}</p>}
                 </div>
@@ -467,6 +545,58 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                   <Field label="Aba de cola (mm)" hint="Exemplo. As fórmulas reais de cada modelo virão da Engenharia.">
                     <Input inputMode="decimal" value={cola} onChange={(e) => setCola(e.target.value)} />
                   </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Tampa">
+                      <select className={selectCls} value={tampaIdx} onChange={(e) => setTampaIdx(Number(e.target.value))}>
+                        {OPCOES_TAMPA.map((o, i) => (
+                          <option key={o.nome} value={i}>
+                            {o.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Fundo">
+                      <select className={selectCls} value={fundoIdx} onChange={(e) => setFundoIdx(Number(e.target.value))}>
+                        {OPCOES_FUNDO.map((o, i) => (
+                          <option key={o.nome} value={i}>
+                            {o.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Cabeça da tampa" hint="Canto: painel ao lado da aba de cola.">
+                      <select className={selectCls} value={cabecaTampa} onChange={(e) => setCabecaTampa(e.target.value as Cabeca)}>
+                        <option value="canto">Canto</option>
+                        <option value="meio">Meio</option>
+                      </select>
+                    </Field>
+                    <Field label="Cabeça do fundo" hint="Só vale para fundo de encaixe (americano ou asa de avião).">
+                      <select className={selectCls} value={cabecaFundo} onChange={(e) => setCabecaFundo(e.target.value as Cabeca)}>
+                        <option value="canto">Canto</option>
+                        <option value="meio">Meio</option>
+                      </select>
+                    </Field>
+                  </div>
+                  {[OPCOES_TAMPA[tampaIdx], OPCOES_FUNDO[fundoIdx]].some((o) => o.aproximado) && (
+                    <p className="rounded-md border border-amber-400/60 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                      Desenho aproximado:{" "}
+                      {[
+                        OPCOES_TAMPA[tampaIdx].aproximado && `tampa “${OPCOES_TAMPA[tampaIdx].nome}”, ${OPCOES_TAMPA[tampaIdx].aproximado}`,
+                        OPCOES_FUNDO[fundoIdx].aproximado && `fundo “${OPCOES_FUNDO[fundoIdx].nome}”, ${OPCOES_FUNDO[fundoIdx].aproximado}`,
+                      ]
+                        .filter(Boolean)
+                        .join("; ")}
+                      . Confira com a Engenharia.
+                    </p>
+                  )}
+                  {faca && (
+                    <div className="rounded-lg border p-2">
+                      <div className="mb-1 text-xs text-muted-foreground">Faca aberta, com as medidas e o tipo de tampa e fundo escolhidos (muda ao ajustar):</div>
+                      <div className="mx-auto max-w-md">
+                        <FacaAbertaSvg faca={faca} arte={null} />
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
               {origem === "retangulo" && (
@@ -616,12 +746,18 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {conj.map((m, i) => (
-                      <div key={i} className="grid grid-cols-2 gap-2">
+                      <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                         <Input value={m.nome} onChange={(e) => setConj((l) => l.map((x, k) => (k === i ? { ...x, nome: e.target.value } : x)))} />
                         <Input inputMode="numeric" placeholder="Quantidade" value={m.qtd} onChange={(e) => setConj((l) => l.map((x, k) => (k === i ? { ...x, qtd: e.target.value } : x)))} />
+                        <Button type="button" variant="ghost" size="sm" disabled={conj.length <= 2} title="Remover modelo" onClick={() => setConj((l) => l.filter((_, k) => k !== i))}>
+                          ✕
+                        </Button>
                       </div>
                     ))}
                   </div>
+                  <Button type="button" variant="outline" size="sm" className="mt-2" disabled={conj.length >= MAX_CONJUGADO} onClick={() => setConj((l) => [...l, { nome: `Modelo ${l.length + 1}`, qtd: "" }])}>
+                    + Modelo
+                  </Button>
                   <div className="mt-3 text-sm">
                     {!conjugado && <span className="text-muted-foreground">Informe a quantidade de pelo menos dois modelos.</span>}
                     {conjugado && !conjugado.feito && <strong className="text-destructive">Não conjuga: nenhuma divisão das poses fecha. Um acerto por modelo.</strong>}
@@ -679,7 +815,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                             className={`grid grid-cols-[24px_96px_1fr_auto] items-center gap-3 rounded-lg border p-2 text-left ${i === sel ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/60"}`}
                           >
                             <span className="text-lg font-bold text-primary">{i + 1}</span>
-                            <MontagemSvg op={o} faca={faca} barraControle={barra} arte={arte} />
+                            <MontagemSvg op={o} faca={facaDe(o)} barraControle={barra} arte={facaDe(o).partes ? null : arte} />
                             <span className="min-w-0 text-sm">
                               <span className="font-semibold">
                                 Folha {fmt(o.formato.w / 10)}×{fmt(o.formato.h / 10)}
@@ -701,16 +837,18 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                       </div>
 
                       <div className="rounded-lg border p-3">
-                        <MontagemSvg op={op} faca={faca} barraControle={barra} arte={arte} detalhe />
+                        <MontagemSvg op={op} faca={facaDe(op)} barraControle={barra} arte={facaDe(op).partes ? null : arte} detalhe />
                         <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
                           {[
                             ["Poses por fator", String(op.posesPorFator)],
                             ["Peças por folha inteira", String(op.pecasPorFolha)],
                             ["Aproveitamento do fator", `${fmt(op.aproveitamento * 100)}%`],
+                            ["Perda de papel no interior", `${fmt(op.perdaInterior * 100, 2)}%`],
+                            ["Largura / altura corte a corte", `${fmt(op.corteACorteW / 10)} × ${fmt(op.corteACorteH / 10)} cm`],
                             ["Folhas de produção", fmt(op.folhas, 0)],
                             ["Peças produzidas", `${fmt(op.pecasProduzidas, 0)} (${op.excesso >= 0 ? "+" : ""}${fmt(op.excesso * 100, 2)}%)`],
                             [
-                              "Lâmina da faca (estim.)",
+                              "Total de lâminas (estim.)",
                               `${fmt(op.laminaMm / 1000, 2)} m · ${brl(op.custoFaca)}${op.arranjo.seco ? ` (−${fmt(op.arranjo.compartilhado / 1000, 2)} m compartilhados)` : ""}`,
                             ],
                           ].map(([k, v]) => (
