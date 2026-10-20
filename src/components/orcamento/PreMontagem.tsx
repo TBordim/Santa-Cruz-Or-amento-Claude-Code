@@ -372,8 +372,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         ["Material", mat ? textoMaterial(mat) : `Material ${idxMaterial + 1}`],
         ["Formato da folha (fibra no 2º número)", `${cm(o.formato.w)} × ${cm(o.formato.h)} cm, fibra no ${cm(o.formato.h)} · ${o.sobMedida ? `sob medida (~${o.prazoDias} dias)` : "padrão em estoque"}`],
         ["Corte", `${o.corte} (${o.cortesLargura} × ${o.cortesAltura})`],
-        ["Fator (fibra no 2º número)", `${cm(o.wf)} × ${cm(o.hf)} cm, fibra no ${cm(o.hf)}`],
-        ["Fator C × L (campos do card)", `${cm(Math.max(o.wf, o.hf))} × ${cm(Math.min(o.wf, o.hf))} cm`],
+        ["Fator C × L (fibra no 2º número, a Largura)", `${cm(o.wf)} × ${cm(o.hf)} cm, fibra no ${cm(o.hf)}`],
         ["Poses por fator", String(o.posesPorFator)],
         ["Peças por folha inteira", String(o.pecasPorFolha)],
         ["Folhas de produção", fmt(o.folhas, 0)],
@@ -444,14 +443,15 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     const entradaOp = fOp.partes ? { ...entrada, corteSeco: false } : entrada;
     preencher("suporteTecFormato", material, `${fmt(op.formato.w / 10)} x ${fmt(op.formato.h / 10)}`);
     preencher("suporteTecCorte", material, String(op.corte));
-    preencher("suporteTecFatorC", material, fmt(Math.max(op.wf, op.hf) / 10));
-    preencher("suporteTecFatorL", material, fmt(Math.min(op.wf, op.hf) / 10));
+    // Regra da fibra: o segundo número é o da fibra. Comprimento = fora da fibra, Largura = na fibra.
+    preencher("suporteTecFatorC", material, fmt(op.wf / 10));
+    preencher("suporteTecFatorL", material, fmt(op.hf / 10));
     preencher("suporteTecQtdCh", material, String(op.posesPorFator));
     preencher("suporteTecQtdFolha", material, String(op.pecasPorFolha));
     if (Number(acerto) > 0) preencher("suporteTecFlsAcerto", material, acerto);
     if (op.sobMedida) {
-      preencher("suporteTecIdealC", material, fmt(Math.max(op.formato.w, op.formato.h) / 10));
-      preencher("suporteTecIdealL", material, fmt(Math.min(op.formato.w, op.formato.h) / 10));
+      preencher("suporteTecIdealC", material, fmt(op.formato.w / 10));
+      preencher("suporteTecIdealL", material, fmt(op.formato.h / 10));
     }
     const salva = montarPreMontagemSalva({ materialIdx: material, entrada: { ...entradaOp, faca: fOp }, op, maquinas: resultado.maquinas.map((m) => m.nome) });
     const json = JSON.stringify(salva);
