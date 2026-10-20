@@ -59,6 +59,7 @@ export const CONFIG = {
     { w: 660, h: 960, oferta: 3 },
     { w: 960, h: 660, oferta: 3 },
     { w: 770, h: 1130, oferta: 2 },
+    { w: 1130, h: 770, oferta: 2 },
     { w: 1020, h: 720, oferta: 2 },
   ] satisfies FormatoFolha[],
 

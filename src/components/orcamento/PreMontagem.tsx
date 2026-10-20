@@ -230,12 +230,19 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
   }, [faca, entrada, bercoFaca]);
   // Peça que a opção usa na folha: a composta (caixa + berço) ou a própria faca.
   const facaDe = (o: Opcao): Faca => resultado?.facas?.get(o) ?? faca!;
-  // Mostra as 5 melhores folhas sob medida e as 4 melhores em estoque, na ordem de aproveitamento.
+  // Mostra as 5 melhores folhas sob medida e a melhor opção de cada formato padrão em estoque (para nenhum
+  // formato ficar de fora), na ordem de aproveitamento.
   const opcoes = useMemo(() => {
     const todas = resultado?.opcoes ?? [];
     let sob = 0;
-    let est = 0;
-    return todas.filter((o) => (o.sobMedida ? sob++ < 5 : est++ < 4));
+    const formatos = new Set<string>();
+    return todas.filter((o) => {
+      if (o.sobMedida) return sob++ < 5;
+      const k = `${o.formato.w}x${o.formato.h}`;
+      if (formatos.has(k)) return false;
+      formatos.add(k);
+      return true;
+    });
   }, [resultado]);
   const op: Opcao | undefined = opcoes[Math.min(sel, Math.max(opcoes.length - 1, 0))];
 
