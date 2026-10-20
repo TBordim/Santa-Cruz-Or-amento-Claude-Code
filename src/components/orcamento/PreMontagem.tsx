@@ -93,6 +93,18 @@ async function faca_e_arte_do_pdf(dados: Uint8Array): Promise<{ faca: Faca; arte
   return { faca: resultado.faca, arte, resumo: resultado.resumo };
 }
 
+// Encaixe entre as linhas, com o encontro das pontas: o primeiro encontro é o das duas primeiras linhas e,
+// havendo mais linhas, os seguintes alternam (tampa com tampa, fundo com fundo, ...).
+function descEncaixe(o: Opcao, curto = false): string {
+  const a = o.arranjo;
+  if (a.estrategia === "virada") {
+    const tt = a.contato === "tampa-tampa";
+    const base = curto ? (tt ? "tampa com tampa" : "fundo com fundo") : `${tt ? "tampa com tampa" : "fundo com fundo"} (linhas viradas 180°${a.rows > 2 ? ", o encontro seguinte alterna" : ""})`;
+    return base;
+  }
+  return a.estrategia === "deslocada" ? "linhas deslocadas" : "grade simples";
+}
+
 type Aba = "opcoes" | "faca" | "conjugado";
 type Origem = "pdf" | "generica" | "retangulo";
 
@@ -137,6 +149,10 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
   const [pinca, setPinca] = useState(String(CONFIG.pincaMm));
   const [manual, setManual] = useState(false);
   const [seco, setSeco] = useState(false);
+  // Quando as linhas se alternam viradas 180°: que pontas se encostam primeiro (tampa com tampa é o mais comum).
+  const [contatoPref, setContatoPref] = useState<"tampa" | "fundo" | "tanto">("tampa");
+  // Num PDF de cliente, qual ponta do desenho é a tampa.
+  const [tampaNoTopo, setTampaNoTopo] = useState(true);
   const [acerto, setAcerto] = useState("");
   const [material, setMaterial] = useState(0);
   const [sobMedida, setSobMedida] = useState(true);
@@ -165,7 +181,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
   }, [pendente]);
 
   const faca = useMemo(() => {
-    if (origem === "pdf") return facaPdf;
+    if (origem === "pdf") return facaPdf && !tampaNoTopo ? { ...facaPdf, tampaNoTopo: false } : facaPdf;
     if (origem === "retangulo") {
       const L = mm(facaL);
       const A = mm(facaA);
@@ -181,7 +197,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
       nomes: { tampa: OPCOES_TAMPA[tampaIdx].nome, fundo: OPCOES_FUNDO[fundoIdx].nome },
     };
     return F >= 25 && Ls >= 10 && A > 0 && g >= 5 ? facaFundoCartucho(F, Ls, A, g, fecho) : null;
-  }, [origem, facaPdf, facaL, facaA, medF, medLs, medA, cola, tampaIdx, fundoIdx, cabecaTampa, cabecaFundo]);
+  }, [origem, facaPdf, tampaNoTopo, facaL, facaA, medF, medLs, medA, cola, tampaIdx, fundoIdx, cabecaTampa, cabecaFundo]);
 
   const entrada: Omit<Entrada, "faca"> | null = useMemo(() => {
     const q = qtdBR(quantidade);
@@ -196,11 +212,12 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
       fibraMaquina: fibraMaq,
       barraControle: barra,
       corteSeco: seco,
+      contatoPreferido: contatoPref === "tanto" ? null : contatoPref,
       incluirSobMedida: sobMedida,
       permitirCorteManual: manual,
       pincaMm: mm(pinca) > 0 ? mm(pinca) : undefined,
     };
-  }, [quantidade, cores, espessura, fibra, fibraMaq, barra, seco, sobMedida, manual, pinca]);
+  }, [quantidade, cores, espessura, fibra, fibraMaq, barra, seco, contatoPref, sobMedida, manual, pinca]);
 
   // Com berço, cada pose da folha leva uma caixa e o seu berço (peça composta) e o corte é sempre duplo.
   const resultado = useMemo(() => {
@@ -308,6 +325,8 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     setFibraMaq(s.entrada.fibraMaquina);
     setBarra(s.entrada.barraControle);
     setSeco(s.entrada.corteSeco);
+    setContatoPref(s.entrada.contatoPreferido === undefined ? "tampa" : s.entrada.contatoPreferido ?? "tanto");
+    setTampaNoTopo(s.faca.tampaNoTopo !== false);
     setManual(s.entrada.permitirCorteManual === true);
     setPinca(String(s.entrada.pincaMm ?? CONFIG.pincaMm));
     setSobMedida(s.entrada.incluirSobMedida !== false);
@@ -361,7 +380,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         ["Peças produzidas", `${fmt(o.pecasProduzidas, 0)} (${o.excesso >= 0 ? "+" : ""}${fmt(o.excesso * 100, 2)}%)`],
         ["Aproveitamento do fator", `${fmt(o.aproveitamento * 100)}%`],
         ...(f.partes ? [["Berço", "1 por caixa, na mesma folha (corte duplo)"] as [string, string]] : []),
-        ["Encaixe", `${o.arranjo.estrategia === "virada" ? "tampa com tampa (linhas viradas 180°)" : o.arranjo.estrategia === "deslocada" ? "linhas deslocadas" : "grade simples"}${o.arranjo.tijolo ? ", em tijolo" : ""}${o.girada90 ? " · girada 90°" : ""}`],
+        ["Encaixe", `${descEncaixe(o)}${o.arranjo.tijolo ? ", em tijolo" : ""}${o.girada90 ? " · girada 90°" : ""}`],
         ["Corte entre peças", ent.corteSeco ? "seco (lâmina compartilhada)" : "duplo (lâminas separadas)"],
         ["Fibra do papel na máquina", ent.fibraMaquina === "74" ? "no sentido do 74" : "no sentido do 53"],
         ["Fibra pedida pelo cliente", ent.fibraCartucho === "livre" ? "livre" : ent.fibraCartucho === "altura" ? "paralela à altura" : "paralela à largura"],
@@ -638,13 +657,28 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
               </Field>
               <Field
                 label="Corte entre peças vizinhas"
-                hint={`No sentido da aba de cola os cartuchos sempre se encostam. Duplo: ${CONFIG.espacoFacasMm} mm entre as facas, e a tampa pode encontrar o fundo ou outra tampa. Seco: lâmina compartilhada, só tampa com tampa (linhas viradas 180°).`}
+                hint={`No sentido da aba de cola os cartuchos sempre se encostam. Duplo: ${CONFIG.espacoFacasMm} mm entre as facas, e a tampa pode encontrar o fundo ou outra tampa. Seco: lâmina compartilhada, só pontas iguais (tampa com tampa ou fundo com fundo, linhas viradas 180°).`}
               >
                 <select className={selectCls} value={seco ? "seco" : "duplo"} onChange={(e) => setSeco(e.target.value === "seco")}>
                   <option value="duplo">Corte duplo (lâminas separadas)</option>
                   <option value="seco">Corte seco (lâmina compartilhada)</option>
                 </select>
               </Field>
+              <Field label="Encostar entre os cartuchos" hint="Quando as linhas se alternam viradas 180°. Só desempata: nunca custa peças. Com 3 ou mais linhas os encontros alternam.">
+                <select className={selectCls} value={contatoPref} onChange={(e) => setContatoPref(e.target.value as "tampa" | "fundo" | "tanto")}>
+                  <option value="tampa">Tampa com tampa (mais comum)</option>
+                  <option value="fundo">Fundo com fundo</option>
+                  <option value="tanto">Tanto faz</option>
+                </select>
+              </Field>
+              {origem === "pdf" && (
+                <Field label="Qual ponta do desenho é a tampa?" hint="Vale para o PDF do cliente. Confira na aba “Faca aberta e 3D”.">
+                  <select className={selectCls} value={tampaNoTopo ? "topo" : "base"} onChange={(e) => setTampaNoTopo(e.target.value === "topo")}>
+                    <option value="topo">A de cima do desenho</option>
+                    <option value="base">A de baixo do desenho</option>
+                  </select>
+                </Field>
+              )}
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={sobMedida} onChange={(e) => setSobMedida(e.target.checked)} className="size-4" />
                 Considerar folha sob medida (cerca de {CONFIG.formatoIdeal.prazoDias} dias)
@@ -824,7 +858,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                               <br />
                               <span className="text-xs text-muted-foreground">
                                 {o.posesPorFator} poses/fator · {o.pecasPorFolha} peças/folha · {fmt(o.folhas, 0)} folhas · faca {brl(o.custoFaca)}
-                                {o.arranjo.estrategia === "virada" ? " · tampa com tampa" : o.arranjo.estrategia === "deslocada" ? " · linhas deslocadas" : ""}{o.arranjo.tijolo ? " em tijolo" : ""}
+                                {o.arranjo.estrategia !== "grade" ? ` · ${descEncaixe(o, true)}` : ""}{o.arranjo.tijolo ? " em tijolo" : ""}
                                 {o.girada90 ? " · girada 90°" : ""}
                                 {o.excesso > CONFIG.toleranciaAcima ? " · passa de +10%" : ""}
                                 {o.exigeCorteManual ? " · exige corte e vinco manual" : ""}

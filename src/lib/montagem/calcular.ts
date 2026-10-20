@@ -26,6 +26,9 @@ export type Entrada = {
   permitirCorteManual?: boolean;
   // Pinça maior que a mínima da configuração. Padrão: a mínima.
   pincaMm?: number;
+  // Que pontas se encostam quando as linhas se alternam viradas 180°: "tampa" (tampa com tampa, o mais
+  // comum), "fundo" (fundo com fundo) ou null (tanto faz). Só desempata; nunca custa peças.
+  contatoPreferido?: "tampa" | "fundo" | null;
 };
 
 export type Opcao = {
@@ -104,6 +107,11 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
   const minTransversal = manualOk ? fator.transversalMin : Math.max(fator.transversalMin, bobstAutomatica.transversalMin);
   const precisaManual = (passagem: number, transversal: number) => passagem < bobstAutomatica.passagemMin || transversal < bobstAutomatica.transversalMin;
 
+  // Ponta da faca que deve ser a do primeiro encontro entre linhas viradas.
+  const tampaNoTopo = e.faca.tampaNoTopo !== false;
+  const contatoPref = e.contatoPreferido === undefined ? "tampa" : e.contatoPreferido;
+  const ladoPref: "topo" | "base" | null = contatoPref === null ? null : (contatoPref === "tampa") === tampaNoTopo ? "topo" : "base";
+
   const giros: boolean[] = [];
   if (e.fibraCartucho !== "largura") giros.push(false); // altura do cartucho ao longo da fibra
   if (e.fibraCartucho !== "altura") giros.push(true); // largura do cartucho ao longo da fibra
@@ -165,8 +173,8 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
       for (const gira of giros) {
         const wp = gira ? uh : uw;
         const hp = gira ? uw : uh;
-        const grade = empacotar(e.faca, wp, hp, cfg.espacoFacasMm, false, e.corteSeco);
-        const encaixe = empacotar(e.faca, wp, hp, cfg.espacoFacasMm, true, e.corteSeco);
+        const grade = empacotar(e.faca, wp, hp, cfg.espacoFacasMm, false, e.corteSeco, ladoPref);
+        const encaixe = empacotar(e.faca, wp, hp, cfg.espacoFacasMm, true, e.corteSeco, ladoPref);
         for (const arranjo of [grade, encaixe && (!grade || encaixe.n > grade.n) ? encaixe : null]) {
           if (arranjo) opcoes.push(montar(arranjo, gira, f, [a, b], wf, hf));
         }
@@ -189,33 +197,39 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
         for (let cols = 1; cols <= cfg.sobMedida.maxColunas; cols++) {
           for (let linhas = 1; linhas <= cfg.sobMedida.maxLinhas; linhas++) {
             for (const modo of ["reta", "tijolo"] as const) {
-              const arranjo = blocoExato(e.faca, cols, linhas, cfg.espacoFacasMm, estrategia, e.corteSeco, modo);
-              if (!arranjo) continue;
-              const usoW = gira ? arranjo.alturaUsada : arranjo.larguraUsada;
-              const usoH = gira ? arranjo.larguraUsada : arranjo.alturaUsada;
-              let wMin = usoW + (m74 ? descPassagem : descTransversal);
-              let hMin = usoH + (m74 ? descTransversal : descPassagem);
-              if (m74) {
-                wMin = Math.max(wMin, minPassagem);
-                hMin = Math.max(hMin, minTransversal);
-              } else {
-                hMin = Math.max(hMin, minPassagem);
-                wMin = Math.max(wMin, minTransversal);
+              for (const invertida of [false, true]) {
+                const arranjo = blocoExato(e.faca, cols, linhas, cfg.espacoFacasMm, estrategia, e.corteSeco, modo, invertida);
+                if (!arranjo) continue;
+                const usoW = gira ? arranjo.alturaUsada : arranjo.larguraUsada;
+                const usoH = gira ? arranjo.larguraUsada : arranjo.alturaUsada;
+                let wMin = usoW + (m74 ? descPassagem : descTransversal);
+                let hMin = usoH + (m74 ? descTransversal : descPassagem);
+                if (m74) {
+                  wMin = Math.max(wMin, minPassagem);
+                  hMin = Math.max(hMin, minTransversal);
+                } else {
+                  hMin = Math.max(hMin, minPassagem);
+                  wMin = Math.max(wMin, minTransversal);
+                }
+                wMin = acima(wMin);
+                hMin = acima(hMin);
+                // O tamanho e o arredondamento não podem passar do limite da máquina.
+                if ((m74 ? wMin : hMin) > fator.passagemMax || (m74 ? hMin : wMin) > fator.transversalMax) continue;
+                const uwI = wMin - (m74 ? descPassagem : descTransversal);
+                const uhI = hMin - (m74 ? descTransversal : descPassagem);
+                const o = montar({ ...arranjo, wp: gira ? uhI : uwI, hp: gira ? uwI : uhI }, gira, { w: wMin, h: hMin, oferta: 0 }, [1, 1], wMin, hMin);
+                o.sobMedida = true;
+                o.prazoDias = cfg.formatoIdeal.prazoDias;
+                o.ganhoPontos = melhorEstoque > 0 ? (o.aproveitamento - melhorEstoque) * 100 : null;
+                // Só vale pedir sob medida se ganhar da melhor folha em estoque.
+                if (o.ganhoPontos !== null && o.ganhoPontos < 0.5) continue;
+                // A ponta preferida no primeiro encontro ganha um pequeno bônus no desempate (meio ponto).
+                const lado = arranjo.estrategia === "virada" ? (arranjo.invertida ? "topo" : "base") : null;
+                const nota = (x: Opcao, l: string | null) => x.aproveitamento + (ladoPref && l === ladoPref ? cfg.toleranciaContato : 0);
+                const atual = melhorPorPoses.get(o.posesPorFator);
+                const ladoAtual = atual ? (atual.arranjo.estrategia === "virada" ? (atual.arranjo.invertida ? "topo" : "base") : null) : null;
+                if (!atual || nota(o, lado) > nota(atual, ladoAtual)) melhorPorPoses.set(o.posesPorFator, o);
               }
-              wMin = acima(wMin);
-              hMin = acima(hMin);
-              // O tamanho e o arredondamento não podem passar do limite da máquina.
-              if ((m74 ? wMin : hMin) > fator.passagemMax || (m74 ? hMin : wMin) > fator.transversalMax) continue;
-              const uwI = wMin - (m74 ? descPassagem : descTransversal);
-              const uhI = hMin - (m74 ? descTransversal : descPassagem);
-              const o = montar({ ...arranjo, wp: gira ? uhI : uwI, hp: gira ? uwI : uhI }, gira, { w: wMin, h: hMin, oferta: 0 }, [1, 1], wMin, hMin);
-              o.sobMedida = true;
-              o.prazoDias = cfg.formatoIdeal.prazoDias;
-              o.ganhoPontos = melhorEstoque > 0 ? (o.aproveitamento - melhorEstoque) * 100 : null;
-              // Só vale pedir sob medida se ganhar da melhor folha em estoque.
-              if (o.ganhoPontos !== null && o.ganhoPontos < 0.5) continue;
-              const atual = melhorPorPoses.get(o.posesPorFator);
-              if (!atual || o.aproveitamento > atual.aproveitamento) melhorPorPoses.set(o.posesPorFator, o);
             }
           }
         }

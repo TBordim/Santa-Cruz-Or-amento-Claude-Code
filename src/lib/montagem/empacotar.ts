@@ -24,7 +24,7 @@ type Perfil = {
   ny: number;
 };
 type Transicao = { dx: number; dy: number } | null;
-type PorEspaco = { pitchX: number; G: Transicao; D1: Transicao; D2: Transicao; AB: Transicao; BA: Transicao };
+type PorEspaco = { pitchX: number; G: Transicao; D1: Transicao; D2: Transicao; AB: Transicao; BA: Transicao; BA0: Transicao; AB2: Transicao };
 type CacheFaca = {
   A: Perfil;
   B: Perfil;
@@ -38,6 +38,10 @@ type CacheFaca = {
 
 export type Posicao = { u: number; v: number; gira: boolean };
 export type Estrategia = "grade" | "deslocada" | "virada";
+// Que pontas se encostam entre linhas vizinhas. Em "virada" as linhas alternam viradas 180° e o primeiro
+// encontro é da base da faca (linha de cima normal) ou do topo (linha de cima já virada); os seguintes
+// alternam. Qual das duas pontas é a tampa vem de `faca.tampaNoTopo`.
+export type Contato = "tampa-tampa" | "fundo-fundo" | "tampa-fundo";
 export type Arranjo = {
   cols: number;
   rows: number;
@@ -55,6 +59,10 @@ export type Arranjo = {
   seco: boolean;
   // Milímetros de lâmina que duas peças vizinhas dividem (só no corte seco).
   compartilhado: number;
+  // Em "virada": a primeira linha já está virada 180° (primeiro encontro pelo topo da faca).
+  invertida: boolean;
+  // Encontro entre as duas primeiras linhas (null com uma linha só).
+  contato: Contato | null;
 };
 
 function perfis(pts: Pt[], W: number, H: number): Perfil {
@@ -231,6 +239,8 @@ function porEspaco(c: CacheFaca, espaco: number): PorEspaco {
     const volta = (dx: number) => (pitchX - dx) % pitchX; // desloca de volta, para a próxima linha voltar ao alinhamento
     const D1 = melhorLinha(c.A, c.A, pitchX, espaco);
     const AB = melhorLinha(c.A, c.B, pitchX, espaco);
+    // Começando pela linha virada: o primeiro encontro é topo com topo.
+    const BA0 = melhorLinha(c.B, c.A, pitchX, espaco);
     t = {
       pitchX,
       G: emDx(c.A, c.A, pitchX, espaco, 0),
@@ -238,6 +248,8 @@ function porEspaco(c: CacheFaca, espaco: number): PorEspaco {
       D2: D1 ? emDx(c.A, c.A, pitchX, espaco, volta(D1.dx)) : null,
       AB,
       BA: AB ? emDx(c.B, c.A, pitchX, espaco, volta(AB.dx)) : null,
+      BA0,
+      AB2: BA0 ? emDx(c.A, c.B, pitchX, espaco, volta(BA0.dx)) : null,
     };
     c.porEspaco.set(espaco, t);
   }
@@ -303,7 +315,9 @@ function gerarLinhas(rows: LinhaPos[], P: number, W: number, limite: number | nu
 // Distribui a faca numa região wp × hp (referencial da peça, sem girar a região).
 // tentarEncaixe = false: grade simples; true: também testa linhas deslocadas e viradas 180°, em linhas
 // retas e em tijolo.
-export function empacotar(faca: Faca, wp: number, hp: number, espaco: number, tentarEncaixe: boolean, seco = false): Arranjo | null {
+// `ladoPref`: qual ponta da faca deve ser a do primeiro encontro entre linhas viradas (a da tampa ou a do
+// fundo); só desempata, nunca custa peças.
+export function empacotar(faca: Faca, wp: number, hp: number, espaco: number, tentarEncaixe: boolean, seco = false, ladoPref: "topo" | "base" | null = null): Arranjo | null {
   const { W, H } = faca;
   if (hp < H || wp < W) return null;
   const c = cacheDe(faca);
@@ -324,29 +338,33 @@ export function empacotar(faca: Faca, wp: number, hp: number, espaco: number, te
     return rows;
   };
 
-  const candidatos: { estrategia: Estrategia; m: Montagem }[] = [];
-  const tentar = (estrategia: Estrategia, giras: boolean[], trs: Transicao[], modos: ("reta" | "tijolo")[]) => {
+  const candidatos: { estrategia: Estrategia; m: Montagem; invertida: boolean }[] = [];
+  const tentar = (estrategia: Estrategia, giras: boolean[], trs: Transicao[], modos: ("reta" | "tijolo")[], invertida = false) => {
     const rows = linhasAte(giras, trs);
     if (!rows) return;
     for (const modo of modos) {
       const m = gerarLinhas(rows, pitchX, W, wp, null, modo, H);
-      if (m) candidatos.push({ estrategia, m });
+      if (m) candidatos.push({ estrategia, m, invertida });
     }
   };
   tentar("grade", [false], [T.G], ["reta"]);
   if (tentarEncaixe) {
     tentar("deslocada", [false, false], [T.D1, T.D2], ["reta", "tijolo"]);
     tentar("virada", [false, true], [T.AB, T.BA], ["reta", "tijolo"]);
+    tentar("virada", [true, false], [T.BA0, T.AB2], ["reta", "tijolo"], true);
   }
   // Corte seco: com mais de uma linha, só tampa com tampa (linhas alternadas viradas 180°).
   const bons = seco ? candidatos.filter((x) => x.m.linhas.length === 1 || x.estrategia === "virada") : candidatos;
   if (!bons.length) return null;
-  bons.sort((a, b) => b.m.n - a.m.n || a.m.alturaUsada - b.m.alturaUsada || a.m.larguraUsada - b.m.larguraUsada);
-  return montarArranjo(faca, c, pitchX, bons[0].m, bons[0].estrategia, seco, wp, hp);
+  // Mais peças primeiro; empatando, a ponta preferida no primeiro encontro; depois o menor tamanho.
+  const lado = (x: { estrategia: Estrategia; invertida: boolean }) => (x.estrategia === "virada" ? (x.invertida ? "topo" : "base") : null);
+  const pref = (x: { estrategia: Estrategia; invertida: boolean }) => (ladoPref && lado(x) === ladoPref ? 0 : 1);
+  bons.sort((a, b) => b.m.n - a.m.n || pref(a) - pref(b) || a.m.alturaUsada - b.m.alturaUsada || a.m.larguraUsada - b.m.larguraUsada);
+  return montarArranjo(faca, c, pitchX, bons[0].m, bons[0].estrategia, seco, wp, hp, bons[0].invertida);
 }
 
 // Monta o arranjo a partir das linhas: peças, tamanho usado e lâmina compartilhada.
-function montarArranjo(faca: Faca, c: CacheFaca, pitchX: number, m: Montagem, estrategia: Estrategia, seco: boolean, wp?: number, hp?: number): Arranjo {
+function montarArranjo(faca: Faca, c: CacheFaca, pitchX: number, m: Montagem, estrategia: Estrategia, seco: boolean, wp?: number, hp?: number, invertida = false): Arranjo {
   const itens: Posicao[] = [];
   for (const l of m.linhas) for (const u of l.us) itens.push({ u, v: l.v, gira: l.gira });
 
@@ -375,22 +393,33 @@ function montarArranjo(faca: Faca, c: CacheFaca, pitchX: number, m: Montagem, es
     tijolo: m.tijolo,
     seco,
     compartilhado,
+    invertida,
+    contato: contatoDe(faca, estrategia, invertida, m.linhas.length),
   };
+}
+
+function contatoDe(faca: Faca, estrategia: Estrategia, invertida: boolean, linhas: number): Contato | null {
+  if (linhas < 2) return null;
+  if (estrategia !== "virada") return "tampa-fundo";
+  const pontaDoEncontro = invertida ? "topo" : "base";
+  const pontaDaTampa = faca.tampaNoTopo === false ? "base" : "topo";
+  return pontaDoEncontro === pontaDaTampa ? "tampa-tampa" : "fundo-fundo";
 }
 
 // Bloco exato de `cols` × `rows` peças com o encaixe pedido, do tamanho mínimo que o contém (sem uma
 // região de partida). Serve para a folha sob medida, que não depende dos tamanhos das folhas padrão.
 // Em "tijolo" as linhas deslocadas ficam com uma peça a menos. Corte seco: com mais de uma linha, só
 // tampa com tampa ("virada").
-export function blocoExato(faca: Faca, cols: number, rows: number, espaco: number, estrategia: Estrategia, seco: boolean, modo: "reta" | "tijolo" = "reta"): Arranjo | null {
+export function blocoExato(faca: Faca, cols: number, rows: number, espaco: number, estrategia: Estrategia, seco: boolean, modo: "reta" | "tijolo" = "reta", invertida = false): Arranjo | null {
   if (cols < 1 || rows < 1) return null;
   if (rows === 1 && (estrategia !== "grade" || modo !== "reta")) return null; // com uma linha todos os encaixes são iguais
   if (estrategia === "grade" && modo !== "reta") return null;
   if (seco && rows > 1 && estrategia !== "virada") return null;
+  if (invertida && (estrategia !== "virada" || rows === 1)) return null;
   const c = cacheDe(faca);
   const T = porEspaco(c, seco ? 0 : espaco);
-  const giras = estrategia === "virada" ? [false, true] : [false, false];
-  const trs: Transicao[] = estrategia === "grade" ? [T.G] : estrategia === "deslocada" ? [T.D1, T.D2] : [T.AB, T.BA];
+  const giras = estrategia === "virada" ? (invertida ? [true, false] : [false, true]) : [false, false];
+  const trs: Transicao[] = estrategia === "grade" ? [T.G] : estrategia === "deslocada" ? [T.D1, T.D2] : invertida ? [T.BA0, T.AB2] : [T.AB, T.BA];
   const linhasPos: LinhaPos[] = [{ gira: giras[0], o: 0, v: 0 }];
   for (let r = 0; r < rows - 1; r++) {
     const t = trs[r % trs.length];
@@ -399,5 +428,5 @@ export function blocoExato(faca: Faca, cols: number, rows: number, espaco: numbe
     linhasPos.push({ gira: giras[(r + 1) % giras.length], o: ult.o + (t.dx > T.pitchX / 2 ? t.dx - T.pitchX : t.dx), v: ult.v + t.dy });
   }
   const m = gerarLinhas(linhasPos, T.pitchX, faca.W, null, cols, modo, faca.H);
-  return m ? montarArranjo(faca, c, T.pitchX, m, estrategia, seco) : null;
+  return m ? montarArranjo(faca, c, T.pitchX, m, estrategia, seco, undefined, undefined, invertida) : null;
 }

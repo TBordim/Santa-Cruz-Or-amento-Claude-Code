@@ -38,6 +38,9 @@ export type Faca = {
   // Só no cartucho genérico: tampa e fundo escolhidos, para mostrar e gravar.
   estilo?: string;
   fechamento?: Fechamento;
+  // Qual ponta do desenho é a tampa. Padrão: o topo (y pequeno), como no cartucho genérico. Num PDF de
+  // cliente pode ser a base; serve para saber se duas linhas viradas encostam tampa com tampa.
+  tampaNoTopo?: boolean;
   // De onde veio o contorno: mostrado na tela para ninguém confundir exemplo com faca real.
   origem?: "retangulo" | "generica" | "pdf";
 };

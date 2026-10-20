@@ -49,6 +49,9 @@ export const CONFIG = {
   espacoFacasMm: 4,
 
   // Produzir de 100% a 110% do pedido, nunca menos.
+  // Entre duas montagens com as mesmas poses, a que encosta a ponta preferida (tampa com tampa) ganha se
+  // perder no máximo isto de aproveitamento (0,005 = meio ponto percentual).
+  toleranciaContato: 0.005,
   toleranciaAcima: 0.1,
 
   // EXEMPLO: lista de formatos e ofertas. Os formatos são os mesmos para qualquer papel.
