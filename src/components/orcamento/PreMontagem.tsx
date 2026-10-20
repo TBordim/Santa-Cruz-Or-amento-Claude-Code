@@ -13,7 +13,8 @@ import { Cubo3D } from "@/components/orcamento/Cubo3D";
 import { calcularOpcoes, type Entrada, type FibraCartucho, type FibraMaquina, type Opcao } from "@/lib/montagem/calcular";
 import { calcularComBerco } from "@/lib/montagem/berco";
 import { conjugar } from "@/lib/montagem/conjugar";
-import { facaFundoCartucho, facaRetangular, type Arte, type Faca, type ModoArte } from "@/lib/montagem/geometria";
+import { facaFundoCartucho, OPCOES_FUNDO, OPCOES_TAMPA, type Cabeca, type Fechamento } from "@/lib/montagem/cartucho";
+import { facaRetangular, type Arte, type Faca, type ModoArte } from "@/lib/montagem/geometria";
 import { arteDaPagina, lerFacaDoPdf, type PdfJsLike } from "@/lib/montagem/pdf";
 import { facaDaSalva, montarPreMontagemSalva, type PreMontagemSalva } from "@/lib/montagem/salva";
 import { CONFIG } from "@/lib/montagem/config";
@@ -110,6 +111,11 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
   const [medLs, setMedLs] = useState(c?.medidaL ?? "");
   const [medA, setMedA] = useState(c?.medidaA ?? "");
   const [cola, setCola] = useState("15");
+  // Tampa e fundo do cartucho genérico (nomes do ERP) e o painel da cabeça de cada um.
+  const [tampaIdx, setTampaIdx] = useState(0);
+  const [fundoIdx, setFundoIdx] = useState(0);
+  const [cabecaTampa, setCabecaTampa] = useState<Cabeca>("canto");
+  const [cabecaFundo, setCabecaFundo] = useState<Cabeca>("meio");
   const [facaL, setFacaL] = useState("");
   const [facaA, setFacaA] = useState("");
   const [facaPdf, setFacaPdf] = useState<Faca | null>(null);
@@ -169,8 +175,13 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     const Ls = mm(medLs);
     const A = mm(medA);
     const g = mm(cola);
-    return F >= 25 && Ls >= 10 && A > 0 && g >= 5 ? facaFundoCartucho(F, Ls, A, g) : null;
-  }, [origem, facaPdf, facaL, facaA, medF, medLs, medA, cola]);
+    const fecho: Fechamento = {
+      tampa: { tipo: OPCOES_TAMPA[tampaIdx].tipo, cabeca: cabecaTampa },
+      fundo: { tipo: OPCOES_FUNDO[fundoIdx].tipo, cabeca: cabecaFundo },
+      nomes: { tampa: OPCOES_TAMPA[tampaIdx].nome, fundo: OPCOES_FUNDO[fundoIdx].nome },
+    };
+    return F >= 25 && Ls >= 10 && A > 0 && g >= 5 ? facaFundoCartucho(F, Ls, A, g, fecho) : null;
+  }, [origem, facaPdf, facaL, facaA, medF, medLs, medA, cola, tampaIdx, fundoIdx, cabecaTampa, cabecaFundo]);
 
   const entrada: Omit<Entrada, "faca"> | null = useMemo(() => {
     const q = qtdBR(quantidade);
@@ -313,6 +324,14 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
       setMedLs(String(f.medidas.Ls));
       setMedA(String(f.medidas.A));
       setCola(String(f.medidas.xs[1]));
+      if (f.fechamento) {
+        const ti = OPCOES_TAMPA.findIndex((o) => o.nome === f.fechamento?.nomes?.tampa);
+        const fi = OPCOES_FUNDO.findIndex((o) => o.nome === f.fechamento?.nomes?.fundo);
+        setTampaIdx(ti >= 0 ? ti : Math.max(0, OPCOES_TAMPA.findIndex((o) => o.tipo === f.fechamento?.tampa.tipo)));
+        setFundoIdx(fi >= 0 ? fi : Math.max(0, OPCOES_FUNDO.findIndex((o) => o.tipo === f.fechamento?.fundo.tipo)));
+        setCabecaTampa(f.fechamento.tampa.cabeca);
+        setCabecaFundo(f.fechamento.fundo.cabeca);
+      }
     } else {
       setOrigem("retangulo");
       setFacaL(String(f.W));
@@ -526,6 +545,58 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                   <Field label="Aba de cola (mm)" hint="Exemplo. As fórmulas reais de cada modelo virão da Engenharia.">
                     <Input inputMode="decimal" value={cola} onChange={(e) => setCola(e.target.value)} />
                   </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Tampa">
+                      <select className={selectCls} value={tampaIdx} onChange={(e) => setTampaIdx(Number(e.target.value))}>
+                        {OPCOES_TAMPA.map((o, i) => (
+                          <option key={o.nome} value={i}>
+                            {o.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Fundo">
+                      <select className={selectCls} value={fundoIdx} onChange={(e) => setFundoIdx(Number(e.target.value))}>
+                        {OPCOES_FUNDO.map((o, i) => (
+                          <option key={o.nome} value={i}>
+                            {o.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Cabeça da tampa" hint="Canto: painel ao lado da aba de cola.">
+                      <select className={selectCls} value={cabecaTampa} onChange={(e) => setCabecaTampa(e.target.value as Cabeca)}>
+                        <option value="canto">Canto</option>
+                        <option value="meio">Meio</option>
+                      </select>
+                    </Field>
+                    <Field label="Cabeça do fundo" hint="Só vale para fundo de encaixe (americano ou asa de avião).">
+                      <select className={selectCls} value={cabecaFundo} onChange={(e) => setCabecaFundo(e.target.value as Cabeca)}>
+                        <option value="canto">Canto</option>
+                        <option value="meio">Meio</option>
+                      </select>
+                    </Field>
+                  </div>
+                  {[OPCOES_TAMPA[tampaIdx], OPCOES_FUNDO[fundoIdx]].some((o) => o.aproximado) && (
+                    <p className="rounded-md border border-amber-400/60 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                      Desenho aproximado:{" "}
+                      {[
+                        OPCOES_TAMPA[tampaIdx].aproximado && `tampa “${OPCOES_TAMPA[tampaIdx].nome}”, ${OPCOES_TAMPA[tampaIdx].aproximado}`,
+                        OPCOES_FUNDO[fundoIdx].aproximado && `fundo “${OPCOES_FUNDO[fundoIdx].nome}”, ${OPCOES_FUNDO[fundoIdx].aproximado}`,
+                      ]
+                        .filter(Boolean)
+                        .join("; ")}
+                      . Confira com a Engenharia.
+                    </p>
+                  )}
+                  {faca && (
+                    <div className="rounded-lg border p-2">
+                      <div className="mb-1 text-xs text-muted-foreground">Faca aberta, com as medidas e o tipo de tampa e fundo escolhidos (muda ao ajustar):</div>
+                      <div className="mx-auto max-w-md">
+                        <FacaAbertaSvg faca={faca} arte={null} />
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
               {origem === "retangulo" && (

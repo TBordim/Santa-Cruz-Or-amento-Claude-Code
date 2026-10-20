@@ -11,7 +11,7 @@ export type PreMontagemSalva = {
   // Qual folha a Engenharia decidiu usar: a padrão em estoque ou a sob medida (formato ideal).
   formatoEscolhido: "padrao" | "ideal";
   entrada: Omit<Entrada, "faca">;
-  faca: Pick<Faca, "W" | "H" | "contorno" | "area" | "corte" | "vinco" | "origem" | "medidas" | "cola" | "secoes" | "linhas" | "partes">;
+  faca: Pick<Faca, "W" | "H" | "contorno" | "area" | "corte" | "vinco" | "origem" | "medidas" | "cola" | "secoes" | "linhas" | "partes" | "estilo" | "fechamento">;
   escolha: {
     folhaW: number;
     folhaH: number;
@@ -62,6 +62,8 @@ export function montarPreMontagemSalva(p: {
       secoes: faca.secoes,
       linhas: faca.linhas,
       partes: faca.partes,
+      estilo: faca.estilo,
+      fechamento: faca.fechamento,
     },
     escolha: {
       folhaW: op.formato.w,
