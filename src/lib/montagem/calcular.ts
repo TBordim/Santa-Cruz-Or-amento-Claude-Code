@@ -13,7 +13,8 @@ export type Entrada = {
   faca: Faca;
   quantidade: number;
   cores: number;
-  espessuraMm: number;
+  // Espessura do cartão (mm). Opcional: sem ela não se confere qual Roland aceita o cartão.
+  espessuraMm?: number;
   fibraCartucho: FibraCartucho;
   fibraMaquina: FibraMaquina;
   barraControle: boolean;
@@ -83,8 +84,8 @@ export type Resultado = {
   avisos: string[];
 };
 
-export function maquinasPossiveis(cores: number, espessuraMm: number, cfg: Config = CONFIG): Maquina[] {
-  return cfg.maquinas.filter((m) => cores <= m.coresMax && espessuraMm <= m.espessuraMaxMm);
+export function maquinasPossiveis(cores: number, espessuraMm: number | undefined, cfg: Config = CONFIG): Maquina[] {
+  return cfg.maquinas.filter((m) => cores <= m.coresMax && (!(espessuraMm !== undefined && espessuraMm > 0) || espessuraMm <= m.espessuraMaxMm));
 }
 
 const ESTRATEGIAS: Estrategia[] = ["grade", "deslocada", "virada"];
@@ -92,7 +93,8 @@ const ESTRATEGIAS: Estrategia[] = ["grade", "deslocada", "virada"];
 export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
   const avisos: string[] = [];
   const maquinas = maquinasPossiveis(e.cores, e.espessuraMm, cfg);
-  if (!maquinas.length) avisos.push("Nenhuma Roland atende este número de cores e esta espessura de cartão.");
+  if (!maquinas.length)
+    avisos.push(e.espessuraMm ? "Nenhuma Roland atende este número de cores e esta espessura de cartão." : "Nenhuma Roland atende este número de cores.");
   const opcoes: Opcao[] = [];
   if (!(e.quantidade > 0) || !(e.faca.W > 0) || !(e.faca.H > 0)) return { opcoes, maquinas, avisos };
 

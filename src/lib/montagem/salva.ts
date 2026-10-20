@@ -105,7 +105,7 @@ export function ehPreMontagemSalva(x: unknown): x is PreMontagemSalva {
   for (const k of ["folhaW", "folhaH", "corte", "wf", "hf", "posesPorFator", "pecasPorFolha", "aproveitamento", "folhas", "pecasProduzidas", "laminaMm", "custoFaca"]) {
     if (!num(e[k])) return false;
   }
-  return num(en.quantidade) && num(en.cores) && num(en.espessuraMm);
+  return num(en.quantidade) && num(en.cores) && (en.espessuraMm === undefined || num(en.espessuraMm));
 }
 
 // Reconstrói a faca para reabrir a pré-montagem.

@@ -203,11 +203,11 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     const q = qtdBR(quantidade);
     const nCores = Number(cores);
     const esp = mm(espessura);
-    if (!(q > 0) || !(nCores > 0) || !(esp > 0)) return null;
+    if (!(q > 0) || !(nCores > 0)) return null;
     return {
       quantidade: q,
       cores: nCores,
-      espessuraMm: esp,
+      espessuraMm: esp > 0 ? esp : undefined,
       fibraCartucho: fibra,
       fibraMaquina: fibraMaq,
       barraControle: barra,
@@ -327,7 +327,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     setMaterial(s.materialIdx);
     setQuantidade(String(s.entrada.quantidade));
     setCores(String(s.entrada.cores));
-    setEspessura(String(s.entrada.espessuraMm).replace(".", ","));
+    setEspessura(s.entrada.espessuraMm ? String(s.entrada.espessuraMm).replace(".", ",") : "");
     setFibra(s.entrada.fibraCartucho);
     setFibraMaq(s.entrada.fibraMaquina);
     setBarra(s.entrada.barraControle);
@@ -398,7 +398,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         ["Corte a corte (fibra no 2º número)", `${fmt(o.corteACorteW / 10)} × ${fmt(o.corteACorteH / 10)} cm, fibra no ${fmt(o.corteACorteH / 10)}`],
         ["Total de lâminas (estim.)", `${fmt(o.laminaMm / 1000, 2)} m · ${brl(o.custoFaca)}`],
         ["Máquina", maquinas.join(" ou ") || "—"],
-        ["Cores · espessura", `${ent.cores} · ${fmt(ent.espessuraMm, 2)} mm`],
+        ["Cores", ent.espessuraMm ? `${ent.cores} · espessura ${fmt(ent.espessuraMm, 2)} mm` : String(ent.cores)],
       ];
       const agora = new Date();
       const svg = svgDaPreMontagem({
@@ -645,7 +645,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                 <Field label="Nº de cores">
                   <Input inputMode="numeric" value={cores} onChange={(e) => setCores(e.target.value)} />
                 </Field>
-                <Field label="Espessura do cartão (mm)">
+                <Field label="Espessura do cartão (mm)" hint="Opcional: só serve para conferir qual Roland aceita o cartão. Não aparece na montagem.">
                   <Input inputMode="decimal" value={espessura} onChange={(e) => setEspessura(e.target.value)} placeholder="ex.: 0,4" />
                 </Field>
                 <Field label="Folhas de acerto" hint="Só preenche o campo se informado.">
@@ -839,7 +839,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
 
               {aba === "opcoes" && (
                 <>
-                  {!resultado && <p className="text-sm text-muted-foreground">Preencha a faca, a quantidade, as cores e a espessura para ver as opções.</p>}
+                  {!resultado && <p className="text-sm text-muted-foreground">Preencha a faca, a quantidade e as cores para ver as opções.</p>}
                   {resultado?.avisos.map((a) => (
                     <p key={a} className="text-sm text-destructive">
                       {a}
