@@ -64,12 +64,16 @@ function folha(d: DadosDaImagem, k: number): { svg: string; w: number; h: number
     for (let j = 0; j < op.cortesAltura; j++) {
       const x0 = i * op.wf;
       const y0 = j * op.hf;
+      // Refile: a faixa do fator que passa do limite da máquina é aparada (hachurada na imagem).
+      const refile = `fill="#c0261b" fill-opacity="0.12" stroke="${COR.corte}" stroke-width="${num(sw)}" stroke-dasharray="${num(sw * 5)} ${num(sw * 3)}"`;
+      if (op.wfUtil < op.wf - 1e-6) s += `<rect x="${num(x0 + op.wfUtil)}" y="${num(y0)}" width="${num(op.wf - op.wfUtil)}" height="${num(op.hf)}" ${refile}/>`;
+      if (op.hfUtil < op.hf - 1e-6) s += `<rect x="${num(x0)}" y="${num(y0 + op.hfUtil)}" width="${num(op.wf)}" height="${num(op.hf - op.hfUtil)}" ${refile}/>`;
       if (m74) {
-        s += `<rect x="${num(x0 + op.wf - pinca)}" y="${num(y0)}" width="${pinca}" height="${num(op.hf)}" fill="${COR.pinca}"/>`;
-        if (barra) s += `<rect x="${num(x0)}" y="${num(y0)}" width="${barra}" height="${num(op.hf)}" fill="${COR.barra}"/>`;
+        s += `<rect x="${num(x0 + op.wfUtil - pinca)}" y="${num(y0)}" width="${pinca}" height="${num(op.hfUtil)}" fill="${COR.pinca}"/>`;
+        if (barra) s += `<rect x="${num(x0)}" y="${num(y0)}" width="${barra}" height="${num(op.hfUtil)}" fill="${COR.barra}"/>`;
       } else {
-        s += `<rect x="${num(x0)}" y="${num(y0 + op.hf - pinca)}" width="${num(op.wf)}" height="${pinca}" fill="${COR.pinca}"/>`;
-        if (barra) s += `<rect x="${num(x0)}" y="${num(y0)}" width="${num(op.wf)}" height="${barra}" fill="${COR.barra}"/>`;
+        s += `<rect x="${num(x0)}" y="${num(y0 + op.hfUtil - pinca)}" width="${num(op.wfUtil)}" height="${pinca}" fill="${COR.pinca}"/>`;
+        if (barra) s += `<rect x="${num(x0)}" y="${num(y0)}" width="${num(op.wfUtil)}" height="${barra}" fill="${COR.barra}"/>`;
       }
       const base = op.girada90 ? `translate(${num(x0 + op.ox0 + arr.hp)} ${num(y0 + op.oy0)}) rotate(90)` : `translate(${num(x0 + op.ox0)} ${num(y0 + op.oy0)})`;
       s += `<g transform="${base} translate(${num(ou)} ${num(ov)})">`;

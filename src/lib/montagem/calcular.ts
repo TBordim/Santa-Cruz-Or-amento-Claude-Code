@@ -39,6 +39,11 @@ export type Opcao = {
   // Fator: pedaço da folha depois do corte (mm).
   wf: number;
   hf: number;
+  // Parte do fator que vai para a máquina. Se o fator passa dos limites da máquina, ele é refilado (aparado)
+  // só no que passa, e só `wfUtil` × `hfUtil` é impresso; o que sobra é perda. Sem refile, é igual a `wf` × `hf`.
+  wfUtil: number;
+  hfUtil: number;
+  refilada: boolean;
   // Cartucho girado 90° em relação à fibra do fator.
   girada90: boolean;
   fibraMaquina: FibraMaquina;
@@ -117,14 +122,23 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
   if (e.fibraCartucho !== "altura") giros.push(true); // largura do cartucho ao longo da fibra
 
   // Dados de uma opção que não dependem de ser padrão ou sob medida.
-  const montar = (arranjo: Arranjo, gira: boolean, formato: FormatoFolha, cortes: [number, number], wf: number, hf: number): Opcao => {
+  const montar = (
+    arranjo: Arranjo,
+    gira: boolean,
+    formato: FormatoFolha,
+    cortes: [number, number],
+    wf: number,
+    hf: number,
+    wfUtil = wf,
+    hfUtil = hf,
+  ): Opcao => {
     const corte = cortes[0] * cortes[1];
     const pecasPorFolha = arranjo.n * corte;
     const folhas = Math.ceil(e.quantidade / pecasPorFolha);
     const pecasProduzidas = folhas * pecasPorFolha;
     const laminaMm = Math.max(0, arranjo.n * (e.faca.corte + e.faca.vinco) - arranjo.compartilhado);
-    const passagem = m74 ? wf : hf;
-    const transversal = m74 ? hf : wf;
+    const passagem = m74 ? wfUtil : hfUtil;
+    const transversal = m74 ? hfUtil : wfUtil;
     const corteACorteW = gira ? arranjo.alturaUsada : arranjo.larguraUsada;
     const corteACorteH = gira ? arranjo.larguraUsada : arranjo.alturaUsada;
     return {
@@ -134,6 +148,9 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
       cortesAltura: cortes[1],
       wf,
       hf,
+      wfUtil,
+      hfUtil,
+      refilada: wfUtil < wf - 1e-6 || hfUtil < hf - 1e-6,
       girada90: gira,
       fibraMaquina: e.fibraMaquina,
       arranjo,
@@ -166,19 +183,34 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
       const hf = f.h / b;
       const passagem = m74 ? wf : hf;
       const transversal = m74 ? hf : wf;
-      if (passagem > fator.passagemMax || transversal > fator.transversalMax) continue;
-      if (passagem < minPassagem || transversal < minTransversal) continue;
-      const uw = wf - (m74 ? descPassagem : descTransversal);
-      const uh = hf - (m74 ? descTransversal : descPassagem);
+      // Fator maior que a máquina: refila (apara) só o que passa do limite. O que sobra é perda e entra no
+      // aproveitamento, que continua medido sobre o fator inteiro.
+      const passagemUtil = Math.min(passagem, fator.passagemMax);
+      const transversalUtil = Math.min(transversal, fator.transversalMax);
+      if (passagemUtil < minPassagem || transversalUtil < minTransversal) continue;
+      const wfU = m74 ? passagemUtil : transversalUtil;
+      const hfU = m74 ? transversalUtil : passagemUtil;
+      const uw = wfU - (m74 ? descPassagem : descTransversal);
+      const uh = hfU - (m74 ? descTransversal : descPassagem);
       for (const gira of giros) {
         const wp = gira ? uh : uw;
         const hp = gira ? uw : uh;
         const grade = empacotar(e.faca, wp, hp, cfg.espacoFacasMm, false, e.corteSeco, ladoPref);
         const encaixe = empacotar(e.faca, wp, hp, cfg.espacoFacasMm, true, e.corteSeco, ladoPref);
         for (const arranjo of [grade, encaixe && (!grade || encaixe.n > grade.n) ? encaixe : null]) {
-          if (arranjo) opcoes.push(montar(arranjo, gira, f, [a, b], wf, hf));
+          if (arranjo) opcoes.push(montar(arranjo, gira, f, [a, b], wf, hf, wfU, hfU));
         }
       }
+    }
+  }
+
+  // Piso de aproveitamento: nenhuma montagem abaixo dele é considerada, em nenhum caso.
+  const piso = cfg.aproveitamentoMinimo;
+  let melhorRejeitado = 0;
+  for (let i = opcoes.length - 1; i >= 0; i--) {
+    if (opcoes[i].aproveitamento < piso) {
+      melhorRejeitado = Math.max(melhorRejeitado, opcoes[i].aproveitamento);
+      opcoes.splice(i, 1);
     }
   }
 
@@ -218,6 +250,10 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
                 const uwI = wMin - (m74 ? descPassagem : descTransversal);
                 const uhI = hMin - (m74 ? descTransversal : descPassagem);
                 const o = montar({ ...arranjo, wp: gira ? uhI : uwI, hp: gira ? uwI : uhI }, gira, { w: wMin, h: hMin, oferta: 0 }, [1, 1], wMin, hMin);
+                if (o.aproveitamento < piso) {
+                  melhorRejeitado = Math.max(melhorRejeitado, o.aproveitamento);
+                  continue;
+                }
                 o.sobMedida = true;
                 o.prazoDias = cfg.formatoIdeal.prazoDias;
                 o.ganhoPontos = melhorEstoque > 0 ? (o.aproveitamento - melhorEstoque) * 100 : null;
@@ -249,6 +285,12 @@ export function calcularOpcoes(e: Entrada, cfg: Config = CONFIG): Resultado {
     if (x.formato.oferta !== y.formato.oferta) return y.formato.oferta - x.formato.oferta;
     return x.folhas - y.folhas;
   });
-  if (!opcoes.length) avisos.push("Nenhuma montagem cabe com estas medidas. Confira a faca, a fibra e os limites da máquina.");
+  if (!opcoes.length) {
+    avisos.push(
+      melhorRejeitado > 0
+        ? `Nenhuma montagem chega a ${Math.round(piso * 100)}% de aproveitamento (a melhor ficou em ${(melhorRejeitado * 100).toFixed(1).replace(".", ",")}%). Confira a faca, a fibra e os limites da máquina.`
+        : "Nenhuma montagem cabe com estas medidas. Confira a faca, a fibra e os limites da máquina.",
+    );
+  }
   return { opcoes, maquinas, avisos };
 }

@@ -74,15 +74,18 @@ export function MontagemSvg({
         const base = op.girada90 ? `translate(${x0 + op.ox0 + arr.hp} ${y0 + op.oy0}) rotate(90)` : `translate(${x0 + op.ox0} ${y0 + op.oy0})`;
         return (
           <g key={`${x0}-${y0}`}>
+            {/* Refile: a faixa do fator que passa do limite da máquina é aparada (hachurada). */}
+            {op.wfUtil < op.wf - 1e-6 && <rect x={x0 + op.wfUtil} y={y0} width={op.wf - op.wfUtil} height={op.hf} className="fill-destructive/10 stroke-destructive" strokeWidth={1} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />}
+            {op.hfUtil < op.hf - 1e-6 && <rect x={x0} y={y0 + op.hfUtil} width={op.wf} height={op.hf - op.hfUtil} className="fill-destructive/10 stroke-destructive" strokeWidth={1} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />}
             {m74 ? (
               <>
-                <rect x={x0 + op.wf - pinca} y={y0} width={pinca} height={op.hf} className="fill-muted-foreground/30" />
-                {barra > 0 && <rect x={x0} y={y0} width={barra} height={op.hf} className="fill-primary/15" />}
+                <rect x={x0 + op.wfUtil - pinca} y={y0} width={pinca} height={op.hfUtil} className="fill-muted-foreground/30" />
+                {barra > 0 && <rect x={x0} y={y0} width={barra} height={op.hfUtil} className="fill-primary/15" />}
               </>
             ) : (
               <>
-                <rect x={x0} y={y0 + op.hf - pinca} width={op.wf} height={pinca} className="fill-muted-foreground/30" />
-                {barra > 0 && <rect x={x0} y={y0} width={op.wf} height={barra} className="fill-primary/15" />}
+                <rect x={x0} y={y0 + op.hfUtil - pinca} width={op.wfUtil} height={pinca} className="fill-muted-foreground/30" />
+                {barra > 0 && <rect x={x0} y={y0} width={op.wfUtil} height={barra} className="fill-primary/15" />}
               </>
             )}
             <g transform={`${base} translate(${ou} ${ov})`}>

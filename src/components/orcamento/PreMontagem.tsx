@@ -379,7 +379,8 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         ["Material", mat ? textoMaterial(mat) : `Material ${idxMaterial + 1}`],
         ["Formato da folha (fibra no 2º número)", `${cm(o.formato.w)} × ${cm(o.formato.h)} cm, fibra no ${cm(o.formato.h)} · ${o.sobMedida ? `sob medida (~${o.prazoDias} dias)` : "padrão em estoque"}`],
         ["Corte", `${o.corte} (${o.cortesLargura} × ${o.cortesAltura})`],
-        ["Fator C × L (fibra no 2º número, a Largura)", `${cm(o.wf)} × ${cm(o.hf)} cm, fibra no ${cm(o.hf)}`],
+        ["Fator C × L (fibra no 2º número, a Largura)", `${cm(o.wfUtil)} × ${cm(o.hfUtil)} cm, fibra no ${cm(o.hfUtil)}`],
+        ...(o.refilada ? [["Refile (aparar para caber na máquina)", `fator ${cm(o.wf)} × ${cm(o.hf)} cm vira ${cm(o.wfUtil)} × ${cm(o.hfUtil)} cm: apara ${cm(o.wf - o.wfUtil)} no ${cm(o.wf)} e ${cm(o.hf - o.hfUtil)} no ${cm(o.hf)}`] as [string, string]] : []),
         ["Poses por fator", String(o.posesPorFator)],
         ["Peças por folha inteira", String(o.pecasPorFolha)],
         ["Folhas de produção", fmt(o.folhas, 0)],
@@ -451,8 +452,9 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     preencher("suporteTecFormato", material, `${fmt(op.formato.w / 10)} x ${fmt(op.formato.h / 10)}`);
     preencher("suporteTecCorte", material, String(op.corte));
     // Regra da fibra: o segundo número é o da fibra. Comprimento = fora da fibra, Largura = na fibra.
-    preencher("suporteTecFatorC", material, fmt(op.wf / 10));
-    preencher("suporteTecFatorL", material, fmt(op.hf / 10));
+    // Com refile, o fator que vai para a máquina é o refilado (wfUtil × hfUtil).
+    preencher("suporteTecFatorC", material, fmt(op.wfUtil / 10));
+    preencher("suporteTecFatorL", material, fmt(op.hfUtil / 10));
     preencher("suporteTecQtdCh", material, String(op.posesPorFator));
     preencher("suporteTecQtdFolha", material, String(op.pecasPorFolha));
     if (Number(acerto) > 0) preencher("suporteTecFlsAcerto", material, acerto);
@@ -861,7 +863,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                             <span className="min-w-0 text-sm">
                               <span className="font-semibold">
                                 Folha {fmt(o.formato.w / 10)}×{fmt(o.formato.h / 10)}
-                                {o.sobMedida ? " (sob medida)" : ""} · corte {o.corte} · fator {fmt(o.wf / 10)}×{fmt(o.hf / 10)} · fibra no {fmt(o.hf / 10)}
+                                {o.sobMedida ? " (sob medida)" : ""} · corte {o.corte} · fator {fmt(o.wf / 10)}×{fmt(o.hf / 10)} · fibra no {fmt(o.hf / 10)}{o.refilada ? ` · refilar para ${fmt(o.wfUtil / 10)}×${fmt(o.hfUtil / 10)}` : ""}
                               </span>
                               <br />
                               <span className="text-xs text-muted-foreground">
@@ -912,6 +914,14 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                             <>
                               <strong>Formato padrão em estoque:</strong> folha {fmt(op.formato.w / 10)} × {fmt(op.formato.h / 10)} cm (fibra no {fmt(op.formato.h / 10)}). É só carregar e entregar.
                             </>
+                          )}
+                          {op.refilada && (
+                            <p className="mt-2 rounded-md border border-amber-400/60 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                              <strong>Refile:</strong> o fator {fmt(op.wf / 10)} × {fmt(op.hf / 10)} cm passa do limite da máquina e é aparado para {fmt(op.wfUtil / 10)} × {fmt(op.hfUtil / 10)} cm (apara só o que passa:{" "}
+                              {op.wfUtil < op.wf ? `${fmt((op.wf - op.wfUtil) / 10)} cm no ${fmt(op.wf / 10)}` : ""}
+                              {op.wfUtil < op.wf && op.hfUtil < op.hf ? " e " : ""}
+                              {op.hfUtil < op.hf ? `${fmt((op.hf - op.hfUtil) / 10)} cm no ${fmt(op.hf / 10)}` : ""}). Esse pedaço é perda e já está no aproveitamento. Ao aprovar, o Fator do card recebe o tamanho refilado.
+                            </p>
                           )}
                         </div>
 
