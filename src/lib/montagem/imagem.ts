@@ -110,9 +110,9 @@ export function svgDaPreMontagem(d: DadosDaImagem): string {
   s += `<line x1="40" y1="140" x2="${W - 40}" y2="140" stroke="${COR.linha}" stroke-width="2"/>`;
 
   // Folha inteira
-  s += `<text x="${num(fx + fw / 2)}" y="${num(fy - 14)}" font-size="26" font-weight="700" text-anchor="middle" fill="${COR.tinta}">Folha ${fmt(op.formato.w / 10)} × ${fmt(op.formato.h / 10)} cm${op.sobMedida ? " (sob medida)" : ""}</text>`;
+  s += `<text x="${num(fx + fw / 2)}" y="${num(fy - 14)}" font-size="26" font-weight="700" text-anchor="middle" fill="${COR.tinta}">Folha ${fmt(op.formato.w / 10)} × ${fmt(op.formato.h / 10)} cm (fibra no ${fmt(op.formato.h / 10)})${op.sobMedida ? " · sob medida" : ""}</text>`;
   s += `<svg x="${num(fx)}" y="${num(fy)}" width="${num(fw)}" height="${num(fh)}" viewBox="0 0 ${f.w} ${f.h}" overflow="visible">${f.svg}</svg>`;
-  s += `<text x="${num(fx + fw / 2)}" y="${num(fy + fh + 32)}" font-size="19" text-anchor="middle" fill="${COR.suave}">Fator ${fmt(op.wf / 10)} × ${fmt(op.hf / 10)} cm · passagem na ${op.fibraMaquina === "74" ? "horizontal" : "vertical"} · fibra no segundo número da folha</text>`;
+  s += `<text x="${num(fx + fw / 2)}" y="${num(fy + fh + 32)}" font-size="19" text-anchor="middle" fill="${COR.suave}">Fator ${fmt(op.wf / 10)} × ${fmt(op.hf / 10)} cm (fibra no ${fmt(op.hf / 10)}) · passagem na ${op.fibraMaquina === "74" ? "horizontal" : "vertical"}</text>`;
   s += `<text x="${num(fx + fw / 2)}" y="${num(fy + fh + 58)}" font-size="19" text-anchor="middle" fill="${COR.suave}">cinza = pinça · azul = barra de controle · tracejado vermelho = corte da folha</text>`;
 
   // Dados

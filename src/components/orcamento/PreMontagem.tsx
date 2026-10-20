@@ -370,9 +370,10 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
       const cm = (mmv: number) => fmt(mmv / 10);
       const linhas: [string, string][] = [
         ["Material", mat ? textoMaterial(mat) : `Material ${idxMaterial + 1}`],
-        ["Formato da folha", `${cm(o.formato.w)} × ${cm(o.formato.h)} cm · ${o.sobMedida ? `sob medida (~${o.prazoDias} dias)` : "padrão em estoque"}`],
+        ["Formato da folha (fibra no 2º número)", `${cm(o.formato.w)} × ${cm(o.formato.h)} cm, fibra no ${cm(o.formato.h)} · ${o.sobMedida ? `sob medida (~${o.prazoDias} dias)` : "padrão em estoque"}`],
         ["Corte", `${o.corte} (${o.cortesLargura} × ${o.cortesAltura})`],
-        ["Fator C × L", `${cm(Math.max(o.wf, o.hf))} × ${cm(Math.min(o.wf, o.hf))} cm`],
+        ["Fator (fibra no 2º número)", `${cm(o.wf)} × ${cm(o.hf)} cm, fibra no ${cm(o.hf)}`],
+        ["Fator C × L (campos do card)", `${cm(Math.max(o.wf, o.hf))} × ${cm(Math.min(o.wf, o.hf))} cm`],
         ["Poses por fator", String(o.posesPorFator)],
         ["Peças por folha inteira", String(o.pecasPorFolha)],
         ["Folhas de produção", fmt(o.folhas, 0)],
@@ -387,7 +388,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         ["Pinça / barra de controle", `${o.pincaMm} mm / ${ent.barraControle ? `${o.barraMm} mm` : "sem barra"}`],
         ["Corte e vinco", o.exigeCorteManual ? "manual ou guilhotina (fator menor que 32 × 40 cm)" : "automática (Bobst)"],
         ["Perda de papel no interior", `${fmt(o.perdaInterior * 100, 2)}%`],
-        ["Corte a corte (comprimento × largura)", `${fmt(Math.max(o.corteACorteW, o.corteACorteH) / 10)} × ${fmt(Math.min(o.corteACorteW, o.corteACorteH) / 10)} cm`],
+        ["Corte a corte (fibra no 2º número)", `${fmt(o.corteACorteW / 10)} × ${fmt(o.corteACorteH / 10)} cm, fibra no ${fmt(o.corteACorteH / 10)}`],
         ["Total de lâminas (estim.)", `${fmt(o.laminaMm / 1000, 2)} m · ${brl(o.custoFaca)}`],
         ["Máquina", maquinas.join(" ou ") || "—"],
         ["Cores · espessura", `${ent.cores} · ${fmt(ent.espessuraMm, 2)} mm`],
@@ -476,7 +477,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
           <strong>Pré-montagem aprovada — Material {s.materialIdx + 1}</strong>{" "}
           <span className="text-muted-foreground">em {new Date(s.aprovadaEm).toLocaleString("pt-BR")}</span>
           <br />
-          Folha {fmt((s.escolha.ideal && s.formatoEscolhido === "ideal" ? s.escolha.ideal.w : s.escolha.folhaW) / 10)} × {fmt((s.escolha.ideal && s.formatoEscolhido === "ideal" ? s.escolha.ideal.h : s.escolha.folhaH) / 10)} cm (
+          Folha {fmt((s.escolha.ideal && s.formatoEscolhido === "ideal" ? s.escolha.ideal.w : s.escolha.folhaW) / 10)} × {fmt((s.escolha.ideal && s.formatoEscolhido === "ideal" ? s.escolha.ideal.h : s.escolha.folhaH) / 10)} cm, fibra no {fmt((s.escolha.ideal && s.formatoEscolhido === "ideal" ? s.escolha.ideal.h : s.escolha.folhaH) / 10)} (
           {s.formatoEscolhido === "ideal" ? "sob medida" : "padrão em estoque"}) · corte {s.escolha.corte} · {s.escolha.posesPorFator} poses/fator · {s.escolha.pecasPorFolha} peças/folha ·{" "}
           {fmt(s.escolha.aproveitamento * 100)}% de aproveitamento · faca {brl(s.escolha.custoFaca)} ({fmt(s.escolha.laminaMm / 1000, 1)} m)
         </div>
@@ -853,7 +854,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                             <span className="min-w-0 text-sm">
                               <span className="font-semibold">
                                 Folha {fmt(o.formato.w / 10)}×{fmt(o.formato.h / 10)}
-                                {o.sobMedida ? " (sob medida)" : ""} · corte {o.corte} · fator {fmt(o.wf / 10)}×{fmt(o.hf / 10)}
+                                {o.sobMedida ? " (sob medida)" : ""} · corte {o.corte} · fator {fmt(o.wf / 10)}×{fmt(o.hf / 10)} · fibra no {fmt(o.hf / 10)}
                               </span>
                               <br />
                               <span className="text-xs text-muted-foreground">
@@ -878,7 +879,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                             ["Peças por folha inteira", String(op.pecasPorFolha)],
                             ["Aproveitamento do fator", `${fmt(op.aproveitamento * 100)}%`],
                             ["Perda de papel no interior", `${fmt(op.perdaInterior * 100, 2)}%`],
-                            ["Corte a corte (comprimento × largura)", `${fmt(Math.max(op.corteACorteW, op.corteACorteH) / 10)} × ${fmt(Math.min(op.corteACorteW, op.corteACorteH) / 10)} cm`],
+                            ["Corte a corte (fibra no 2º número)", `${fmt(op.corteACorteW / 10)} × ${fmt(op.corteACorteH / 10)} cm, fibra no ${fmt(op.corteACorteH / 10)}`],
                             ["Folhas de produção", fmt(op.folhas, 0)],
                             ["Peças produzidas", `${fmt(op.pecasProduzidas, 0)} (${op.excesso >= 0 ? "+" : ""}${fmt(op.excesso * 100, 2)}%)`],
                             [
@@ -896,13 +897,13 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                         <div className="mt-3 rounded-md border border-dashed p-2.5 text-sm">
                           {op.sobMedida ? (
                             <>
-                              <strong>Folha sob medida:</strong> {fmt(op.formato.w / 10)} × {fmt(op.formato.h / 10)} cm, fator {fmt(op.wf / 10)} × {fmt(op.hf / 10)} cm, com{" "}
+                              <strong>Folha sob medida:</strong> {fmt(op.formato.w / 10)} × {fmt(op.formato.h / 10)} cm (fibra no {fmt(op.formato.h / 10)}), fator {fmt(op.wf / 10)} × {fmt(op.hf / 10)} cm (fibra no {fmt(op.hf / 10)}), com{" "}
                               {fmt(op.aproveitamento * 100)}% de aproveitamento (+{fmt(op.ganhoPontos ?? 0)} pontos sobre a melhor folha em estoque). O fornecedor corta da bobina no tamanho pedido, sem limite de
                               tamanho, então a folha já vem no tamanho do fator, sem corte (corte 1), mas leva cerca de {op.prazoDias} dias. Ao aprovar, o Formato Ideal do card também é preenchido.
                             </>
                           ) : (
                             <>
-                              <strong>Formato padrão em estoque:</strong> folha {fmt(op.formato.w / 10)} × {fmt(op.formato.h / 10)} cm. É só carregar e entregar.
+                              <strong>Formato padrão em estoque:</strong> folha {fmt(op.formato.w / 10)} × {fmt(op.formato.h / 10)} cm (fibra no {fmt(op.formato.h / 10)}). É só carregar e entregar.
                             </>
                           )}
                         </div>

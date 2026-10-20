@@ -105,10 +105,10 @@ export function MontagemSvg({
             Folha {fmt(W / 10)} × {fmt(H / 10)} cm
           </text>
           <text x={W + pad * 0.25} y={H / 2} fontSize={fs * 0.85} transform={`rotate(90 ${W + pad * 0.25} ${H / 2})`} textAnchor="middle" className="fill-foreground">
-            fibra ↕ (segundo número)
+            fibra ↕ no {fmt(H / 10)} (segundo número)
           </text>
           <text x={W / 2} y={H + pad * 0.7} fontSize={fs * 0.85} textAnchor="middle" className="fill-muted-foreground">
-            Fator {fmt(op.wf / 10)} × {fmt(op.hf / 10)} cm · cinza = pinça · azul = barra de controle · passagem na {m74 ? "horizontal" : "vertical"}
+            Fator {fmt(op.wf / 10)} × {fmt(op.hf / 10)} cm (fibra no {fmt(op.hf / 10)}) · cinza = pinça · azul = barra de controle · passagem na {m74 ? "horizontal" : "vertical"}
           </text>
         </>
       )}
