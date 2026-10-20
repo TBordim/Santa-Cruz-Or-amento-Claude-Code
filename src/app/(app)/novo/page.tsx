@@ -1,4 +1,7 @@
+import Link from "next/link";
+import { Search } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { sessaoAtual } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { defaultsParaRepetir } from "@/lib/orcamentos/repetir";
@@ -16,9 +19,13 @@ export default async function NovoOrcamentoPage({ searchParams }: { searchParams
   const sessao = await sessaoAtual();
   const { repetir } = await searchParams;
 
+  // Representante só repete o que ele mesmo enviou. Colaborador da empresa repete qualquer
+  // solicitação (busca em "Solicitações anteriores"), mesmo cancelada ou já virada em pedido.
   const origem =
     repetir && sessao
-      ? await prisma.orcamento.findFirst({ where: { id: repetir, origem: "NOVO", criadoPorId: sessao.usuarioId } })
+      ? await prisma.orcamento.findFirst({
+          where: sessao.soNovo ? { id: repetir, origem: "NOVO", criadoPorId: sessao.usuarioId } : { id: repetir },
+        })
       : null;
 
   const representante = sessao?.soNovo ? sessao.nome : "";
@@ -27,6 +34,15 @@ export default async function NovoOrcamentoPage({ searchParams }: { searchParams
       <PageHeader
         title="Novo Orçamento"
         description="Preencha os dados comerciais e técnicos básicos do pedido — a Santa Cruz segue o fluxo a partir daqui."
+        action={
+          sessao && !sessao.soNovo ? (
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link href="/solicitacoes">
+                <Search className="h-3.5 w-3.5" /> Buscar solicitação anterior
+              </Link>
+            </Button>
+          ) : undefined
+        }
       />
       <NovoOrcamentoForm
         // Trocar de solicitação de origem recomeça o formulário limpo (os campos são não controlados).
