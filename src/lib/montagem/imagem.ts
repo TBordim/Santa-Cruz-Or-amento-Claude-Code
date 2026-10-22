@@ -64,12 +64,16 @@ function folha(d: DadosDaImagem, k: number): { svg: string; w: number; h: number
     for (let j = 0; j < op.cortesAltura; j++) {
       const x0 = i * op.wf;
       const y0 = j * op.hf;
+      // Refile: a faixa do fator que passa do limite da máquina é aparada (hachurada na imagem).
+      const refile = `fill="#c0261b" fill-opacity="0.12" stroke="${COR.corte}" stroke-width="${num(sw)}" stroke-dasharray="${num(sw * 5)} ${num(sw * 3)}"`;
+      if (op.wfUtil < op.wf - 1e-6) s += `<rect x="${num(x0 + op.wfUtil)}" y="${num(y0)}" width="${num(op.wf - op.wfUtil)}" height="${num(op.hf)}" ${refile}/>`;
+      if (op.hfUtil < op.hf - 1e-6) s += `<rect x="${num(x0)}" y="${num(y0 + op.hfUtil)}" width="${num(op.wf)}" height="${num(op.hf - op.hfUtil)}" ${refile}/>`;
       if (m74) {
-        s += `<rect x="${num(x0 + op.wf - pinca)}" y="${num(y0)}" width="${pinca}" height="${num(op.hf)}" fill="${COR.pinca}"/>`;
-        if (barra) s += `<rect x="${num(x0)}" y="${num(y0)}" width="${barra}" height="${num(op.hf)}" fill="${COR.barra}"/>`;
+        s += `<rect x="${num(x0 + op.wfUtil - pinca)}" y="${num(y0)}" width="${pinca}" height="${num(op.hfUtil)}" fill="${COR.pinca}"/>`;
+        if (barra) s += `<rect x="${num(x0)}" y="${num(y0)}" width="${barra}" height="${num(op.hfUtil)}" fill="${COR.barra}"/>`;
       } else {
-        s += `<rect x="${num(x0)}" y="${num(y0 + op.hf - pinca)}" width="${num(op.wf)}" height="${pinca}" fill="${COR.pinca}"/>`;
-        if (barra) s += `<rect x="${num(x0)}" y="${num(y0)}" width="${num(op.wf)}" height="${barra}" fill="${COR.barra}"/>`;
+        s += `<rect x="${num(x0)}" y="${num(y0 + op.hfUtil - pinca)}" width="${num(op.wfUtil)}" height="${pinca}" fill="${COR.pinca}"/>`;
+        if (barra) s += `<rect x="${num(x0)}" y="${num(y0)}" width="${num(op.wfUtil)}" height="${barra}" fill="${COR.barra}"/>`;
       }
       const base = op.girada90 ? `translate(${num(x0 + op.ox0 + arr.hp)} ${num(y0 + op.oy0)}) rotate(90)` : `translate(${num(x0 + op.ox0)} ${num(y0 + op.oy0)})`;
       s += `<g transform="${base} translate(${num(ou)} ${num(ov)})">`;
@@ -110,9 +114,9 @@ export function svgDaPreMontagem(d: DadosDaImagem): string {
   s += `<line x1="40" y1="140" x2="${W - 40}" y2="140" stroke="${COR.linha}" stroke-width="2"/>`;
 
   // Folha inteira
-  s += `<text x="${num(fx + fw / 2)}" y="${num(fy - 14)}" font-size="26" font-weight="700" text-anchor="middle" fill="${COR.tinta}">Folha ${fmt(op.formato.w / 10)} × ${fmt(op.formato.h / 10)} cm${op.sobMedida ? " (sob medida)" : ""}</text>`;
+  s += `<text x="${num(fx + fw / 2)}" y="${num(fy - 14)}" font-size="26" font-weight="700" text-anchor="middle" fill="${COR.tinta}">Folha ${fmt(op.formato.w / 10)} × ${fmt(op.formato.h / 10)} cm (fibra no ${fmt(op.formato.h / 10)})${op.sobMedida ? " · sob medida" : ""}</text>`;
   s += `<svg x="${num(fx)}" y="${num(fy)}" width="${num(fw)}" height="${num(fh)}" viewBox="0 0 ${f.w} ${f.h}" overflow="visible">${f.svg}</svg>`;
-  s += `<text x="${num(fx + fw / 2)}" y="${num(fy + fh + 32)}" font-size="19" text-anchor="middle" fill="${COR.suave}">Fator ${fmt(op.wf / 10)} × ${fmt(op.hf / 10)} cm · passagem na ${op.fibraMaquina === "74" ? "horizontal" : "vertical"} · fibra no segundo número da folha</text>`;
+  s += `<text x="${num(fx + fw / 2)}" y="${num(fy + fh + 32)}" font-size="19" text-anchor="middle" fill="${COR.suave}">Fator ${fmt(op.wf / 10)} × ${fmt(op.hf / 10)} cm (fibra no ${fmt(op.hf / 10)}) · passagem na ${op.fibraMaquina === "74" ? "horizontal" : "vertical"}</text>`;
   s += `<text x="${num(fx + fw / 2)}" y="${num(fy + fh + 58)}" font-size="19" text-anchor="middle" fill="${COR.suave}">cinza = pinça · azul = barra de controle · tracejado vermelho = corte da folha</text>`;
 
   // Dados

@@ -49,6 +49,12 @@ export const CONFIG = {
   espacoFacasMm: 4,
 
   // Produzir de 100% a 110% do pedido, nunca menos.
+  // Aproveitamento mínimo: montagens abaixo disso não são consideradas em nenhum caso (Thiago: 70% em 20/10/2026, baixado para 50% no mesmo dia).
+  aproveitamentoMinimo: 0.5,
+
+  // Entre duas montagens com as mesmas poses, a que encosta a ponta preferida (tampa com tampa) ganha se
+  // perder no máximo isto de aproveitamento (0,005 = meio ponto percentual).
+  toleranciaContato: 0.005,
   toleranciaAcima: 0.1,
 
   // EXEMPLO: lista de formatos e ofertas. Os formatos são os mesmos para qualquer papel.
@@ -56,6 +62,7 @@ export const CONFIG = {
     { w: 660, h: 960, oferta: 3 },
     { w: 960, h: 660, oferta: 3 },
     { w: 770, h: 1130, oferta: 2 },
+    { w: 1130, h: 770, oferta: 2 },
     { w: 1020, h: 720, oferta: 2 },
   ] satisfies FormatoFolha[],
 

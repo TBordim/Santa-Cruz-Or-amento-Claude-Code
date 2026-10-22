@@ -74,15 +74,18 @@ export function MontagemSvg({
         const base = op.girada90 ? `translate(${x0 + op.ox0 + arr.hp} ${y0 + op.oy0}) rotate(90)` : `translate(${x0 + op.ox0} ${y0 + op.oy0})`;
         return (
           <g key={`${x0}-${y0}`}>
+            {/* Refile: a faixa do fator que passa do limite da máquina é aparada (hachurada). */}
+            {op.wfUtil < op.wf - 1e-6 && <rect x={x0 + op.wfUtil} y={y0} width={op.wf - op.wfUtil} height={op.hf} className="fill-destructive/10 stroke-destructive" strokeWidth={1} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />}
+            {op.hfUtil < op.hf - 1e-6 && <rect x={x0} y={y0 + op.hfUtil} width={op.wf} height={op.hf - op.hfUtil} className="fill-destructive/10 stroke-destructive" strokeWidth={1} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />}
             {m74 ? (
               <>
-                <rect x={x0 + op.wf - pinca} y={y0} width={pinca} height={op.hf} className="fill-muted-foreground/30" />
-                {barra > 0 && <rect x={x0} y={y0} width={barra} height={op.hf} className="fill-primary/15" />}
+                <rect x={x0 + op.wfUtil - pinca} y={y0} width={pinca} height={op.hfUtil} className="fill-muted-foreground/30" />
+                {barra > 0 && <rect x={x0} y={y0} width={barra} height={op.hfUtil} className="fill-primary/15" />}
               </>
             ) : (
               <>
-                <rect x={x0} y={y0 + op.hf - pinca} width={op.wf} height={pinca} className="fill-muted-foreground/30" />
-                {barra > 0 && <rect x={x0} y={y0} width={op.wf} height={barra} className="fill-primary/15" />}
+                <rect x={x0} y={y0 + op.hfUtil - pinca} width={op.wfUtil} height={pinca} className="fill-muted-foreground/30" />
+                {barra > 0 && <rect x={x0} y={y0} width={op.wfUtil} height={barra} className="fill-primary/15" />}
               </>
             )}
             <g transform={`${base} translate(${ou} ${ov})`}>
@@ -105,10 +108,10 @@ export function MontagemSvg({
             Folha {fmt(W / 10)} × {fmt(H / 10)} cm
           </text>
           <text x={W + pad * 0.25} y={H / 2} fontSize={fs * 0.85} transform={`rotate(90 ${W + pad * 0.25} ${H / 2})`} textAnchor="middle" className="fill-foreground">
-            fibra ↕ (segundo número)
+            fibra ↕ no {fmt(H / 10)} (segundo número)
           </text>
           <text x={W / 2} y={H + pad * 0.7} fontSize={fs * 0.85} textAnchor="middle" className="fill-muted-foreground">
-            Fator {fmt(op.wf / 10)} × {fmt(op.hf / 10)} cm · cinza = pinça · azul = barra de controle · passagem na {m74 ? "horizontal" : "vertical"}
+            Fator {fmt(op.wf / 10)} × {fmt(op.hf / 10)} cm (fibra no {fmt(op.hf / 10)}) · cinza = pinça · azul = barra de controle · passagem na {m74 ? "horizontal" : "vertical"}
           </text>
         </>
       )}
