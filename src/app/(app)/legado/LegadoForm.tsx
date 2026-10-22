@@ -44,13 +44,26 @@ export function LegadoForm() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="codInterno">Código interno (Santa Cruz)</Label>
-              <CodigoInternoInput id="codInterno" name="codInterno" required />
-              <span className="text-xs text-muted-foreground">Obrigatório — é por esse código que a Diretoria compara com pedidos atuais.</span>
+              <CodigoInternoInput id="codInterno" name="codInterno" />
+              <span className="text-xs text-muted-foreground">
+                Informe o código OU as medidas abaixo (ao menos comprimento e largura). Produto que o cliente não aprovou não tem código.
+              </span>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="produtoDescricao">Descrição do produto</Label>
               <Input id="produtoDescricao" name="produtoDescricao" required />
             </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Medidas (mm)</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <Input name="medidaF" placeholder="Comprimento" inputMode="decimal" aria-label="Comprimento (mm)" />
+              <Input name="medidaL" placeholder="Largura" inputMode="decimal" aria-label="Largura (mm)" />
+              <Input name="medidaA" placeholder="Altura" inputMode="decimal" aria-label="Altura (mm)" />
+            </div>
+            <span className="text-xs text-muted-foreground">
+              Sem código, é pelas medidas exatas do mesmo cliente que a Diretoria encontra este registro para comparar o preço.
+            </span>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">

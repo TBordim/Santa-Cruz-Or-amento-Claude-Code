@@ -16,20 +16,25 @@ export function ListaDinamica({
   placeholder,
   valoresIniciais,
   botaoLabel,
+  obrigatorio = false,
 }: {
   name: string;
   placeholder?: string;
   valoresIniciais?: string[];
   botaoLabel: string;
+  // A primeira linha é obrigatória (as demais são extras).
+  obrigatorio?: boolean;
 }) {
   const [valores, setValores] = useState<string[]>(valoresIniciais?.length ? valoresIniciais : [""]);
 
   return (
-    <div className="flex flex-col gap-2">
+    // Valores curtos (quantidades): as linhas quebram lado a lado em vez de uma por linha inteira.
+    <div className="flex flex-wrap items-center gap-2">
       {valores.map((v, i) => (
-        <div key={i} className="flex items-center gap-2">
+        <div key={i} className="flex w-44 items-center gap-1">
           <Input
             name={name}
+            required={obrigatorio && i === 0}
             value={v}
             placeholder={placeholder}
             onChange={(e) => setValores(valores.map((x, j) => (j === i ? e.target.value : x)))}

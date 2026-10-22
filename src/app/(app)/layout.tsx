@@ -1,15 +1,21 @@
 import { sessaoAtual } from "@/lib/permissions";
 import { modulosAcessiveis } from "@/lib/modulos";
+import { contarPendentes, podeAcompanhar } from "@/lib/treinamentos/dados";
+import { setoresDaPessoa } from "@/lib/aceite/setores";
 import { Sidebar, MobileNav } from "./Sidebar";
 import { CommandPalette } from "@/components/command-palette";
+import { ModuloTabs } from "./ModuloTabs";
 
-// Não redireciona mais pra /login incondicionalmente — /novo (Novo Orçamento) é pública
-// (representante sem login, ver auth.config.ts). Cada página protegida (painel, diretoria,
-// administração, legado, histórico, resumo) faz seu próprio
-// `if (!sessao) redirect("/login")` no topo — mesmo padrão já usado em administracao/page.tsx.
+// Não redireciona pra /login aqui — o perímetro (login obrigatório, e representante só no /novo)
+// é do middleware (auth.config.ts). Cada página protegida (painel, diretoria, administração,
+// legado, histórico, resumo) faz seu próprio `if (!sessao) redirect("/login")` no topo — mesmo
+// padrão já usado em administracao/page.tsx.
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const sessao = await sessaoAtual();
   const modulos = sessao ? modulosAcessiveis(sessao.admin, sessao.areas) : [];
+  const pendentes = sessao ? await contarPendentes(sessao) : 0;
+  const acompanhamento = sessao ? podeAcompanhar(sessao) : false;
+  const setoresAceite = sessao ? setoresDaPessoa(sessao.admin, sessao.areas) : [];
 
   return (
     <div className="relative flex min-h-screen flex-col md:flex-row">
@@ -17,16 +23,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         nome={sessao?.nome ?? null}
         perfilNome={sessao?.perfilNome ?? null}
         admin={sessao?.admin ?? false}
-        modulos={modulos}
+        pendentes={pendentes}
+        acompanhamento={acompanhamento}
+        soNovo={sessao?.soNovo ?? false}
+        setoresAceite={setoresAceite}
       />
       <Sidebar
         nome={sessao?.nome ?? null}
         perfilNome={sessao?.perfilNome ?? null}
         admin={sessao?.admin ?? false}
-        modulos={modulos}
+        pendentes={pendentes}
+        acompanhamento={acompanhamento}
+        soNovo={sessao?.soNovo ?? false}
+        setoresAceite={setoresAceite}
       />
-      <main className="min-w-0 flex-1 px-4 pb-16 pt-5 sm:px-6 md:px-9 md:pt-7">{children}</main>
-      {sessao && <CommandPalette admin={sessao.admin ?? false} />}
+      {/* Abas de módulo no topo da área de conteúdo (ver ModuloTabs); representante não troca de módulo. */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {sessao && !sessao.soNovo && <ModuloTabs acessiveis={modulos} />}
+        <main className="min-w-0 flex-1 px-4 pb-16 pt-5 sm:px-6 md:px-9 md:pt-7">{children}</main>
+      </div>
+      {sessao && !sessao.soNovo && <CommandPalette admin={sessao.admin ?? false} />}
     </div>
   );
 }

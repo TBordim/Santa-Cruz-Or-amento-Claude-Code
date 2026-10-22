@@ -3,6 +3,23 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+// URL que o migrate usa. Com APP_DATABASE_URL (ver src/lib/db.ts) vale o par APP_*, nunca as
+// variáveis da integração. Se só a APP_DATABASE_URL (pooled) existir, a conexão DIRETA é a mesma
+// URL sem "-pooler" no endereço (no Neon, pooled e direta são o mesmo servidor, banco e login) —
+// assim não é preciso cadastrar uma segunda variável.
+function urlDoMigrate(): string | undefined {
+  const app = process.env["APP_DATABASE_URL"];
+  if (!app) return process.env["DATABASE_URL_UNPOOLED"] || process.env["DATABASE_URL"];
+  if (process.env["APP_DATABASE_URL_UNPOOLED"]) return process.env["APP_DATABASE_URL_UNPOOLED"];
+  try {
+    const u = new URL(app);
+    u.hostname = u.hostname.replace("-pooler", "");
+    return u.toString();
+  } catch {
+    return app;
+  }
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
@@ -14,7 +31,10 @@ export default defineConfig({
     // migrate segura uma "advisory lock" de sessão, e através do pooler essa trava pode ficar
     // presa numa conexão reaproveitada, travando os builds seguintes (erro P1002 no deploy de
     // 27/09/2026). Local não tem DATABASE_URL_UNPOOLED e segue usando o DATABASE_URL de sempre.
-    url: process.env["DATABASE_URL_UNPOOLED"] || process.env["DATABASE_URL"],
+    // Com APP_DATABASE_URL definida (ver src/lib/db.ts), o migrate usa o par APP_* — nunca mistura
+    // com as variáveis da integração, que podem apontar pra outro banco. A conexão direta
+    // (APP_DATABASE_URL_UNPOOLED) é exigida pelo scripts/verificar-banco.mjs em produção.
+    url: urlDoMigrate(),
     shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"],
   },
 });

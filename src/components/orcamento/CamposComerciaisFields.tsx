@@ -1,8 +1,10 @@
 import { ListaDinamica } from "./ListaDinamica";
 import { SuportesLista } from "./SuportesLista";
+import { ModelosLista } from "./ModelosLista";
+import { ClienteProvider, ClienteSecao, CampoCliente } from "./ClienteSecao";
+import { AnexosNovo } from "./AnexosNovo";
 import {
   ORIGENS_PEDIDO,
-  CLASSIFICACOES,
   ANALISE_CREDITO,
   OPCOES_FSC,
   OPCOES_IMPRESSAO,
@@ -12,17 +14,17 @@ import {
   OPCOES_EMBALAGEM,
   OPCOES_MODALIDADE,
 } from "@/lib/orcamentos/constantes";
-import type { ReqCliente } from "@/lib/orcamentos/types";
-import { FormSection, Field, Row2 } from "@/components/form-section";
+import type { Modelo, ReqCliente } from "@/lib/orcamentos/types";
+import { FormSection, Field, Grade } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CodigoInternoInput } from "./CodigoInternoInput";
 
 function CheckGroup({ nome, opcoes, marcados }: { nome: string; opcoes: readonly string[]; marcados?: string[] }) {
   return (
-    <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 @md:grid-cols-3 @2xl:grid-cols-4">
       {opcoes.map((op) => (
         <label key={op} className="flex min-h-9 items-center gap-2 text-sm md:min-h-0">
           <Checkbox name={nome} value={op} defaultChecked={marcados?.includes(op)} />
@@ -36,12 +38,22 @@ function CheckGroup({ nome, opcoes, marcados }: { nome: string; opcoes: readonly
 // Equivalente a camposComerciaisFieldsHtml() (santa-cruz-orcamentos.html, linhas 3163-3282) —
 // compartilhado entre "Novo Orçamento" (sem login) e a etapa "Em Aberto" (editando um card
 // existente). `defaults` é opcional: vazio para um card novo.
+//
+// Descrição, códigos e classificação do produto ficam por modelo (ModelosLista) desde
+// 30/09/2026 — um orçamento pode ter vários modelos na mesma faca.
 export function CamposComerciaisFields({
   defaults,
+  comBuscaCliente = false,
+  codigoOpcional = false,
 }: {
+  // Representante em viagem pode não ter o código interno à mão: repetição não exige o código
+  // na tela. O escritório completa em Em Aberto, que exige antes de liberar pra Engenharia.
+  codigoOpcional?: boolean;
+  // Busca no cadastro de clientes (Novo Orçamento). Em Aberto, onde o card já tem cliente, fica
+  // desligada.
+  comBuscaCliente?: boolean;
   defaults?: {
     origemPedido?: string | null;
-    classificacao?: string | null;
     classificacaoDetalhe?: string | null;
     analiseCredito?: string | null;
     fsc?: string | null;
@@ -59,20 +71,21 @@ export function CamposComerciaisFields({
     entregaLocalidade?: string | null;
     qtdEntregas?: string | null;
     entregaDatas?: string | null;
-    produtoDescricao?: string | null;
-    codigoCliente?: string | null;
-    codInterno?: string | null;
+    modelos?: Modelo[];
     obs?: string | null;
     reqCliente?: ReqCliente | null;
   };
 }) {
   const r = defaults?.reqCliente;
-  const ehRepeticao = defaults?.classificacao?.startsWith("REPETICAO");
 
   return (
-    <>
-      <FormSection title="Classificação">
-        <Row2>
+    <ClienteProvider>
+     {/* @container: as Grades abaixo se adaptam à largura DISPONÍVEL (página larga, gaveta ou celular). */}
+     <div className="@container">
+      <FormSection title="Classificação" denso>
+        {/* A classificação (novo/repetição) em si fica em cada modelo, na seção Produto. Os quatro
+            campos curtos ficam numa linha só (antes eram 3 linhas, uma delas com um campo só). */}
+        <Grade cols={4}>
           <Field label="Origem do pedido">
             <Select name="origemPedido" defaultValue={defaults?.origemPedido ?? ORIGENS_PEDIDO[0]}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
@@ -81,19 +94,6 @@ export function CamposComerciaisFields({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Classificação">
-            <Select name="classificacao" defaultValue={defaults?.classificacao ?? "NOVO"}>
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CLASSIFICACOES.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </Field>
-        </Row2>
-        <Field label="Detalhe da classificação">
-          <Input name="classificacaoDetalhe" defaultValue={defaults?.classificacaoDetalhe ?? ""} />
-        </Field>
-        <Row2>
           <Field label="Análise de crédito">
             <Select name="analiseCredito" defaultValue={defaults?.analiseCredito ?? ANALISE_CREDITO[0]}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
@@ -110,35 +110,24 @@ export function CamposComerciaisFields({
               </SelectContent>
             </Select>
           </Field>
-        </Row2>
-        <label className="flex min-h-9 items-center gap-2 text-sm md:min-h-0">
-          <Checkbox name="usaSelo" defaultChecked={defaults?.usaSelo ?? false} />
-          <span>Usa selo</span>
-        </label>
+          <label className="flex min-h-9 items-center gap-2 text-sm md:min-h-8">
+            <Checkbox name="usaSelo" defaultChecked={defaults?.usaSelo ?? false} />
+            <span>Usa selo</span>
+          </label>
+          {/* Dispensado no Novo Orçamento (02/10/2026); segue disponível em Em Aberto. */}
+          {!comBuscaCliente && (
+            <Field label="Detalhe da classificação" className="@2xl:col-span-2">
+              <Input name="classificacaoDetalhe" defaultValue={defaults?.classificacaoDetalhe ?? ""} />
+            </Field>
+          )}
+        </Grade>
       </FormSection>
 
-      <FormSection title="Cliente">
-        <Field label="Cliente">
-          <Input name="cliente" required defaultValue={defaults?.cliente ?? ""} />
-        </Field>
-        <Row2>
-          <Field label="CNPJ"><Input name="cnpj" defaultValue={defaults?.cnpj ?? ""} /></Field>
-          <Field label="Endereço"><Input name="endereco" defaultValue={defaults?.endereco ?? ""} /></Field>
-        </Row2>
-        <Row2>
-          <Field label="Representante"><Input name="representante" defaultValue={defaults?.representante ?? ""} /></Field>
-          <Field label="Comissão CEV"><Input name="comissaoCev" defaultValue={defaults?.comissaoCev ?? ""} /></Field>
-        </Row2>
-        <Row2>
-          <Field label="Telefone"><Input name="telefone" defaultValue={defaults?.telefone ?? ""} /></Field>
-          <Field label="E-mail"><Input name="email" type="email" defaultValue={defaults?.email ?? ""} /></Field>
-        </Row2>
-        <Field label="Contato compras"><Input name="contatoCompras" defaultValue={defaults?.contatoCompras ?? ""} /></Field>
-      </FormSection>
+      <ClienteSecao defaults={defaults} comBusca={comBuscaCliente} />
 
-      <FormSection title="Condições comerciais e entrega">
-        <Field label="Condição de pagamento"><Input name="condPagamento" defaultValue={defaults?.condPagamento ?? ""} /></Field>
-        <Row2>
+      <FormSection title="Condições comerciais e entrega" denso>
+        <Grade cols={3}>
+          <Field label="Condição de pagamento"><CampoCliente nome="condPagamento" campo="condPagamento" defaultValue={defaults?.condPagamento} /></Field>
           <Field label="Modalidade">
             <Select name="modalidade" defaultValue={defaults?.modalidade ?? OPCOES_MODALIDADE[0]}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
@@ -147,64 +136,98 @@ export function CamposComerciaisFields({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Localidade de entrega"><Input name="entregaLocalidade" defaultValue={defaults?.entregaLocalidade ?? ""} /></Field>
-        </Row2>
-        <Row2>
-          <Field label="Qtd. de entregas"><Input name="qtdEntregas" defaultValue={defaults?.qtdEntregas ?? ""} /></Field>
-          <Field label="Datas de entrega"><Input name="entregaDatas" defaultValue={defaults?.entregaDatas ?? ""} /></Field>
-        </Row2>
+          <Field label={comBuscaCliente ? "Qtd. de entregas (obrigatório)" : "Qtd. de entregas"}>
+            <Input name="qtdEntregas" required={comBuscaCliente} defaultValue={defaults?.qtdEntregas ?? ""} />
+          </Field>
+          <Field label={comBuscaCliente ? "Data de entrega solicitada pelo Cliente (obrigatório)" : "Data de entrega solicitada pelo Cliente"}>
+            <Input name="entregaDatas" required={comBuscaCliente} defaultValue={defaults?.entregaDatas ?? ""} />
+          </Field>
+          <Field label="Localidade de entrega" className="@md:col-span-1 @2xl:col-span-2">
+            <CampoCliente nome="entregaLocalidade" campo="entregaLocalidade" defaultValue={defaults?.entregaLocalidade} />
+          </Field>
+        </Grade>
       </FormSection>
 
-      <FormSection title="Produto">
-        <Field label="Descrição do produto">
-          <Input name="produtoDescricao" required defaultValue={defaults?.produtoDescricao ?? ""} />
-        </Field>
-        <Field label="Código do cliente" hint="O código que o próprio cliente usa pro produto — só pra registro, formato livre.">
-          <Input name="codigoCliente" defaultValue={defaults?.codigoCliente ?? ""} />
-        </Field>
-        <Field label="Quantidades a orçar">
-          <ListaDinamica name="quantidades" placeholder="Ex.: 5000" botaoLabel="+ Adicionar quantidade" valoresIniciais={r?.quantidadesLista} />
-        </Field>
+      <FormSection title="Produto" denso>
+        {/* `key` pelo conteúdo gravado: depois de salvar, a lista recomeça com o que voltou do
+            servidor — é lá que um modelo novo ganha o id que liga ele à própria arte. Sem isso,
+            a linha continuava sem id e ganhava OUTRO id no salvamento seguinte. */}
+        <ModelosLista key={JSON.stringify(defaults?.modelos ?? [])} valoresIniciais={defaults?.modelos} codigoOpcional={codigoOpcional} />
         <Field
-          label="Código interno (Santa Cruz)"
-          hint={ehRepeticao ? "Obrigatório — o produto já existe no sistema. Formato 0.000.000." : "Em produto novo é gerado na Engenharia. Formato 0.000.000."}
+          label={comBuscaCliente ? "Quantidades a orçar (obrigatório)" : "Quantidades a orçar"}
+          hint="Total do conjunto (todos os modelos). Cada quantidade gera uma SO."
         >
-          <CodigoInternoInput name="codInterno" required={ehRepeticao} defaultValue={defaults?.codInterno ?? ""} />
+          <ListaDinamica name="quantidades" placeholder="Ex.: 5000" botaoLabel="Adicionar quantidade" obrigatorio={comBuscaCliente} valoresIniciais={r?.quantidadesLista} />
         </Field>
         <Field label="Observações">
           <Textarea name="obs" rows={2} defaultValue={defaults?.obs ?? ""} />
         </Field>
+        {/* Link e anexos lado a lado (cada um com uma linha só de campo). */}
+        <Grade cols={2}>
+          <Field label="Link da arte (Drive, WeTransfer...)" hint="Opcional. Cole o link se o cliente mandou a arte assim.">
+            <Input name="linkArte" inputMode="url" placeholder="https://drive.google.com/..." defaultValue={r?.linkArte ?? ""} />
+          </Field>
+          {/* Só no Novo Orçamento: o orçamento ainda não existe, então os arquivos vão junto do envio.
+              Em Em Aberto os anexos têm a própria seção, na gaveta. */}
+          {comBuscaCliente && (
+            <Field label="Anexos" hint="Imagens ou PDF. Opcional.">
+              <AnexosNovo />
+            </Field>
+          )}
+        </Grade>
       </FormSection>
 
-      <FormSection title="Medidas e suporte">
-        <Row2 compacto>
-          <Field label="Formato — Comprimento (mm)"><Input name="medidaF" defaultValue={r?.medidaF ?? ""} /></Field>
-          <Field label="Formato — Largura (mm)"><Input name="medidaL" defaultValue={r?.medidaL ?? ""} /></Field>
-        </Row2>
-        <Field label="Altura (mm)"><Input name="medidaA" defaultValue={r?.medidaA ?? ""} /></Field>
+      {/* Dados técnicos: o representante preenche o que tiver; o que ficar em branco a Engenharia
+          analisa na etapa seguinte. No Novo Orçamento começa recolhido pra encurtar o formulário
+          (os campos recolhidos continuam indo no envio); em Em Aberto, onde o card já existe,
+          começa aberto. */}
+      <details open={!comBuscaCliente} className="group mt-6 border-t border-border pt-6">
+        {/* O <summary> é o botão de abrir/fechar: caixa com borda e fundo, seta que gira. */}
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-border bg-secondary px-4 py-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-semibold text-foreground">Detalhes técnicos</span>
+            <span className="text-xs font-normal text-muted-foreground">
+              Se você tiver essas informações, preencha (medidas, material e impressão são exigidos antes de seguir para a Engenharia). Se não tiver, deixe em branco: o escritório completa.
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <span className="group-open:hidden">Abrir</span>
+            <span className="hidden group-open:inline">Fechar</span>
+            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+          </span>
+        </summary>
+        <div className="mt-4">
+      <FormSection title="Medidas e suporte" denso>
+        {/* As três medidas numa linha (a Altura ficava sozinha). */}
+        <div className="grid grid-cols-3 items-end gap-3">
+          <Field label="Comprimento (mm)"><Input name="medidaF" defaultValue={r?.medidaF ?? ""} /></Field>
+          <Field label="Largura (mm)"><Input name="medidaL" defaultValue={r?.medidaL ?? ""} /></Field>
+          <Field label="Altura (mm)"><Input name="medidaA" defaultValue={r?.medidaA ?? ""} /></Field>
+        </div>
         <SuportesLista
           campoA="suporteDescricao"
           campoB="suporteGramatura"
           labelA="Descrição do material"
           labelB="Gramatura (g/m²)"
-          valoresIniciais={r?.suportes?.map((s) => ({ a: s.descricao, b: s.gramatura }))}
+          valoresIniciais={r?.suportes?.map((s, i) => ({ a: s.descricao, b: s.gramatura, uso: i === 0 ? "opcao" : (s.uso ?? "") }))}
+          comUso
         />
       </FormSection>
 
-      <FormSection title="Acabamento">
+      <FormSection title="Acabamento" denso>
         <CheckGroup nome="acabamentos" opcoes={OPCOES_ACABAMENTO} marcados={r?.acabamentos} />
         <Field label="Outro acabamento"><Input name="acabamentoOutro" defaultValue={r?.acabamentoOutro ?? ""} /></Field>
       </FormSection>
 
-      <FormSection title="Revestimento — verniz">
+      <FormSection title="Revestimento — verniz" denso>
         <CheckGroup nome="verniz" opcoes={OPCOES_VERNIZ} marcados={r?.verniz} />
       </FormSection>
 
-      <FormSection title="Revestimento — plástico">
+      <FormSection title="Revestimento — plástico" denso>
         <CheckGroup nome="plastico" opcoes={OPCOES_PLASTICO} marcados={r?.plastico} />
       </FormSection>
 
-      <FormSection title="Embalagem">
+      <FormSection title="Embalagem" denso>
         <CheckGroup nome="embalagem" opcoes={OPCOES_EMBALAGEM} marcados={r?.embalagem} />
         <Field
           label="Detalhe da embalagem"
@@ -214,13 +237,16 @@ export function CamposComerciaisFields({
         </Field>
       </FormSection>
 
-      <FormSection title="Impressão e fechamento">
+      <FormSection title="Impressão e fechamento" denso>
         <CheckGroup nome="impressao" opcoes={OPCOES_IMPRESSAO} marcados={r?.impressao} />
-        <Row2>
+        <Grade cols={2}>
           <Field label="Fechamento tampa"><Input name="fechamentoTampa" defaultValue={r?.fechamentoTampa ?? ""} /></Field>
           <Field label="Fechamento fundo"><Input name="fechamentoFundo" defaultValue={r?.fechamentoFundo ?? ""} /></Field>
-        </Row2>
+        </Grade>
       </FormSection>
-    </>
+        </div>
+      </details>
+     </div>
+    </ClienteProvider>
   );
 }

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; background: #F4EEE3; font-family: "Segoe UI", Arial, sans-serif; }
+  #fundo { position: absolute; inset: -30px; background: url(fundo.png) center/cover; filter: blur(9px) saturate(.9); }
+  #veu { position: absolute; inset: 0; background: rgba(244,238,227,.45); }
+  #santinho { position: absolute; left: 390px; top: 350px; width: 560px; height: 560px; margin: -280px 0 0 -280px; }
+  #titulo { position: absolute; left: 700px; top: 62px; font: 700 34px "Fredoka", sans-serif; color: #4A2208; }
+  #titulo small { display: block; font: 600 16px "Segoe UI", Arial, sans-serif; color: #9A430A; letter-spacing: 3px; margin-bottom: 2px; }
+  .etapa { position: absolute; left: 700px; width: 470px; height: 64px; border-radius: 16px; background: #FFFDF8; border: 2px solid #E9D9C3;
+    box-shadow: 0 6px 18px rgba(74,34,8,.10); display: flex; align-items: center; gap: 14px; padding: 0 16px; box-sizing: border-box; }
+  .num { width: 38px; height: 38px; border-radius: 50%; flex: none; display: grid; place-items: center; font: 700 20px "Fredoka", sans-serif; color: #fff;
+    background: linear-gradient(180deg, #FFA646, #F47216); border: 3px solid #4A2208; }
+  .txt b { display: block; font: 700 21px "Segoe UI", Arial, sans-serif; color: #3A1905; }
+  .txt span { font: 500 15px "Segoe UI", Arial, sans-serif; color: #6B4A33; }
+  .quem { margin-left: auto; font: 600 12px "Segoe UI", Arial, sans-serif; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+  .lab { background: #F7E4F1; color: #7A3B69; } .prod { background: #DDEDED; color: #2F5F5F; }
+  .seta { position: absolute; left: 925px; width: 20px; height: 18px; }
+  .seta::before { content: ""; position: absolute; left: 8px; top: 0; width: 4px; height: 10px; background: #C9A27F; border-radius: 2px; }
+  .seta::after { content: ""; position: absolute; left: 3px; top: 8px; border: 7px solid transparent; border-top: 9px solid #C9A27F; }
+  #legenda { position: absolute; left: 0; right: 0; bottom: 42px; text-align: center; }
+  #legenda span { display: inline-block; max-width: 900px; padding: 10px 22px; border-radius: 10px; background: rgba(20,12,6,.78); color: #fff; font: 600 30px/1.3 "Segoe UI", Arial, sans-serif; white-space: pre-line; }
+</style>
+</head>
+<body>
+  <div id="fundo"></div><div id="veu"></div>
+  <img id="santinho" src="santinho.svg">
+  <div id="titulo"><small>COMO FUNCIONA</small>Do alvo ao lote</div>
+  <div id="etapas"></div>
+  <div id="legenda"><span></span></div>
+<script>
+  const DADOS = JSON.parse(decodeURIComponent(new URLSearchParams(location.search).get("d")));
+  const OFF = 0.3, FIM = DADOS.dur;   // a voz entra em 0,3 s
+  const ETAPAS = [
+    ["Cor", "LAB alvo da amostra do cliente", "Lab / Eng", "lab"],
+    ["Rodadas", "fórmulas testadas, uma por tentativa", "Lab / Eng", "lab"],
+    ["Puxada", "o melhor LAB lido no Quick Peek", "Lab / Eng", "lab"],
+    ["Aprovação", "a rodada que chegou na cor", "Lab / Eng", "lab"],
+    ["Produção", "consulta a fórmula e calcula o lote", "Produção", "prod"],
+  ];
+  const box = document.getElementById("etapas"), els = [];
+  ETAPAS.forEach(([t, s, q, c], i) => {
+    const y = 140 + i * 88;
+    const e = document.createElement("div"); e.className = "etapa"; e.style.top = y + "px";
+    e.innerHTML = `<div class="num">${i + 1}</div><div class="txt"><b>${t}</b><span>${s}</span></div><div class="quem ${c}">${q}</div>`;
+    box.appendChild(e);
+    let seta = null;
+    if (i > 0) { seta = document.createElement("div"); seta.className = "seta"; seta.style.top = (y - 21) + "px"; box.appendChild(seta); }
+    els.push([e, seta]);
+  });
+  const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const ease = x => 1 - Math.pow(1 - cl(x), 3);
+  const sant = document.getElementById("santinho"), leg = document.getElementById("legenda").firstElementChild;
+  document.fonts.load('700 34px "Fredoka"');
+  window.FIM = FIM;
+  window.render = function (t) {
+    const vivo = t + 20;  // mesma "respiração" do fim da cena 1
+    sant.style.transform = `translateY(${Math.sin(vivo * 2.4) * 7}px) rotate(${Math.sin(vivo * 1.7) * 2.5}deg) scale(.88)`;
+    document.getElementById("titulo").style.opacity = ease(t / 0.5);
+    els.forEach(([e, seta], i) => {
+      const k = ease((t - (OFF + DADOS.gatilhos[i] - 0.15)) / 0.45);
+      e.style.opacity = 0.18 + 0.82 * k;
+      e.style.transform = `translateX(${30 * (1 - k)}px) scale(${0.97 + 0.03 * k})`;
+      e.style.borderColor = k > 0.5 ? "#F4A15A" : "#E9D9C3";
+      if (seta) seta.style.opacity = 0.2 + 0.8 * k;
+    });
+    let txt = "";
+    for (const b of DADOS.blocos) if (t >= OFF + b.ini && t < OFF + b.fim + 0.25) { txt = b.txt.replaceAll("\\N", "\n"); }
+    leg.textContent = txt; leg.parentElement.style.opacity = txt ? 1 : 0;
+  };
+  render(0);
+</script>
+</body>
+</html>

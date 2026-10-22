@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { legadosDoCliente } from "@/lib/orcamentos/legado";
+import { medidasDoReq } from "@/lib/orcamentos/medidas";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
@@ -24,7 +25,7 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
     <>
       <PageHeader
         title="Arquivo legado"
-        description="Registros antigos, digitalizados a partir da papelada física — entram no Histórico e são comparados pela Diretoria pelo Código interno (Santa Cruz)."
+        description="Registros antigos, digitalizados a partir da papelada física — entram no Histórico e são comparados pela Diretoria pelo Código interno (Santa Cruz) ou, sem código, pelas medidas exatas do mesmo cliente."
       />
 
       <LegadoForm />
@@ -69,6 +70,9 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
                     fotoUrl: l.fotoUrl,
                     fotoMime: l.fotoMime,
                     criadoEm: l.criadoEm,
+                    medidaF: medidasDoReq(l.reqCliente).F,
+                    medidaL: medidasDoReq(l.reqCliente).L,
+                    medidaA: medidasDoReq(l.reqCliente).A,
                   }}
                 />
               ))}
