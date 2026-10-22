@@ -11,15 +11,18 @@ export function DrawerSheet({
   titulo,
   descricao,
   children,
+  voltarPara = "/painel",
 }: {
   titulo: React.ReactNode;
   descricao: React.ReactNode;
   children: React.ReactNode;
+  // Quadro pra onde fechar a gaveta leva (o Atendimento ao Cliente abre a gaveta do Retorno do Cliente).
+  voltarPara?: string;
 }) {
   const router = useRouter();
 
   return (
-    <Sheet open onOpenChange={(open) => { if (!open) router.push("/painel"); }}>
+    <Sheet open onOpenChange={(open) => { if (!open) router.push(voltarPara); }}>
       {/* h-dvh (não 100vh): no celular a barra de endereço do navegador tira parte do 100vh e o
           rodapé da gaveta ficava escondido. .drawer-body (globals.css) cuida do teclado. */}
       <SheetContent className="drawer-body h-dvh! w-full! gap-0 overflow-y-auto p-0 sm:max-w-[760px]!">

@@ -1,12 +1,13 @@
 "use client";
 
-import { decidirDiretoriaFaixa, salvarRascunhoDiretoria } from "../actions";
+import { decidirDiretoriaFaixa, salvarRascunhoDiretoria, liberarDiretoriaResolvida, ajustarPrecoFinalDiretoria } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import type { OrcamentoAnteriorRef } from "@/lib/orcamentos/tiers";
 import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQuantidade } from "@/lib/orcamentos/motor";
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
-import { fmtMoney } from "@/lib/orcamentos/constantes";
+import { fmtMoney, fmtDate, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
+import { modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,9 +36,12 @@ function primeiro<T>(...vals: (T | null | undefined)[]): T | null {
 function ComparacaoAnteriorAtual({
   tier,
   anterior,
+  rastreio,
 }: {
   tier: PrecificacaoTier;
   anterior: { precoFinal: number | null; custoPrimarioPct: number | null; margemP2Pct: number | null; quantidade: string | null };
+  // Só quando o anterior veio por MEDIDAS (card sem código): o que foi achado, pra conferir.
+  rastreio?: { id: string; origem: "NOVO" | "LEGADO"; cliente: string | null; data: string; desfecho: string | null; medidas: string };
 }) {
   const discrepancia = avaliarDiscrepanciaLegado([
     { label: "Custo primário (%)", anterior: anterior.custoPrimarioPct, atual: tier.custoPrimarioPct },
@@ -54,8 +58,21 @@ function ComparacaoAnteriorAtual({
   ];
   return (
     <div className="overflow-hidden rounded-lg border border-border">
+      {rastreio && (
+        <div className="border-b border-border bg-warn-soft px-3 py-2 text-xs text-warn">
+          <strong>Comparado por medidas (este produto não tem código interno).</strong>{" "}
+          {rastreio.origem === "LEGADO" ? "Registro do Arquivo legado" : "Orçamento"} de {rastreio.cliente || "cliente sem nome"}, {fmtDate(rastreio.data)}
+          {rastreio.desfecho ? ` — desfecho: ${desfechoInfo(rastreio.desfecho).label}` : ""}; medidas iguais: {rastreio.medidas}. Confira se é mesmo o mesmo produto.
+          {rastreio.origem === "NOVO" && (
+            <>
+              {" "}
+              <a href={`/painel/${rastreio.id}`} className="underline underline-offset-2">Ver orçamento</a>
+            </>
+          )}
+        </div>
+      )}
       <div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
-        Os 4 campos que pesam na decisão de preço. Em cinza, o orçamento anterior; em destaque, <strong className="text-foreground">o valor atual</strong>.
+        Os 4 campos que pesam na decisão de preço. Em cinza, {rastreio ? "o orçamento anterior encontrado por medidas" : "o último fornecimento (mesmo código interno, qualquer papel)"}; em destaque, <strong className="text-foreground">o valor atual</strong>.
       </div>
       <Table>
         <TableHeader>
@@ -117,11 +134,16 @@ function TierCard({
   total: number;
   anteriorAoVivo: OrcamentoAnteriorRef | null;
 }) {
-  const titulo = total > 1 ? `Quantidade: ${tier.quantidade}` : "Precificação";
+  // Uma SO por quantidade × papel, não uma só pro card — o número aparece já no título de cada
+  // uma, pra facilitar o rastreamento.
+  const titulo =
+    total > 1
+      ? `Quantidade: ${tier.quantidade}${tier.papel ? ` · Papel: ${tier.papel}` : ""}${tier.numeroSequencial ? ` — SO ${tier.numeroSequencial}` : ""}`
+      : "Precificação";
   const pendente = tier.statusDiretoria === "pendente";
 
   // Cada campo resolve seu próprio "anterior", independente dos outros — na ordem: busca ao
-  // vivo por cliente+código interno, senão o valor congelado de quando este card chegou na
+  // vivo pelo código interno, senão o valor congelado de quando este card chegou na
   // Diretoria. O quadro sempre aparece (mesmo com tudo "sem dado anterior"), igual ao sistema
   // antigo.
   const anterior = {
@@ -133,7 +155,11 @@ function TierCard({
 
   return (
     <FormSection title={titulo}>
-      <ComparacaoAnteriorAtual tier={tier} anterior={anterior} />
+      <ComparacaoAnteriorAtual
+        tier={tier}
+        anterior={anterior}
+        rastreio={anteriorAoVivo?.via === "medidas" && anteriorAoVivo.rastreio ? { id: anteriorAoVivo.id, ...anteriorAoVivo.rastreio } : undefined}
+      />
 
       <div className="flex flex-col gap-1.5 rounded-lg border border-border p-3">
         <CritRow ok={tier.custoPrimarioPct !== null && tier.custoPrimarioPct <= LIMITE_CUSTO} label={`Custo primário até ${LIMITE_CUSTO}% (atual: ${fmtPctHelper(tier.custoPrimarioPct)})`} />
@@ -162,13 +188,30 @@ function TierCard({
           </div>
         </form>
       ) : (
-        <ResumoBox
-          rows={[
-            { label: "Status", value: tier.statusDiretoria === "auto_aprovado" ? "Auto-aprovado" : tier.statusDiretoria },
-            { label: "Preço final", value: fmtMoneyOrDash(tier.precoFinal) },
-            ...(tier.decididoPor ? [{ label: "Decidido por", value: tier.decididoPor }] : []),
-          ]}
-        />
+        <>
+          <ResumoBox
+            rows={[
+              { label: "Status", value: tier.statusDiretoria === "auto_aprovado" ? "Auto-aprovado" : tier.statusDiretoria },
+              ...(tier.decididoPor ? [{ label: "Decidido por", value: tier.decididoPor }] : []),
+              ...(tier.precoAjustadoPor
+                ? [{ label: "Preço ajustado por", value: `${tier.precoAjustadoPor}${tier.precoAjustadoEm ? ` · ${fmtDateTime(new Date(tier.precoAjustadoEm))}` : ""}` }]
+                : []),
+            ]}
+          />
+          {/* Preço continua editável mesmo depois de decidido — pode ter motivo pra mudar
+              (renegociação com o cliente, por exemplo) mesmo com a faixa já aprovada. Não reabre
+              a decisão em si (aprovar/pedir revisão), só o número. */}
+          <form action={ajustarPrecoFinalDiretoria} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="id" value={doc.id} />
+            <input type="hidden" name="idx" value={idx} />
+            <div className="min-w-[160px] flex-1">
+              <Field label="Preço final">
+                <Input name="precoFinal" defaultValue={paraCampoBR(tier.precoFinal)} />
+              </Field>
+            </div>
+            <Button type="submit" variant="outline">Salvar novo preço</Button>
+          </form>
+        </>
       )}
     </FormSection>
   );
@@ -182,6 +225,11 @@ export function PainelDiretoria({
   anteriorAoVivo: OrcamentoAnteriorRef | null;
 }) {
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
+  // Card que voltou pra Diretoria (via "Voltar etapa" a partir do Envio de Oferta) já com tudo
+  // decidido — nenhuma faixa pendente sobra pra abrir o formulário de decisão, então sem este
+  // botão não haveria nenhum jeito de avançar de novo. Ver liberarDiretoriaResolvida em actions.ts.
+  const tudoResolvido = tiers.length > 0 && tiers.every((t) => t.statusDiretoria !== "pendente");
+  const nModelos = modelosDoDoc(doc).length;
 
   return (
     <>
@@ -190,11 +238,20 @@ export function PainelDiretoria({
           Classificado como &quot;repetição sem alteração&quot;, mas as premissas mudaram — confira com atenção.
         </div>
       )}
+      {/* Condição comercial especial (comissão/desconto) lançada no Orçamento: pode pesar na
+          aprovação do preço, então aparece aqui em destaque e não só dentro da sanfona da etapa
+          3. Pedido do Thiago em 01/10/2026. */}
+      {doc.comissaoEspecial && (
+        <div className="mb-4 rounded-lg border border-warn/30 bg-warn-soft p-3 text-sm">
+          <div className="font-semibold text-warn">Condição comercial especial (comissão/desconto)</div>
+          <div className="mt-1 text-foreground">{doc.comissaoObs?.trim() || "Sem observação informada no Orçamento."}</div>
+        </div>
+      )}
       <ResumoBox
         rows={[
           { label: "Cliente", value: doc.cliente },
-          { label: "Produto", value: doc.produtoDescricao },
-          { label: "Nº de SOPP", value: doc.numeroSequencial || "—" },
+          { label: nModelos > 1 ? `Modelos (${nModelos})` : "Produto", value: doc.produtoDescricao },
+          { label: tiers.length > 1 ? "SOs" : "Nº da SO", value: doc.numeroSequencial || "—" },
         ]}
       />
 
@@ -202,6 +259,13 @@ export function PainelDiretoria({
         <TierCard key={i} doc={doc} tier={t} idx={i} total={tiers.length} anteriorAoVivo={anteriorAoVivo} />
       ))}
 
+      {tudoResolvido && (
+        <form action={liberarDiretoriaResolvida} className="mt-2 rounded-lg border border-good/30 bg-good-soft p-3">
+          <input type="hidden" name="id" value={doc.id} />
+          <div className="mb-2 text-sm text-foreground">Todas as faixas já foram decididas — falta só liberar para o Envio de Oferta.</div>
+          <Button type="submit">Liberar para Envio de Oferta</Button>
+        </form>
+      )}
     </>
   );
 }

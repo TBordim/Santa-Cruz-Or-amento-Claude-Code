@@ -34,9 +34,9 @@ export function PerfilForm({ perfil }: { perfil: PerfilEditavel }) {
             <span><strong>Administrador</strong> — acesso total, inclusive esta tela de Administração</span>
           </label>
           <div className="flex flex-col gap-3">
-            <Label>Pode editar</Label>
+            <Label>Acesso por módulo</Label>
             <p className="text-xs text-muted-foreground">
-              Colaboradores sempre podem ver todos os módulos — isto só controla onde podem salvar/alterar algo, agrupado por módulo.
+              A pessoa só entra num módulo se tiver ao menos uma área dele marcada. Cada área libera editar aquela etapa; &quot;Consulta&quot; libera só ver o módulo, sem editar nada.
             </p>
             {MODULOS.map((m) => {
               const areasDoModulo = AREAS.filter((a) => a.modulo === m.key);
@@ -44,6 +44,11 @@ export function PerfilForm({ perfil }: { perfil: PerfilEditavel }) {
               return (
                 <div key={m.key} className="flex flex-col gap-2">
                   <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">{m.label}</span>
+                  {m.key === "treinamentos" && (
+                    <p className="text-xs text-muted-foreground">
+                      Todo colaborador entra em Treinamentos, sem marcar nada, e vê os vídeos do seu perfil (quem vê cada vídeo, o administrador define em Gerenciar). A área abaixo é só para ver o acompanhamento.
+                    </p>
+                  )}
                   <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3">
                     {areasDoModulo.map((a) => (
                       <label key={a.key} className="flex items-start gap-2 text-sm">

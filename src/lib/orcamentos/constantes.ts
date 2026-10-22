@@ -44,6 +44,8 @@ export const ETAPAS = [
   { key: "DIRETORIA", label: "4. Diretoria", color: "#8C3B2E" },
   { key: "ENVIO_OFERTA", label: "5. Envio de oferta", color: "#3E7FA6" },
   { key: "FINALIZADO", label: "6. Retorno do Cliente", color: "#2F8F5B" },
+  // Só produto novo com desfecho positivo e sem Nº de Cadastro de Produto passa por aqui.
+  { key: "CADASTRO_PRODUTO", label: "7. Cadastro de Produto", color: "#946522" },
 ] as const;
 
 export function etapaInfo(key: string) {

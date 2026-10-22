@@ -20,9 +20,11 @@ export default async function ProducaoPage({ searchParams }: { searchParams: Pro
   const { codigo } = await searchParams;
   const codigoBusca = codigo?.trim();
 
+  // findFirst (não findUnique) porque a busca é insensível a maiúsculas/minúsculas — no chão de
+  // fábrica ninguém deveria precisar digitar o código exatamente como foi cadastrado.
   const cor = codigoBusca
-    ? await prisma.cor.findUnique({
-        where: { codigo: codigoBusca },
+    ? await prisma.cor.findFirst({
+        where: { codigo: { equals: codigoBusca, mode: "insensitive" } },
         include: {
           rodadas: {
             where: { aprovada: true },

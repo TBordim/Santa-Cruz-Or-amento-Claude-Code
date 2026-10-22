@@ -2,17 +2,43 @@
 
 import { useRef, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
-import { FileText, Image as ImageIcon, Paperclip, Trash2 } from "lucide-react";
+import { FileText, Image as ImageIcon, Maximize2, Paperclip, Trash2 } from "lucide-react";
+import { ImagemAmpliavel, VisualizadorAmpliado } from "./VisualizadorAmpliado";
 import { prepararAnexo } from "@/lib/anexos/compressao";
 import { adicionarAnexo, excluirAnexo } from "./actions";
 import { FormSection } from "@/components/form-section";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type AnexoItem = { id: string; nome: string; url: string; mime: string; tamanho: number };
+
+const EH_PDF = (m: string) => m === "application/pdf";
+const EH_IMAGEM = (m: string) => m.startsWith("image/");
 
 const TIPO_INFO = {
   ARTE: { label: "Arte do cliente", hint: "Arquivo de arte recebido do cliente em formato eletrônico." },
   ENGENHARIA: { label: "Anexos da Engenharia", hint: "Original, arte digital, Especificação GSC Montagem ou outro documento técnico." },
+  ORDEM_COMPRA: {
+    label: "E-mails e documentos do cliente",
+    hint: "E-mail ou documento enviado pelo cliente que comprova a ordem de compra (PDF, imagem, .eml, .msg, Word ou Excel).",
+  },
+} as const;
+
+// Tipos aceitos no seletor de arquivo: só a ordem de compra aceita e-mail e documentos de escritório.
+const ACEITA = {
+  ARTE: "image/*,application/pdf",
+  ENGENHARIA: "image/*,application/pdf",
+  ORDEM_COMPRA: "image/*,application/pdf,.eml,.msg,.doc,.docx,.xls,.xlsx,.csv,.txt",
 } as const;
 
 function fmtKB(bytes: number) {
@@ -25,17 +51,24 @@ export function AnexoUpload({
   anexos,
   somenteLeitura,
   compacto,
+  modeloId,
+  titulo,
 }: {
   orcamentoId: string;
-  tipo: "ARTE" | "ENGENHARIA";
+  tipo: "ARTE" | "ENGENHARIA" | "ORDEM_COMPRA";
   anexos: AnexoItem[];
   somenteLeitura?: boolean;
   compacto?: boolean;
+  // Arte de um modelo específico do orçamento (ver Orcamento.modelos). Sem ele, o anexo é do
+  // orçamento inteiro.
+  modeloId?: string;
+  titulo?: string;
 }) {
   const pathname = usePathname();
   const [erro, setErro] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
   const [aberto, setAberto] = useState<string | null>(null);
+  const [pdfAmpliado, setPdfAmpliado] = useState<AnexoItem | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const info = TIPO_INFO[tipo];
 
@@ -49,6 +82,7 @@ export function AnexoUpload({
         const fd = new FormData();
         fd.set("orcamentoId", orcamentoId);
         fd.set("tipo", tipo);
+        if (modeloId) fd.set("modeloId", modeloId);
         fd.set("caminho", pathname);
         fd.set("arquivo", preparado);
         await adicionarAnexo(fd);
@@ -69,7 +103,7 @@ export function AnexoUpload({
   }
 
   return (
-    <FormSection title={info.label}>
+    <FormSection title={titulo ?? info.label}>
       {!compacto && <p className="-mt-2 text-xs text-muted-foreground">{info.hint}</p>}
 
       {anexos.length === 0 ? (
@@ -79,35 +113,62 @@ export function AnexoUpload({
           {anexos.map((a) => (
             <div key={a.id} className="rounded-lg border border-border bg-muted/30 p-2.5">
               <div className="flex flex-wrap items-center gap-2">
-                {a.mime === "application/pdf" ? (
-                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : (
+                {EH_IMAGEM(a.mime) ? (
                   <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                 )}
                 <span className="min-w-[8rem] flex-1 truncate text-sm text-foreground">{a.nome}</span>
                 <span className="shrink-0 font-mono text-xs text-muted-foreground">{fmtKB(a.tamanho)}</span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setAberto(aberto === a.id ? null : a.id)}>
-                  {aberto === a.id ? "Fechar" : "Ver"}
-                </Button>
-                {!somenteLeitura && (
-                  <Button type="button" variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive" onClick={() => onExcluir(a.id)} disabled={pending}>
-                    <Trash2 className="h-3.5 w-3.5" />
+                {EH_PDF(a.mime) || EH_IMAGEM(a.mime) ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setAberto(aberto === a.id ? null : a.id)}>
+                    {aberto === a.id ? "Fechar" : "Ver"}
                   </Button>
+                ) : (
+                  // E-mail e documentos de escritório não abrem na página: baixa o arquivo.
+                  <Button asChild variant="ghost" size="sm">
+                    <a href={a.url} target="_blank" rel="noreferrer" download={a.nome}>Baixar</a>
+                  </Button>
+                )}
+                {!somenteLeitura && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button type="button" variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive" disabled={pending}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir o anexo &quot;{a.nome}&quot;?</AlertDialogTitle>
+                        <AlertDialogDescription>Essa ação é definitiva e não pode ser desfeita — o arquivo é removido do armazenamento.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" disabled={pending} onClick={() => onExcluir(a.id)}>
+                          {pending ? "Excluindo…" : "Sim, excluir"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
               </div>
               {aberto === a.id &&
-                (a.mime === "application/pdf" ? (
+                (EH_PDF(a.mime) ? (
                   <>
                     <iframe src={a.url} className="mt-2.5 h-[60dvh] w-full md:h-[420px] rounded-md border border-border" />
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setPdfAmpliado(a)}>
+                        <Maximize2 className="h-3.5 w-3.5" /> Ampliar
+                      </Button>
                       <Button asChild variant="outline" size="sm">
                         <a href={a.url} target="_blank" rel="noreferrer">Abrir em nova aba</a>
                       </Button>
                     </div>
                   </>
                 ) : (
-                  // eslint-disable-next-line @next/next/no-img-element -- URL do Blob, não é asset local otimizável
-                  <img src={a.url} alt={a.nome} className="mt-2.5 max-w-full rounded-md border border-border" />
+                  <div className="mt-2.5">
+                    <ImagemAmpliavel src={a.url} alt={a.nome} className="max-w-full rounded-md border border-border" />
+                  </div>
                 ))}
             </div>
           ))}
@@ -127,7 +188,7 @@ export function AnexoUpload({
               <input
                 ref={inputRef}
                 type="file"
-                accept="image/*,application/pdf"
+                accept={ACEITA[tipo]}
                 className="hidden"
                 onChange={onFileChange}
                 disabled={pending}
@@ -137,6 +198,9 @@ export function AnexoUpload({
         </div>
       )}
       {erro && <div className="anexo-erro">{erro}</div>}
+      {pdfAmpliado && (
+        <VisualizadorAmpliado aberto aoMudar={(v) => !v && setPdfAmpliado(null)} src={pdfAmpliado.url} tipo="pdf" nome={pdfAmpliado.nome} />
+      )}
     </FormSection>
   );
 }

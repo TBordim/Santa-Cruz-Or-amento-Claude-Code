@@ -3,14 +3,24 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { sessaoAtual, podeEditar } from "@/lib/permissions";
+import { sessaoAtual, podeEditar, ehAdmin } from "@/lib/permissions";
 import { lerCamposComerciais, lerReqTecnicos, parseValorBR } from "@/lib/orcamentos/leitura";
+import { erroNosCores } from "@/lib/orcamentos/cores";
+import { erroNoLink } from "@/lib/orcamentos/link";
+import { gerarPendenciasDeArte } from "@/lib/protocolos/arte";
+import { mesclarProtocolos } from "@/lib/protocolos/comum";
+import { faltaNosDetalhesTecnicos } from "@/lib/orcamentos/tecnicos";
 import { montarPrecificacao, decidirFaixa, type FaixaInput } from "@/lib/orcamentos/tiers";
 import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
 import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
-import type { ReqCliente, ReqTecnicos, PrecificacaoTier } from "@/lib/orcamentos/types";
+import { modelosDoDoc, resumoDosModelos, combinacoesSO, chaveSO, textoMaterial, opcoesDePapel, type CombinacaoSO } from "@/lib/orcamentos/modelos";
+import { chave } from "@/lib/orcamentos/chave";
+import { parseQuantidade } from "@/lib/orcamentos/motor";
+import type { ReqCliente, ReqTecnicos, PrecificacaoTier, Modelo, Suporte, SuporteTecnico, UsoMaterial } from "@/lib/orcamentos/types";
 import type { AreaKey } from "@/lib/areas";
 import { CREDITO_LIBERA } from "@/lib/orcamentos/constantes";
+import { erroNosModelos } from "@/lib/orcamentos/validacao-modelos";
+import { abrirAceite, desfazerAceiteSemAndamento, removerAceite, limparEscolhaDoDesfecho } from "@/lib/aceite/abrir";
 
 export type FormState = { erro?: string } | undefined;
 
@@ -22,7 +32,14 @@ async function exigirEdicao(id: string): Promise<{ etapa: AreaKey; nomeAtor: str
   return { etapa, nomeAtor: sessao?.nome ?? "Representante (sem login)" };
 }
 
+
 // ---------- Etapa 1 — Em Aberto ----------
+
+// Devolve aos modelos do formulário o vínculo com o protocolo da arte (ver mesclarProtocolos).
+async function modelosComProtocolo(id: string, novos: Modelo[]): Promise<Modelo[]> {
+  const atual = await prisma.orcamento.findUnique({ where: { id }, select: { modelos: true } });
+  return mesclarProtocolos(novos, Array.isArray(atual?.modelos) ? (atual.modelos as unknown as Modelo[]) : []);
+}
 
 export async function salvarAberto(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
@@ -32,6 +49,11 @@ export async function salvarAberto(_prev: FormState, formData: FormData): Promis
     return { erro: "Sem permissão para editar esta etapa." };
   }
   const campos = lerCamposComerciais(formData);
+  const erroCores = erroNosCores(campos.modelos);
+  if (erroCores) return { erro: erroCores };
+  const erroLink = erroNoLink(campos.reqCliente.linkArte);
+  if (erroLink) return { erro: erroLink };
+  campos.modelos = await modelosComProtocolo(id, campos.modelos);
   await prisma.orcamento.update({ where: { id }, data: campos });
   revalidatePath(`/painel/${id}`);
   return undefined;
@@ -47,13 +69,24 @@ export async function avancarEngenharia(_prev: FormState, formData: FormData): P
     };
   }
   const campos = lerCamposComerciais(formData);
-  const ehRepeticao = !!campos.classificacao?.startsWith("REPETICAO");
-  if (ehRepeticao && !campos.codInterno) {
-    return { erro: "Como esta solicitação é uma repetição, o Código interno (Santa Cruz) é obrigatório." };
+  const erroModelos = erroNosModelos(campos.modelos);
+  if (erroModelos) return { erro: erroModelos };
+  const erroLink = erroNoLink(campos.reqCliente.linkArte);
+  if (erroLink) return { erro: erroLink };
+  // Detalhes técnicos: opcionais pro representante, obrigatórios pra liberar à Engenharia.
+  const faltaTec = faltaNosDetalhesTecnicos(campos.reqCliente);
+  if (faltaTec.length) {
+    return { erro: `Preencha os Detalhes técnicos antes de liberar para a Engenharia. Falta: ${faltaTec.join("; ")}.` };
   }
-  if (campos.codInterno && !codigoInternoValido(campos.codInterno)) {
-    return { erro: "Código interno (Santa Cruz) deve ter o formato 0.000.000 (7 dígitos)." };
+  // Todo material a partir do segundo precisa dizer se é papel alternativo ou de uso conjunto
+  // — é o que define quantas SOs o orçamento vai ter.
+  const semUso = campos.reqCliente.suportes.findIndex((s, i) => i > 0 && !s.uso);
+  if (semUso > 0) {
+    return {
+      erro: `Indique se o material ${semUso + 1} (${textoMaterial(campos.reqCliente.suportes[semUso])}) é opção de fornecimento (outro papel) ou de uso conjunto.`,
+    };
   }
+  campos.modelos = await modelosComProtocolo(id, campos.modelos);
   await prisma.orcamento.update({ where: { id }, data: { ...campos, etapa: "ENGENHARIA" } });
   // Fecha a gaveta ao avançar de etapa (volta pro /painel em vez de /painel/[id]) — só reabre
   // se a pessoa clicar de novo no card, na coluna nova. Pedido do Thiago em 19/09/2026: a gaveta
@@ -63,18 +96,28 @@ export async function avancarEngenharia(_prev: FormState, formData: FormData): P
 
 // ---------- Etapa 2 — Engenharia ----------
 
+// Código interno de cada modelo, como a Engenharia deixou (campo "codInterno_" + id do modelo).
+// Campo em branco mantém o código que já existia — mesmo comportamento de antes, com um código só.
+function modelosComCodigosDoForm(doc: Parameters<typeof modelosDoDoc>[0], formData: FormData): Modelo[] {
+  return modelosDoDoc(doc).map((m) => ({
+    ...m,
+    codInterno: normalizarCodigoInterno(String(formData.get(`codInterno_${m.id}`) ?? "")) || m.codInterno,
+  }));
+}
+
 export async function salvarRequisitos(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   await exigirEdicao(id);
   const reqTecnicos = lerReqTecnicos(formData, doc.reqTecnicos as ReqTecnicos | null);
-  const codInternoForm = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
+  const modelos = modelosComCodigosDoForm(doc, formData);
   await prisma.orcamento.update({
     where: { id },
     data: {
       reqTecnicos,
       preCadastro: String(formData.get("preCadastro") ?? "").trim(),
-      codInterno: codInternoForm || doc.codInterno || "",
+      modelos,
+      ...resumoDosModelos(modelos),
       obsEngenharia: String(formData.get("obsEngenharia") ?? "").trim(),
     },
   });
@@ -92,18 +135,13 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
 
   // Produto novo não exige mais Código interno nesta etapa — gerar um código pra cada produto
   // que só vira orçamento (nunca produção) inflava o cadastro à toa. Agora o código só é
-  // pedido depois que o cliente aprova de verdade, como pendência na etapa Retorno do Cliente
-  // (ver salvarCodigoProduto). Repetição continua exigindo aqui: o produto já existe, o código
-  // já deveria ter vindo da Solicitação (é por ele que a Diretoria casa com o histórico).
-  const ehRepeticao = !!doc.classificacao?.startsWith("REPETICAO");
-  const codInternoForm = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
-  const codInternoFinal = codInternoForm || doc.codInterno || "";
-  if (ehRepeticao && !codInternoFinal) {
-    return { erro: "Como esta solicitação é uma repetição, o Código interno (Santa Cruz) é obrigatório antes de liberar para o Orçamento." };
-  }
-  if (codInternoFinal && !codigoInternoValido(codInternoFinal)) {
-    return { erro: "Código interno (Santa Cruz) deve ter o formato 0.000.000 (7 dígitos)." };
-  }
+  // pedido depois que o cliente aprova de verdade, na etapa 7 (Cadastro de Produto — ver
+  // registrarDesfecho e salvarCadastroProduto). Repetição continua exigindo aqui: o produto já existe, o código
+  // já deveria ter vindo da Solicitação (é por ele que a Diretoria casa com o histórico). Com
+  // vários modelos, a regra vale pra cada um.
+  const modelos = modelosComCodigosDoForm(doc, formData);
+  const erroModelos = erroNosModelos(modelos);
+  if (erroModelos) return { erro: erroModelos };
 
   const reqTecnicos = lerReqTecnicos(formData, doc.reqTecnicos as ReqTecnicos | null);
   const sessao = await sessaoAtual();
@@ -113,7 +151,8 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
       etapa: "ORCAMENTO",
       reqTecnicos,
       preCadastro,
-      codInterno: codInternoFinal,
+      modelos,
+      ...resumoDosModelos(modelos),
       obsEngenharia: String(formData.get("obsEngenharia") ?? "").trim(),
       vistoEngenhariaPor: sessao?.nome ?? "",
       vistoEngenhariaEm: new Date(),
@@ -124,9 +163,26 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
 
 // ---------- Etapa 3 — Orçamento ----------
 
-function lerFaixas(formData: FormData, quantidades: string[]): FaixaInput[] {
-  return quantidades.map((quantidade, i) => ({
+// Uma faixa (SO) por combinação quantidade × opção de papel — ver combinacoesSO em modelos.ts.
+// Os campos do formulário são numerados na mesma ordem das combinações.
+function lerFaixas(formData: FormData, combinacoes: CombinacaoSO[]): FaixaInput[] {
+  // O número da SO é um por quantidade, valendo pra todos os papéis dela (decisão do Thiago em
+  // 05/10/2026: SO nova só quando muda a quantidade; o preço continua por papel). A tela mostra
+  // o campo só na primeira combinação de cada quantidade e as demais herdam o número. Campo
+  // ausente = herda; campo presente (mesmo vazio) = valor próprio — é o que mantém, como estão,
+  // os cards antigos que já têm um número por papel.
+  const lidos = combinacoes.map((_, i) => {
+    const v = formData.get(`numeroSequencial_${i}`);
+    return v === null ? null : String(v).trim();
+  });
+  const doGrupo = new Map<string, string>();
+  combinacoes.forEach((c, i) => {
+    if (lidos[i] !== null && !doGrupo.has(chave(c.quantidade))) doGrupo.set(chave(c.quantidade), lidos[i] as string);
+  });
+  return combinacoes.map(({ quantidade, papelIdx, papel }, i) => ({
     quantidade,
+    ...(papel !== undefined ? { papelIdx, papel } : {}),
+    numeroSequencial: lidos[i] ?? doGrupo.get(chave(quantidade)) ?? "",
     precoProjetado: parseValorBR(String(formData.get(`precoProjetado_${i}`) ?? "")),
     custoPrimarioPct: (() => {
       const v = parseValorBR(String(formData.get(`custoPrimarioPct_${i}`) ?? ""));
@@ -141,34 +197,163 @@ function lerFaixas(formData: FormData, quantidades: string[]): FaixaInput[] {
   }));
 }
 
+// Resumo das SOs de todas as faixas pra exibir no título do card/coluna do Painel (um campo
+// só, sempre foi assim visualmente) — cada faixa continua com o próprio número gravado, este
+// resumo é só pra exibição rápida, nunca editado direto.
+function resumoSopp(rascunho: { numeroSequencial: string }[]): string {
+  // Os papéis de uma mesma quantidade compartilham o número: aparece uma vez só no resumo.
+  return [...new Set(rascunho.map((r) => r.numeroSequencial).filter(Boolean))].join(", ");
+}
+
 export async function salvarOrcamento(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   await exigirEdicao(id);
-  const reqCliente = doc.reqCliente as ReqCliente | null;
-  const quantidades = reqCliente?.quantidadesLista ?? [];
-  const faixas = lerFaixas(formData, quantidades);
-  const existentes = (doc.precificacao as PrecificacaoTier[] | null) ?? [];
+  const faixas = lerFaixas(formData, combinacoesSO(doc.reqCliente as ReqCliente | null));
+  // Casa cada SO com a gravada pela combinação (quantidade + papel), não pela posição: se uma
+  // quantidade ou um papel entrou/saiu da lista, a posição das outras muda.
+  const existentes = new Map(((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => [chaveSO(t), t]));
 
-  const rascunho = faixas.map((f, i) => ({
-    ...(existentes[i] ?? {}),
-    quantidade: f.quantidade,
-    precoProjetado: Number.isNaN(f.precoProjetado) ? (existentes[i]?.precoProjetado ?? null) : f.precoProjetado,
-    custoPrimarioPct: f.custoPrimarioPct ?? existentes[i]?.custoPrimarioPct ?? null,
-    margemP2Pct: f.margemP2Pct ?? existentes[i]?.margemP2Pct ?? null,
-    numeroLotes: f.numeroLotes || existentes[i]?.numeroLotes || "",
-    numeroSetups: f.numeroSetups || existentes[i]?.numeroSetups || "",
-  }));
+  const rascunho = faixas.map((f) => {
+    const ex = existentes.get(chaveSO(f));
+    if (ex?.ofertada) return ex; // linha já ofertada ao cliente: não muda (ver cotarNovaQuantidade)
+    return {
+      ...(ex ?? {}),
+      quantidade: f.quantidade,
+      ...(f.papel !== undefined ? { papelIdx: f.papelIdx, papel: f.papel } : {}),
+      numeroSequencial: f.numeroSequencial || ex?.numeroSequencial || "",
+      precoProjetado: Number.isNaN(f.precoProjetado) ? (ex?.precoProjetado ?? null) : f.precoProjetado,
+      custoPrimarioPct: f.custoPrimarioPct ?? ex?.custoPrimarioPct ?? null,
+      margemP2Pct: f.margemP2Pct ?? ex?.margemP2Pct ?? null,
+      numeroLotes: f.numeroLotes || ex?.numeroLotes || "",
+      numeroSetups: f.numeroSetups || ex?.numeroSetups || "",
+    };
+  });
 
   await prisma.orcamento.update({
     where: { id },
     data: {
       precificacao: rascunho,
-      numeroSequencial: String(formData.get("numeroSequencial") ?? "").trim(),
+      numeroSequencial: resumoSopp(rascunho),
       comissaoEspecial: formData.get("comissaoEspecial") === "on",
       comissaoObs: String(formData.get("comissaoObs") ?? "").trim(),
       acabamento: String(formData.get("acabamento") ?? "").trim(),
     },
+  });
+  revalidatePath(`/painel/${id}`);
+  return undefined;
+}
+
+// Ajustes na Solicitação durante a etapa Orçamento: incluir quantidade ou papel que não estava
+// previsto, sem devolver o card ao início. Só ADICIONA (nada que já foi salvo é removido) e só
+// mexe nas quantidades e nos papéis — o resto da Solicitação continua como a Engenharia validou.
+// Pedido do Thiago em 05/10/2026. Quantidade nova e papel de opção geram SOs novas sozinhas
+// (combinacoesSO); o papel novo já entra com o bloco técnico (formato, aproveitamento) preenchido
+// aqui mesmo, no lugar da Engenharia. Cada ajuste fica registrado em reqTecnicos.ajustesOrcamento.
+const CAMPOS_TEC_NOVO_PAPEL = {
+  formato: "novoPapelFormato",
+  codigo: "novoPapelCodigo",
+  qtdFolha: "novoPapelQtdFolha",
+  flsAcerto: "novoPapelFlsAcerto",
+  fatorC: "novoPapelFatorC",
+  fatorL: "novoPapelFatorL",
+  corte: "novoPapelCorte",
+  qtdCh: "novoPapelQtdCh",
+  idealC: "novoPapelIdealC",
+  idealL: "novoPapelIdealL",
+} as const;
+
+export async function ajustarSolicitacao(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  const { nomeAtor } = await exigirEdicao(id);
+  if (doc.etapa !== "ORCAMENTO") return { erro: "Os ajustes só podem ser feitos enquanto o card está na etapa Orçamento." };
+
+  const texto = (nome: string) => formData.getAll(nome).map((v) => String(v).trim());
+  const c: ReqCliente = { ...((doc.reqCliente as ReqCliente | null) ?? ({} as ReqCliente)) };
+  const quantidades = [...(c.quantidadesLista ?? [])];
+  const suportes: Suporte[] = (c.suportes ?? []).map((s) => ({ ...s }));
+  const itens: string[] = [];
+
+  // Quantidades novas: as que já existem não mudam nem saem (cada uma é uma SO, talvez já precificada).
+  for (const q of texto("novaQuantidade").filter(Boolean)) {
+    const n = parseQuantidade(q);
+    if (!n) return { erro: `Quantidade inválida: "${q}". Informe só números, por exemplo 10.000.` };
+    if (quantidades.some((x) => chave(x) === chave(q) || parseQuantidade(x) === n)) {
+      return { erro: `A quantidade ${q} já está na lista.` };
+    }
+    quantidades.push(q);
+    itens.push(`Quantidade ${q} adicionada`);
+  }
+
+  // Papéis que já existem: só dá pra corrigir a descrição e a gramatura. O uso (opção/conjunto) fica
+  // como está — trocar de opção pra conjunto apagaria SOs. A lista chega na mesma ordem da gravada.
+  const descricoes = texto("papelDescricao");
+  const gramaturas = texto("papelGramatura");
+  if (descricoes.length === suportes.length) {
+    suportes.forEach((s, i) => {
+      const nova = { descricao: descricoes[i], gramatura: gramaturas[i] ?? "" };
+      if (!nova.descricao) return; // descrição em branco: mantém a atual
+      if (nova.descricao !== s.descricao || nova.gramatura !== s.gramatura) {
+        itens.push(`Papel ${i + 1} corrigido: "${textoMaterial(s)}" → "${textoMaterial(nova)}"`);
+        s.descricao = nova.descricao;
+        s.gramatura = nova.gramatura;
+      }
+    });
+  }
+
+  // Papéis novos (descrição, gramatura, uso e os dez campos do bloco técnico, pareados por índice).
+  const novosDescricao = texto("novoPapelDescricao");
+  const novosGramatura = texto("novoPapelGramatura");
+  const novosUso = texto("novoPapelUso");
+  const colunasTec = Object.fromEntries(
+    Object.entries(CAMPOS_TEC_NOVO_PAPEL).map(([campo, nome]) => [campo, texto(nome)]),
+  ) as Record<keyof typeof CAMPOS_TEC_NOVO_PAPEL, string[]>;
+
+  const r: ReqTecnicos = { ...((doc.reqTecnicos as ReqTecnicos | null) ?? ({ suportes: [], anexos: [] } as ReqTecnicos)) };
+  // Um bloco técnico por material, na mesma ordem dos materiais: completa o que faltar antes de
+  // acrescentar os novos, pra o índice de cada papel continuar batendo com o bloco dele.
+  const tecnicos: SuporteTecnico[] = [...(r.suportes ?? [])];
+  while (tecnicos.length < suportes.length) tecnicos.push({ formato: "", codigo: "" });
+
+  for (const [k, descricao] of novosDescricao.entries()) {
+    if (!descricao) return { erro: "Informe a descrição de cada papel novo." };
+    const idx = suportes.length;
+    const uso: UsoMaterial = idx === 0 || novosUso[k] !== "conjunto" ? "opcao" : "conjunto";
+    suportes.push({ descricao, gramatura: novosGramatura[k] ?? "", uso });
+    const bloco = Object.fromEntries(
+      Object.keys(CAMPOS_TEC_NOVO_PAPEL).map((campo) => [campo, colunasTec[campo as keyof typeof colunasTec][k] ?? ""]),
+    ) as unknown as SuporteTecnico;
+    tecnicos.push(bloco);
+    itens.push(`Papel "${textoMaterial(suportes[idx])}" adicionado (${uso === "opcao" ? "opção de fornecimento" : "uso conjunto"})`);
+  }
+
+  if (!itens.length) return { erro: "Nada para ajustar: informe uma quantidade nova, um papel novo ou corrija um papel." };
+
+  const reqCliente: ReqCliente = { ...c, quantidadesLista: quantidades, suportes };
+  const opcoes = opcoesDePapel(reqCliente);
+  // Orçamento que tinha uma opção de papel só gravou as SOs sem papel (papelIdx). Ao passar a ter
+  // mais de uma, as SOs que já existem pertencem à primeira opção — sem carimbar isso, a chave
+  // delas (quantidade, sem papel) deixa de casar com as combinações novas e o preço já lançado
+  // se perderia no próximo "Salvar".
+  const precificacao = ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => {
+    if (opcoes.length > 1 && t.papelIdx === undefined && opcoes[0]) return { ...t, papelIdx: opcoes[0].idx, papel: opcoes[0].texto };
+    if (t.papelIdx !== undefined) {
+      const o = opcoes.find((x) => x.idx === t.papelIdx);
+      if (o) return { ...t, papel: o.texto };
+    }
+    return t;
+  });
+
+  const reqTecnicos: ReqTecnicos = {
+    ...r,
+    suportes: tecnicos,
+    ajustesOrcamento: [...(r.ajustesOrcamento ?? []), { em: new Date().toISOString(), por: nomeAtor, itens }],
+  };
+
+  await prisma.orcamento.update({
+    where: { id },
+    data: { reqCliente, reqTecnicos, ...(precificacao.length ? { precificacao } : {}) },
   });
   revalidatePath(`/painel/${id}`);
   return undefined;
@@ -204,35 +389,75 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   await exigirEdicao(id);
 
-  const reqCliente = doc.reqCliente as ReqCliente | null;
-  const quantidades = reqCliente?.quantidadesLista ?? [];
-  if (!quantidades.length) {
+  const combinacoes = combinacoesSO(doc.reqCliente as ReqCliente | null);
+  if (!combinacoes.length) {
     return { erro: "Não há nenhuma quantidade lançada — volte para a Solicitação e adicione ao menos uma." };
   }
-  const numeroSequencial = String(formData.get("numeroSequencial") ?? "").trim();
-  if (!numeroSequencial) return { erro: "Informe o Nº de SOPP antes de enviar para a Diretoria." };
   if (doc.aguardandoCompras) return { erro: "Registre o retorno de Compras antes de enviar para a Diretoria." };
 
-  const faixas = lerFaixas(formData, quantidades);
+  const existentes = new Map(((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => [chaveSO(t), t]));
+  // Linhas já ofertadas ao cliente (ver cotarNovaQuantidade): valem como estão — o que veio do
+  // formulário é descartado e entram os valores gravados, pra não recalcular nem reabrir a Diretoria.
+  const faixas = lerFaixas(formData, combinacoes).map((f) => {
+    const ex = existentes.get(chaveSO(f));
+    return ex?.ofertada
+      ? { ...f, numeroSequencial: ex.numeroSequencial, precoProjetado: ex.precoProjetado, custoPrimarioPct: ex.custoPrimarioPct, margemP2Pct: ex.margemP2Pct, numeroLotes: ex.numeroLotes, numeroSetups: ex.numeroSetups }
+      : f;
+  });
   if (faixas.some((f) => Number.isNaN(f.precoProjetado))) {
-    return { erro: 'Preencha o "Preço projetado" de todas as faixas de quantidade.' };
+    return { erro: 'Preencha o "Preço projetado" de todas as SOs.' };
+  }
+  // Uma SO ("Orçamento S.O. nº") por combinação quantidade × papel, não uma só pro card. O número
+  // da solicitação inteira é o Nº de Pré Cadastro (Engenharia).
+  if (faixas.some((f) => !f.numeroSequencial)) {
+    return { erro: "Informe o Nº da SO de todas as quantidades antes de enviar para a Diretoria." };
+  }
+  // Uma SO por quantidade: o mesmo número vale pros papéis da mesma quantidade, mas não pode
+  // aparecer em quantidades diferentes.
+  const quantidadesPorSO = new Map<string, Set<string>>();
+  for (const f of faixas) {
+    const qs = quantidadesPorSO.get(f.numeroSequencial) ?? new Set<string>();
+    qs.add(chave(f.quantidade));
+    quantidadesPorSO.set(f.numeroSequencial, qs);
+  }
+  const soEmVariasQuantidades = [...quantidadesPorSO].find(([, qs]) => qs.size > 1);
+  if (soEmVariasQuantidades) {
+    return { erro: `A SO ${soEmVariasQuantidades[0]} aparece em mais de uma quantidade — cada quantidade tem a própria SO.` };
   }
 
   const acabamento = String(formData.get("acabamento") ?? "").trim();
   const comissaoEspecial = formData.get("comissaoEspecial") === "on";
-  const produtoNovoClassificacao = doc.classificacao === "NOVO" || doc.classificacao === "REPETICAO_NOVO";
+  // Basta um modelo novo pra tratar o conjunto inteiro como novo (decisão do Thiago em 30/09/2026).
+  const modelos = modelosDoDoc(doc);
+  const produtoNovoClassificacao = modelos.some((m) => m.classificacao === "NOVO" || m.classificacao === "REPETICAO_NOVO");
 
-  const anterior = await buscarOrcamentoAnterior(doc.clienteChave ?? "", doc.codInterno, doc.id);
+  // Por código interno e, sem código (produto que o cliente não aprovou antes), por cliente + medidas.
+  const anterior = await buscarOrcamentoAnterior(modelos, doc.id, {
+    clienteId: doc.clienteId,
+    clienteChave: doc.clienteChave,
+    cnpj: doc.cnpj,
+    reqCliente: doc.reqCliente,
+  });
 
-  const precificacao = montarPrecificacao({ faixas, comissaoEspecial, acabamentoAtual: acabamento, produtoNovoClassificacao, anterior });
+  const calculadas = montarPrecificacao({ faixas, comissaoEspecial, acabamentoAtual: acabamento, produtoNovoClassificacao, anterior });
+  // As linhas ofertadas mantêm o objeto gravado (inclusive a decisão da Diretoria); só as novas
+  // usam o cálculo.
+  const precificacao = calculadas.map((t, i) => {
+    const ex = existentes.get(chaveSO(faixas[i]));
+    return ex?.ofertada ? ex : t;
+  });
   const todosAuto = precificacao.every((t) => t.statusDiretoria === "auto_aprovado");
+  // Sem nenhuma linha pendente não há o que a Diretoria decidir: segue direto pro Envio de oferta
+  // (com linhas antigas aprovadas à mão e a nova automática, "todosAuto" seria falso e o card
+  // ficaria parado na Diretoria).
+  const semPendentes = precificacao.every((t) => t.statusDiretoria !== "pendente");
   const t0 = precificacao[0];
 
   await prisma.orcamento.update({
     where: { id },
     data: {
       precificacao,
-      numeroSequencial,
+      numeroSequencial: resumoSopp(precificacao),
       orcamentoAnteriorId: anterior?.id ?? null,
       precoAnterior: anterior?.precoFinal ?? null,
       comissaoEspecial,
@@ -240,8 +465,8 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
       acabamento,
       produtoNovo: t0.produtoNovo,
       conflitoClassificacao: doc.classificacao === "REPETICAO_SEM_ALTERACAO" && t0.premissasDivergentes.length > 0,
-      etapa: todosAuto ? "ENVIO_OFERTA" : "DIRETORIA",
-      statusDiretoria: todosAuto ? "AUTO_APROVADO" : "PENDENTE",
+      etapa: semPendentes ? "ENVIO_OFERTA" : "DIRETORIA",
+      statusDiretoria: semPendentes ? (todosAuto ? "AUTO_APROVADO" : "APROVADO") : "PENDENTE",
     },
   });
   redirect("/painel");
@@ -292,14 +517,62 @@ export async function decidirDiretoriaFaixa(formData: FormData) {
   }
   await prisma.orcamento.update({ where: { id }, data });
   revalidatePath("/diretoria");
-  // Só fecha a gaveta quando a decisão realmente avança de etapa (todas as faixas resolvidas) —
-  // continuando na Diretoria (outras faixas ainda pendentes) ou voltando pro Orçamento
-  // (revisão), a gaveta permanece aberta na mesma etapa, já que a pessoa provavelmente ainda
-  // está trabalhando nesse card.
-  if (resultado.proximo.tipo === "avanca_envio_oferta") {
+  // Toda mudança de etapa fecha a gaveta e volta pro quadro — avançando pro Envio de Oferta OU
+  // voltando pro Orçamento (revisão), sem exceção, pra quem estava operando escolher
+  // manualmente o próximo card. Só continua aberta quando a etapa não mudou de verdade (outra
+  // faixa deste mesmo card ainda pendente na Diretoria) — aí sim a pessoa está com trabalho
+  // pendente neste card específico. Pedido do Thiago em 25/09/2026.
+  if (resultado.proximo.tipo !== "continua_diretoria") {
     redirect("/painel");
   }
   revalidatePath(`/painel/${id}`);
+}
+
+// Ajusta o preço final de uma faixa JÁ decidida (aprovada automática ou manualmente) — a
+// Diretoria pode ter motivo pra mudar o preço mesmo com tudo certo (ex.: negociação com o
+// cliente depois do card já ter voltado da Diretoria e retornado). Não reabre a decisão
+// (aprovar/solicitar revisão) nem mexe em decididoPor/decididoEm original — só troca o número
+// e registra separadamente quem ajustou por último. Pedido do Thiago em 25/09/2026.
+export async function ajustarPrecoFinalDiretoria(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const idx = parseInt(String(formData.get("idx") ?? "0"), 10);
+  const { nomeAtor } = await exigirEdicao(id);
+
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  const precificacao = ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => ({ ...t }));
+  const tier = precificacao[idx];
+  if (!tier || tier.statusDiretoria === "pendente") return; // essa faixa ainda não foi decidida — usa o formulário normal, não este
+
+  const precoFinal = parseValorBR(String(formData.get("precoFinal") ?? ""));
+  if (Number.isNaN(precoFinal)) return;
+
+  precificacao[idx] = { ...tier, precoFinal, precoAjustadoPor: nomeAtor, precoAjustadoEm: Date.now() };
+  await prisma.orcamento.update({ where: { id }, data: { precificacao } });
+  revalidatePath(`/painel/${id}`);
+  revalidatePath("/painel");
+}
+
+// Cobre o card que chega na Diretoria já com todas as faixas resolvidas (auto_aprovado ou
+// aprovado) sem passar pelo fim normal de decidirDiretoriaFaixa acima — acontece quando alguém
+// usa "Voltar etapa" a partir do Envio de Oferta (ou de uma etapa depois) de volta pra
+// Diretoria: essa ação só move a etapa pra trás, não mexe na precificação, então o card volta
+// com tudo já decidido e nenhuma faixa pendente sobra pra abrir o formulário de decisão — sem
+// este botão o card ficava preso, sem nenhum jeito de avançar de novo. Achado em teste real
+// pelo Thiago em 25/09/2026.
+export async function liberarDiretoriaResolvida(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  await exigirEdicao(id);
+
+  const precificacao = (doc.precificacao as PrecificacaoTier[] | null) ?? [];
+  if (!precificacao.length || precificacao.some((t) => t.statusDiretoria === "pendente")) return;
+
+  const todosAuto = precificacao.every((t) => t.statusDiretoria === "auto_aprovado");
+  await prisma.orcamento.update({
+    where: { id },
+    data: { etapa: "ENVIO_OFERTA", statusDiretoria: todosAuto ? "AUTO_APROVADO" : "APROVADO" },
+  });
+  redirect("/painel");
 }
 
 // ---------- Etapa 5 — Envio de Oferta ----------
@@ -315,9 +588,17 @@ export async function marcarFinalizado(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   await exigirEdicao(id);
   const numeroOrcamento = String(formData.get("numeroOrcamento") ?? "").trim();
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  // Oferta nova enviada: as linhas que ficaram preservadas durante a cotação voltam ao normal.
+  const precificacao = ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => {
+    const limpa: PrecificacaoTier = { ...t };
+    delete limpa.ofertada;
+    return limpa;
+  });
   await prisma.orcamento.update({
     where: { id },
     data: {
+      precificacao,
       etapa: "FINALIZADO",
       desfecho: "AGUARDANDO",
       finalizadoEm: new Date(),
@@ -329,58 +610,183 @@ export async function marcarFinalizado(formData: FormData) {
 
 // ---------- Etapa 6 — Finalizado ----------
 
-export async function registrarDesfecho(formData: FormData) {
+export async function registrarDesfecho(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
   await exigirEdicao(id);
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   const sessao = await sessaoAtual();
+  const desfecho = String(formData.get("desfecho") ?? "AGUARDANDO") as "AGUARDANDO" | "POSITIVO" | "NEGATIVO" | "SEM_RETORNO";
+
+  // As SOs são alternativas — o cliente fecha UMA (resposta do Thiago em 30/09/2026). No
+  // positivo, registra qual; em qualquer outro desfecho, nenhuma fica marcada.
+  const tiers = (doc.precificacao as PrecificacaoTier[] | null) ?? [];
+  let escolhida = -1;
+  if (desfecho === "POSITIVO") {
+    escolhida = tiers.length === 1 ? 0 : parseInt(String(formData.get("soEscolhida") ?? ""), 10);
+    if (!tiers[escolhida]) return { erro: "Indique qual SO o cliente fechou." };
+  }
+  // Aprovado: o Nº do pedido do cliente é obrigatório e fica na SO fechada (pedido do Thiago em
+  // 11/10/2026). Nos outros desfechos nenhum número é guardado.
+  const pedidoCliente = String(formData.get("pedidoCliente") ?? "").trim();
+  if (desfecho === "POSITIVO" && !pedidoCliente) return { erro: "Informe o Nº do pedido do cliente." };
+  const precificacao = tiers.map((t, i) => {
+    const resto: PrecificacaoTier = { ...t, escolhidaPeloCliente: i === escolhida };
+    delete resto.pedidoCliente;
+    return i === escolhida && pedidoCliente ? { ...resto, pedidoCliente } : resto;
+  });
+
+  // Modelo novo que o cliente aprovou e ainda não tem Nº de Cadastro de Produto manda o card pra
+  // etapa 7 esperar o número. Os demais (negativo, sem retorno, ou positivo com todos os
+  // modelos já cadastrados) ficam em Retorno do Cliente, que com desfecho registrado já sai do
+  // Painel pro Histórico. Pedido do Thiago em 25/09/2026.
+  const precisaCadastro = desfecho === "POSITIVO" && modelosDoDoc(doc).some((m) => !m.codInterno);
+
   await prisma.orcamento.update({
     where: { id },
     data: {
-      desfecho: String(formData.get("desfecho") ?? "AGUARDANDO") as "AGUARDANDO" | "POSITIVO" | "NEGATIVO" | "SEM_RETORNO",
+      desfecho,
+      precificacao,
       desfechoMotivo: String(formData.get("motivo") ?? "").trim(),
       desfechoPor: sessao?.nome ?? "",
       desfechoEm: new Date(),
+      ...(precisaCadastro ? { etapa: "CADASTRO_PRODUTO" as const } : {}),
     },
   });
-  revalidatePath(`/painel/${id}`);
+  // Todo desfecho positivo vira Aceite de Pedido, com a SO que o cliente fechou (decisão do Thiago
+  // em 08/10/2026). Produto novo sem código segue também pra etapa 7: a Engenharia lança o código
+  // pelo Aceite e isso resolve a etapa 7 (ver aceite/actions.ts).
+  if (desfecho === "POSITIVO") {
+    await abrirAceite(id);
+    // Pedido confirmado: só agora a arte do cliente precisa de protocolo (Vendas, no Aceite). As artes
+    // que vinham junto do orçamento entram na fila "Artes a protocolar" (correção de 19/10/2026).
+    await gerarPendenciasDeArte(id, sessao?.nome ?? "Pedido confirmado");
+  }
   revalidatePath("/historico");
+  revalidatePath("/atendimento", "layout");
+  // Desfecho registrado (qualquer um que não seja "aguardando") tira o card da etapa atual:
+  // vai pra etapa 7 ou pro Histórico. Nos dois casos a gaveta fecha, como em toda mudança de
+  // etapa. "Aguardando" continua aberto: nada mudou de lugar. A gaveta também abre no módulo
+  // Atendimento ao Cliente (08/10/2026); aberta de lá, fecha de volta pra lá.
+  const voltarPara = String(formData.get("voltarPara") ?? "");
+  if (desfecho !== "AGUARDANDO") redirect(voltarPara.startsWith("/atendimento") ? voltarPara : "/painel");
+  revalidatePath(`/painel/${id}`);
+  return undefined;
 }
 
-// Pendência de Código de Produto Interno — só existe pra orçamento com desfecho POSITIVO
-// (cliente aprovou, virou pedido de verdade) e ainda sem código, porque produto novo não gera
-// mais código na Engenharia (ver avancarOrcamento acima). Enquanto não for preenchido, o card
-// continua aparecendo no Painel (ver PainelBoard) e fica de fora do Histórico (ver
-// historico/page.tsx) — reprovado/sem retorno não passa por aqui, vai direto pro Histórico
-// porque o código deixou de ser necessário se não vai virar produção.
-//
-// Permissão própria (Engenharia), não a da etapa (Retorno do Cliente): quem registra o
-// retorno do cliente normalmente não é quem cadastra código de produto — são times diferentes.
-export async function salvarCodigoProduto(_prev: FormState, formData: FormData): Promise<FormState> {
+// O cliente já recebeu a oferta e pediu OUTRA quantidade (ex.: ofereceu 90 mil, ele quer 100 mil).
+// Em vez de devolver o card ao início e refazer tudo, a quantidade nova entra na lista, o card
+// volta pra etapa Orçamento e as linhas já ofertadas ficam PRESERVADAS (preço, SO e decisão da
+// Diretoria intactos — ver `ofertada` em types.ts). Só a linha nova é precificada e vai à
+// Diretoria; depois a oferta segue com todas e o cliente escolhe qual aprova. Pedido do Thiago em
+// 15/10/2026. Só vale enquanto o desfecho ainda é "aguardando".
+export async function cotarNovaQuantidade(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
-  if (!(await podeEditar("ENGENHARIA"))) return { erro: "Sem permissão da Engenharia para gerar código de produto." };
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  const { nomeAtor } = await exigirEdicao(id);
+  if (doc.etapa !== "FINALIZADO" || (doc.desfecho && doc.desfecho !== "AGUARDANDO")) {
+    return { erro: "Só dá para cotar uma nova quantidade enquanto o card aguarda o retorno do cliente." };
+  }
 
-  const codInterno = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
-  if (!codInterno) return { erro: "Informe o Código de Produto Interno." };
-  if (!codigoInternoValido(codInterno)) return { erro: "Código de Produto Interno deve ter o formato 0.000.000 (7 dígitos)." };
+  const c: ReqCliente = { ...((doc.reqCliente as ReqCliente | null) ?? ({} as ReqCliente)) };
+  const quantidades = [...(c.quantidadesLista ?? [])];
+  const novas = formData.getAll("novaQuantidade").map((v) => String(v).trim()).filter(Boolean);
+  if (!novas.length) return { erro: "Informe a nova quantidade." };
+  const itens: string[] = [];
+  for (const q of novas) {
+    const n = parseQuantidade(q);
+    if (!n) return { erro: `Quantidade inválida: "${q}". Informe só números, por exemplo 100.000.` };
+    if (quantidades.some((x) => chave(x) === chave(q) || parseQuantidade(x) === n)) {
+      return { erro: `A quantidade ${q} já foi cotada neste orçamento.` };
+    }
+    quantidades.push(q);
+    itens.push(`Quantidade ${q} cotada depois da oferta, a pedido do cliente`);
+  }
 
-  await prisma.orcamento.update({ where: { id }, data: { codInterno } });
-  revalidatePath(`/painel/${id}`);
-  revalidatePath("/painel");
+  const r: ReqTecnicos = { ...((doc.reqTecnicos as ReqTecnicos | null) ?? ({ suportes: [], anexos: [] } as ReqTecnicos)) };
+  const reqTecnicos: ReqTecnicos = {
+    ...r,
+    ajustesOrcamento: [...(r.ajustesOrcamento ?? []), { em: new Date().toISOString(), por: nomeAtor, itens }],
+  };
+  const precificacao = ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => ({ ...t, ofertada: true }));
+
+  await prisma.orcamento.update({
+    where: { id },
+    data: { reqCliente: { ...c, quantidadesLista: quantidades }, reqTecnicos, precificacao, etapa: "ORCAMENTO" },
+  });
+  redirect("/painel");
+}
+
+// ---------- Etapa 7 — Cadastro de Produto ----------
+
+// Lança o Nº de Cadastro de Produto (codInterno) de CADA modelo novo aprovado pelo cliente
+// (campo "codInterno_" + id do modelo) e devolve o card pra Retorno do Cliente, que com
+// desfecho positivo e todos os números preenchidos já vai pro Histórico. Permissão pela área da
+// própria etapa (CADASTRO_PRODUTO), igual às outras.
+export async function salvarCadastroProduto(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  try {
+    await exigirEdicao(id);
+  } catch {
+    return { erro: "Sem permissão para lançar o Nº de Cadastro de Produto." };
+  }
+
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  const atuais = modelosDoDoc(doc);
+  const modelos = atuais.map((m) =>
+    m.codInterno ? m : { ...m, codInterno: normalizarCodigoInterno(String(formData.get(`codInterno_${m.id}`) ?? "")) },
+  );
+  for (const [i, m] of modelos.entries()) {
+    const nome = modelos.length > 1 ? ` do modelo ${i + 1} (${m.descricao || "sem descrição"})` : "";
+    if (!m.codInterno) return { erro: `Informe o Nº de Cadastro de Produto${nome}.` };
+    if (!codigoInternoValido(m.codInterno)) return { erro: `Nº de Cadastro de Produto${nome} deve ter o formato 0.000.000 (7 dígitos).` };
+  }
+  const erroModelos = erroNosModelos(modelos);
+  if (erroModelos) return { erro: erroModelos };
+
+  await prisma.orcamento.update({ where: { id }, data: { modelos, ...resumoDosModelos(modelos), etapa: "FINALIZADO" } });
   revalidatePath("/historico");
-  return undefined;
+  redirect("/painel");
 }
 
 // ---------- Ações gerais do card ----------
 
 export async function voltarEtapa(formData: FormData) {
   const id = String(formData.get("id") ?? "");
-  const ordem = ["ABERTO", "ENGENHARIA", "ORCAMENTO", "DIRETORIA", "ENVIO_OFERTA", "FINALIZADO"] as const;
+  const ordem = ["ABERTO", "ENGENHARIA", "ORCAMENTO", "DIRETORIA", "ENVIO_OFERTA", "FINALIZADO", "CADASTRO_PRODUTO"] as const;
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   await exigirEdicao(id);
   const idx = ordem.indexOf(doc.etapa as (typeof ordem)[number]);
   if (idx <= 0) return;
-  await prisma.orcamento.update({ where: { id }, data: { etapa: ordem[idx - 1] } });
-  revalidatePath(`/painel/${id}`);
+  // Voltar de uma etapa em que o desfecho já foi registrado (Retorno do Cliente com desfecho, ou
+  // Cadastro de Produto) desfaz o desfecho: sem zerar, o card voltaria com desfecho já registrado e
+  // continuaria no Histórico, e o Aceite que o desfecho abriu seguiria no módulo Aceite como dado
+  // oficial. A SO escolhida e o Nº do pedido do cliente vão junto: foram digitados no mesmo desfecho.
+  // O administrador desfaz em qualquer etapa do Aceite (com os Pedidos de Material dele); os demais só
+  // enquanto ninguém mexeu no Aceite (pedido do Thiago em 14/10/2026).
+  const desfeito = doc.etapa === "CADASTRO_PRODUTO" || (doc.etapa === "FINALIZADO" && !!doc.desfecho && doc.desfecho !== "AGUARDANDO");
+  if (desfeito) {
+    if (await ehAdmin()) await removerAceite(id);
+    else await desfazerAceiteSemAndamento(id);
+  }
+  await prisma.orcamento.update({
+    where: { id },
+    data: {
+      etapa: ordem[idx - 1],
+      ...(desfeito
+        ? {
+            desfecho: "AGUARDANDO" as const,
+            desfechoMotivo: "",
+            desfechoPor: "",
+            desfechoEm: null,
+            precificacao: limparEscolhaDoDesfecho(doc.precificacao as PrecificacaoTier[] | null),
+          }
+        : {}),
+    },
+  });
+  // Toda mudança de etapa fecha a gaveta e volta pro quadro — pra frente ou pra trás, sem
+  // exceção — pra quem estava operando escolher manualmente o próximo card, nunca ficar com
+  // algo aberto sozinho. Pedido do Thiago em 25/09/2026.
+  redirect("/painel");
 }
 
 export async function excluirCard(formData: FormData) {
@@ -388,6 +794,7 @@ export async function excluirCard(formData: FormData) {
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   const area: AreaKey = doc.origem === "LEGADO" ? "LEGADO" : "HISTORICO";
   if (!(await podeEditar(area))) throw new Error("Sem permissão para excluir.");
+  await removerAceite(id); // PMs do Aceite saem junto (senão ficam órfãos em Compras)
   await prisma.orcamento.delete({ where: { id } });
   redirect("/painel");
 }

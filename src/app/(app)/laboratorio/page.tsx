@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Palette, Scale } from "lucide-react";
+import { Palette, Scale, FlaskConical } from "lucide-react";
 import { sessaoAtual } from "@/lib/permissions";
 import { PageHeader } from "@/components/page-header";
 
@@ -21,6 +21,14 @@ const CARDS = [
   },
 ];
 
+const CARD_BASES = {
+  href: "/laboratorio/bases",
+  icon: FlaskConical,
+  color: "#8C5A21",
+  titulo: "Bases",
+  descricao: "Catálogo de tintas usadas nas fórmulas — administrador, exclusão pede o PIN de novo.",
+};
+
 // Tela de entrada própria do módulo Laboratório — não é o Painel de orçamentos. Por enquanto só
 // tem uma área (Cor); o espaço já existe pra outras ferramentas do laboratório crescerem aqui
 // depois, sem precisar amontoar tudo numa tela só.
@@ -28,12 +36,14 @@ export default async function LaboratorioPage() {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
 
+  const cards = sessao.admin ? [...CARDS, CARD_BASES] : CARDS;
+
   return (
     <>
       <PageHeader title="Laboratório" description="Ferramentas do laboratório — hoje, formulação e registro de cor." />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {CARDS.map((c) => {
+        {cards.map((c) => {
           const Icon = c.icon;
           return (
             <Link

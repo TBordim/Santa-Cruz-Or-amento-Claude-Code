@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
+import { num } from "@/lib/cor/formato";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -36,9 +37,9 @@ export function CalculadoraProducaoKg({ componentes }: { componentes: Componente
               <TableCell>
                 {c.baseCodigo} <span className="text-muted-foreground">— {c.baseNome}</span>
               </TableCell>
-              <TableCell className="text-right font-mono">{c.percentual.toFixed(2)}</TableCell>
+              <TableCell className="text-right font-mono">{num(c.percentual, 2)}</TableCell>
               <TableCell className="text-right font-mono">
-                {valido ? ((c.percentual / 100) * kgNum).toFixed(3) : "—"}
+                {valido ? num((c.percentual / 100) * kgNum, 3) : "—"}
               </TableCell>
             </TableRow>
           ))}

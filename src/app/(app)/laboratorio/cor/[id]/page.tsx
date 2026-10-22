@@ -3,13 +3,20 @@ import { sessaoAtual, podeEditar } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { deltaE2000 } from "@/lib/cor/deltae";
 import { labToCssColor } from "@/lib/cor/lab-to-rgb";
+import { num } from "@/lib/cor/formato";
+import { converterComposicaoParaIro } from "@/lib/cor/pantone";
 import { NovaRodadaForm } from "./NovaRodadaForm";
-import { NovaPuxadaForm } from "./NovaPuxadaForm";
-import { aprovarRodada } from "./actions";
+import { PrimeiraFormula } from "./PrimeiraFormula";
+import { RodadaCard } from "./RodadaCard";
+import { EditarCorForm } from "./EditarCorForm";
+import { EixoLabDiagram } from "./EixoLabDiagram";
+
+// ΔE2000 máximo pra uma cor do histórico (ou um Pantone convertido) entrar como sugestão de ponto
+// de partida — mais frouxo que a tolerância de aprovação (1,00): aqui é só "parecido o bastante pra
+// economizar o primeiro chute", a fórmula ainda passa pelo ciclo normal de ajuste.
+const TOLERANCIA_SUGESTAO_PONTO_PARTIDA = 2.5;
 
 const STATUS_LABEL: Record<string, string> = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -19,25 +26,8 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELADO: "Cancelado",
 };
 
-const ORIGEM_LABEL: Record<string, string> = {
-  FORNECEDOR: "Fornecedor",
-  SUGESTAO_SISTEMA: "Sugestão do sistema",
-  AJUSTE_MANUAL: "Ajuste manual",
-  IMPORTADO: "Importada da planilha (só a final)",
-};
-
-// Lote padrão do Quick Peek — a quantidade de tinta necessária pro teste é fixa em 10g (ver
-// brainstorm do usuário), então a coluna de gramas na composição é só percentual × este valor.
-const LOTE_QUICKPEEK_G = 10;
-
 // Tolerância de aprovação da Santa Cruz: ΔE2000 menor que 1,00.
 const TOLERANCIA_DE = 1;
-
-const CONTEXTO_LABEL: Record<string, string> = {
-  PUXADA: "Puxada (Quick Peek) · melhor LAB",
-  FINAL: "Final da planilha antiga",
-  PRODUCAO: "Produção",
-};
 
 // A "bancada única" — tudo sobre UMA cor numa tela só. O ciclo do laboratório: fórmula → puxada
 // (Quick Peek) → registra o MELHOR LAB → ajuste (manual ou por sugestão) → nova rodada… até o menor
@@ -75,15 +65,115 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
   const labFinal = leituraFinal ? { l: Number(leituraFinal.l), a: Number(leituraFinal.a), b: Number(leituraFinal.b) } : null;
   const labExibido = labAlvo ?? labFinal;
 
-  // Resultado de cada rodada = o LAB da puxada e o ΔE dele contra o alvo.
-  const resultados = cor.rodadas.map((r) => {
-    const puxada = r.leituras.find((l) => l.contexto === "PUXADA");
-    const lab = puxada ? { l: Number(puxada.l), a: Number(puxada.a), b: Number(puxada.b) } : null;
-    const de = lab && labAlvo ? deltaE2000(labAlvo, lab) : null;
-    return { rodada: r, lab, de };
+  // Serializa cada rodada (Decimal→number, base→código/nome) pro RodadaCard, um Client Component
+  // que também cuida da edição/exclusão — não dá pra passar Decimal do Prisma direto pro cliente.
+  const rodadasSerializadas = cor.rodadas.map((r) => {
+    const composicoes = r.composicoes.map((c) => ({
+      id: c.id,
+      baseId: c.baseId,
+      baseCodigo: c.base.codigo,
+      baseNome: c.base.nome,
+      percentual: Number(c.percentual),
+    }));
+    const leituras = r.leituras.map((l) => {
+      const lab = { l: Number(l.l), a: Number(l.a), b: Number(l.b) };
+      return { id: l.id, contexto: l.contexto, ...lab, deltaE: labAlvo ? deltaE2000(labAlvo, lab) : null };
+    });
+    const puxada = leituras.find((l) => l.contexto === "PUXADA");
+    const de = puxada ? puxada.deltaE : null;
+    return { rodada: r, composicoes, leituras, puxadaLab: puxada ? { l: puxada.l, a: puxada.a, b: puxada.b } : null, de };
   });
-  const menorDe = resultados.reduce<number | null>((m, x) => (x.de != null && (m == null || x.de < m) ? x.de : m), null);
+  const menorDe = rodadasSerializadas.reduce<number | null>(
+    (m, x) => (x.de != null && (m == null || x.de < m) ? x.de : m),
+    null,
+  );
   const ultimaComposicao = cor.rodadas.at(-1)?.composicoes.map((c) => ({ baseId: c.baseId, percentual: Number(c.percentual) })) ?? [];
+
+  // Última puxada registrada (a mais recente com leitura), pra desenhar a seta de ajuste no plano
+  // a*/b* — é a referência que o colorista tem na mão na hora de montar a próxima rodada.
+  const ultimaComPuxada = rodadasSerializadas.filter((x) => x.puxadaLab).at(-1);
+
+  // Sugestão de ponto de partida (histórico): só faz sentido antes da 1ª rodada e com um LAB de
+  // referência pra comparar — sem alvo real ainda usa o próprio LAB final (cor importada), mesma
+  // lógica do labExibido acima.
+  const sugestoesHistorico =
+    cor.rodadas.length === 0 && labExibido
+      ? await (async () => {
+          const candidatos = await prisma.cor.findMany({
+            where: { id: { not: cor.id }, rodadas: { some: { aprovada: true } } },
+            select: {
+              id: true,
+              codigo: true,
+              cliente: true,
+              rodadas: {
+                where: { aprovada: true },
+                take: 1,
+                select: {
+                  composicoes: {
+                    select: { baseId: true, percentual: true, base: { select: { codigo: true } } },
+                    orderBy: { percentual: "desc" },
+                  },
+                  leituras: { select: { contexto: true, l: true, a: true, b: true } },
+                },
+              },
+            },
+          });
+          return candidatos
+            .map((c) => {
+              const rodadaAprovada = c.rodadas[0];
+              const leituraAprovada =
+                rodadaAprovada?.leituras.find((l) => l.contexto === "PUXADA") ??
+                rodadaAprovada?.leituras.find((l) => l.contexto === "FINAL");
+              if (!rodadaAprovada || !leituraAprovada) return null;
+              const lab = { l: Number(leituraAprovada.l), a: Number(leituraAprovada.a), b: Number(leituraAprovada.b) };
+              return {
+                corId: c.id,
+                codigo: c.codigo,
+                cliente: c.cliente,
+                de: deltaE2000(labExibido, lab),
+                lab,
+                composicao: rodadaAprovada.composicoes.map((cp) => ({ baseId: cp.baseId, percentual: Number(cp.percentual) })),
+              };
+            })
+            .filter((x): x is NonNullable<typeof x> => x != null && x.de <= TOLERANCIA_SUGESTAO_PONTO_PARTIDA)
+            .sort((a, b) => a.de - b.de)
+            .slice(0, 3);
+        })()
+      : [];
+
+  // Sugestão de ponto de partida (Pantone): pega o Pantone mais próximo do LAB de referência QUE
+  // seja conversível pra IRO com a equivalência confirmada (não é todo Pantone que é — Purple e o
+  // combo Reflex Blue ainda não têm conversão, ver converterComposicaoParaIro). Caminha do mais
+  // próximo pro mais longe até achar um conversível dentro da tolerância; se nenhum servir, null.
+  const sugestaoPantone =
+    cor.rodadas.length === 0 && labExibido
+      ? await (async () => {
+          const candidatos = await prisma.pantoneCor.findMany({
+            where: { parcial: false, labL: { not: null }, labA: { not: null }, labB: { not: null } },
+            select: { codigo: true, labL: true, labA: true, labB: true, composicao: true, somaPercentual: true },
+          });
+          const mapaBase = new Map(bases.map((b) => [b.codigo, b.id]));
+          const ordenados = candidatos
+            .filter((p) => Math.abs(Number(p.somaPercentual) - 100) <= 0.5)
+            .map((p) => {
+              const lab = { l: Number(p.labL), a: Number(p.labA), b: Number(p.labB) };
+              return { codigo: p.codigo, lab, composicao: p.composicao as Record<string, number>, de: deltaE2000(labExibido, lab) };
+            })
+            .sort((a, b) => a.de - b.de);
+
+          for (const p of ordenados) {
+            if (p.de > TOLERANCIA_SUGESTAO_PONTO_PARTIDA) break; // ordenado por ΔE — nenhum próximo serve mais
+            const conv = converterComposicaoParaIro(p.composicao);
+            if (!conv.ok) continue;
+            const composicao = conv.composicao
+              .map((c) => ({ baseId: mapaBase.get(c.baseCodigo), percentual: c.percentual }))
+              .filter((c): c is { baseId: string; percentual: number } => c.baseId != null);
+            if (composicao.length !== conv.composicao.length) continue; // base IRO fora do catálogo ativo
+            return { codigoPantone: p.codigo, de: p.de, lab: p.lab, composicao };
+          }
+          return null;
+        })()
+      : null;
 
   return (
     <>
@@ -105,7 +195,7 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
               {labAlvo || !labFinal ? "LAB alvo" : "LAB final (alvo não registrado)"}
             </span>
             <span className="font-mono text-sm">
-              {labExibido ? `L* ${labExibido.l} · a* ${labExibido.a} · b* ${labExibido.b}` : "não registrado"}
+              {labExibido ? `L* ${num(labExibido.l)} · a* ${num(labExibido.a)} · b* ${num(labExibido.b)}` : "não registrado"}
             </span>
           </div>
         </div>
@@ -121,26 +211,68 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
             <Badge variant="secondary">{STATUS_LABEL[cor.status] ?? cor.status}</Badge>
           </div>
         </div>
+        {podeRegistrar && (
+          <div className="flex items-start">
+            <EditarCorForm
+              cor={{
+                id: cor.id,
+                codigo: cor.codigo,
+                cliente: cor.cliente,
+                codigoProduto: cor.codigoProduto,
+                referenciaDeclarada: cor.referenciaDeclarada,
+                tipoReferencia: cor.tipoReferencia,
+                labAlvoL: labAlvo?.l ?? null,
+                labAlvoA: labAlvo?.a ?? null,
+                labAlvoB: labAlvo?.b ?? null,
+                substrato: cor.substrato,
+                acabamento: cor.acabamento,
+                resistenciaExigida: cor.resistenciaExigida,
+              }}
+            />
+          </div>
+        )}
       </div>
 
-      {labAlvo && resultados.some((x) => x.de != null) && (
+      {labExibido && (
+        <div className="mb-6">
+          {/* Cor importada sem alvo registrado (só o LAB final da planilha) ainda ganha o desenho —
+              usa o final como referência/mira, só muda o rótulo pra não parecer um alvo de verdade. */}
+          <EixoLabDiagram
+            alvo={labExibido}
+            atual={ultimaComPuxada?.puxadaLab ?? null}
+            rotuloAtual={`Rodada ${ultimaComPuxada?.rodada.numero ?? ""}`}
+            rotuloReferencia={labAlvo ? "Alvo" : "Final (planilha)"}
+          />
+        </div>
+      )}
+
+      {labAlvo && rodadasSerializadas.some((x) => x.de != null) && (
         <div className="mb-6 rounded-xl border border-border bg-card p-4">
           <div className="mb-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-            Evolução do ΔE2000 por rodada (meta &lt; {TOLERANCIA_DE.toFixed(2)})
+            Evolução do ΔE2000 por rodada (meta &lt; {num(TOLERANCIA_DE, 2)})
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-sm">
-            {resultados.map((x, i) => (
+            {rodadasSerializadas.map((x, i) => (
               <span key={x.rodada.id} className="flex items-center gap-2">
                 {i > 0 && <span className="text-muted-foreground">→</span>}
-                <span className={x.de != null && x.de === menorDe ? "font-semibold text-good" : "text-foreground"}>
-                  R{x.rodada.numero}: {x.de != null ? x.de.toFixed(2) : "—"}
+                <span
+                  className={
+                    x.de != null && x.de >= TOLERANCIA_DE
+                      ? "font-semibold text-destructive"
+                      : x.de != null && x.de === menorDe
+                        ? "font-semibold text-good"
+                        : "text-foreground"
+                  }
+                >
+                  R{x.rodada.numero}: {x.de != null ? num(x.de, 2) : "—"}
                 </span>
               </span>
             ))}
           </div>
           {menorDe != null && (
             <div className="mt-2 text-xs text-muted-foreground">
-              Menor até agora: <span className="font-mono">{menorDe.toFixed(2)}</span>
+              Menor até agora:{" "}
+              <span className={`font-mono ${menorDe >= TOLERANCIA_DE ? "font-semibold text-destructive" : ""}`}>{num(menorDe, 2)}</span>
               {menorDe < TOLERANCIA_DE ? " — dentro da tolerância." : " — ainda acima da tolerância."}
             </div>
           )}
@@ -150,102 +282,40 @@ export default async function CorDetalhePage({ params }: { params: Promise<{ id:
       <div className="flex flex-col gap-5">
         {cor.rodadas.length === 0 && <div className="empty-state">Nenhuma rodada registrada ainda.</div>}
 
-        {resultados.map(({ rodada: r, lab: labPuxada, de }) => {
-          const totalPct = r.composicoes.reduce((s, c) => s + Number(c.percentual), 0);
-          return (
-            <div key={r.id} className="rounded-xl border border-border bg-card p-4">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-foreground">Rodada {r.numero}</span>
-                <Badge variant="secondary">{ORIGEM_LABEL[r.origem] ?? r.origem}</Badge>
-                {r.aprovada && <Badge className="bg-good-soft text-good border-0">Aprovada</Badge>}
-                <span className="ml-auto font-mono text-xs text-muted-foreground">
-                  total: {totalPct.toFixed(2)}%{Math.abs(totalPct - 100) > 0.5 ? " ⚠" : ""}
-                </span>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Base</TableHead>
-                    <TableHead className="text-right">%</TableHead>
-                    <TableHead className="text-right">g (lote {LOTE_QUICKPEEK_G}g)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {r.composicoes.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell>
-                        {c.base.codigo} <span className="text-muted-foreground">— {c.base.nome}</span>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">{Number(c.percentual).toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-mono text-muted-foreground">
-                        {((Number(c.percentual) / 100) * LOTE_QUICKPEEK_G).toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {r.leituras.length > 0 && (
-                <div className="mt-3">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Leitura</TableHead>
-                        <TableHead>LAB</TableHead>
-                        <TableHead className="text-right">ΔE2000</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {r.leituras.map((l) => {
-                        const leituraLab = { l: Number(l.l), a: Number(l.a), b: Number(l.b) };
-                        const deLeitura = labAlvo ? deltaE2000(labAlvo, leituraLab) : null;
-                        return (
-                          <TableRow key={l.id}>
-                            <TableCell>{CONTEXTO_LABEL[l.contexto] ?? l.contexto}</TableCell>
-                            <TableCell className="font-mono text-xs">
-                              {leituraLab.l} / {leituraLab.a} / {leituraLab.b}
-                            </TableCell>
-                            <TableCell className="text-right font-mono">{deLeitura != null ? deLeitura.toFixed(2) : "—"}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-
-              {podeRegistrar && r.origem !== "IMPORTADO" && (
-                <NovaPuxadaForm rodadaId={r.id} corId={cor.id} atual={labPuxada} />
-              )}
-
-              {podeRegistrar && !r.aprovada && r.leituras.length > 0 && (
-                <form action={aprovarRodada} className="mt-3 flex items-center gap-3">
-                  <input type="hidden" name="rodadaId" value={r.id} />
-                  <Button type="submit" variant="outline" size="sm">
-                    Aprovar esta rodada
-                  </Button>
-                  {de != null && (
-                    <span className="text-xs text-muted-foreground">
-                      ΔE {de.toFixed(2)}
-                      {de < TOLERANCIA_DE ? " — dentro da tolerância" : " — acima da tolerância"}
-                    </span>
-                  )}
-                </form>
-              )}
-            </div>
-          );
-        })}
+        {rodadasSerializadas.map(({ rodada: r, composicoes, leituras, puxadaLab, de }) => (
+          <RodadaCard
+            key={r.id}
+            corId={cor.id}
+            rodadaId={r.id}
+            numero={r.numero}
+            origem={r.origem}
+            aprovada={r.aprovada}
+            composicoes={composicoes}
+            leituras={leituras}
+            puxadaLab={puxadaLab}
+            deAprovacao={de}
+            bases={bases}
+            podeRegistrar={podeRegistrar}
+          />
+        ))}
       </div>
 
       {podeRegistrar && (
         <div className="mt-6">
-          <NovaRodadaForm
-            corId={cor.id}
-            bases={bases}
-            proximoNumero={(cor.rodadas.at(-1)?.numero ?? 0) + 1}
-            composicaoAnterior={ultimaComposicao}
-          />
+          {cor.rodadas.length === 0 ? (
+            <PrimeiraFormula corId={cor.id} bases={bases} sugestoes={sugestoesHistorico} sugestaoPantone={sugestaoPantone} />
+          ) : (
+            // key = número da próxima rodada: salvar uma rodada troca o número e recria o quadro do
+            // zero — vem com "Ajuste nosso" e a fórmula da rodada recém-salva. Sem isso, o Select
+            // não controlado mantinha a origem escolhida antes (ex.: "Fórmula do fornecedor").
+            <NovaRodadaForm
+              key={(cor.rodadas.at(-1)?.numero ?? 0) + 1}
+              corId={cor.id}
+              bases={bases}
+              proximoNumero={(cor.rodadas.at(-1)?.numero ?? 0) + 1}
+              composicaoAnterior={ultimaComposicao}
+            />
+          )}
         </div>
       )}
     </>

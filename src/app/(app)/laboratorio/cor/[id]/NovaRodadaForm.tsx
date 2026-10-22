@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { criarRodada } from "./actions";
+import { useFormActionSemReset } from "@/hooks/use-form-action";
+import { num } from "@/lib/cor/formato";
+import { somaFecha100 } from "@/lib/cor/composicao";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,16 +28,20 @@ export function NovaRodadaForm({
   bases,
   proximoNumero,
   composicaoAnterior,
+  origemPadrao,
 }: {
   corId: string;
   bases: Base[];
   proximoNumero: number;
   composicaoAnterior: { baseId: string; percentual: number }[];
+  // Preenchido quando a composição veio de uma sugestão (histórico parecido) em vez da rodada
+  // anterior — deixa a origem já certa, sem o colorista precisar lembrar de trocar.
+  origemPadrao?: string;
 }) {
-  const [erro, formAction, pending] = useActionState(criarRodada, undefined);
+  const [erro, onSubmit, pending] = useFormActionSemReset(criarRodada, undefined);
   const [linhas, setLinhas] = useState<Linha[]>(
     composicaoAnterior.length > 0
-      ? composicaoAnterior.map((c, i) => ({ key: i, baseId: c.baseId, percentual: String(c.percentual) }))
+      ? composicaoAnterior.map((c, i) => ({ key: i, baseId: c.baseId, percentual: num(c.percentual) }))
       : [{ key: 0, baseId: "", percentual: "" }],
   );
 
@@ -42,6 +49,16 @@ export function NovaRodadaForm({
     setLinhas((ls) => ls.map((l) => (l.key === key ? { ...l, [campo]: valor } : l)));
 
   const total = linhas.reduce((s, l) => s + (Number(l.percentual.replace(",", ".")) || 0), 0);
+
+  // "Sugestão do sistema"/"Sugestão Pantone" só entram na lista quando já chegaram de uma sugestão
+  // real escolhida (ver PrimeiraFormula.tsx) — sozinhas, escolhidas à mão, elas não preenchem nada,
+  // então não fazem sentido como opção solta no menu (confundia: parecia uma ação, era só um rótulo vazio).
+  const origens =
+    origemPadrao === "SUGESTAO_SISTEMA"
+      ? [...ORIGENS, { value: "SUGESTAO_SISTEMA", label: "Sugestão do sistema (histórico parecido)" }]
+      : origemPadrao === "SUGESTAO_PANTONE"
+        ? [...ORIGENS, { value: "SUGESTAO_PANTONE", label: "Sugestão do sistema (Pantone convertido)" }]
+        : ORIGENS;
 
   return (
     <Card>
@@ -54,18 +71,18 @@ export function NovaRodadaForm({
         )}
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <input type="hidden" name="corId" value={corId} />
           <input type="hidden" name="numero" value={proximoNumero} />
 
           <div className="flex flex-col gap-1.5 sm:max-w-xs">
             <Label htmlFor="origem">Origem da fórmula</Label>
-            <Select name="origem" defaultValue={proximoNumero === 1 ? undefined : "AJUSTE_MANUAL"} required>
+            <Select name="origem" defaultValue={origemPadrao ?? (proximoNumero === 1 ? undefined : "AJUSTE_MANUAL")} required>
               <SelectTrigger id="origem" className="w-full">
                 <SelectValue placeholder="Escolha…" />
               </SelectTrigger>
               <SelectContent>
-                {ORIGENS.map((o) => (
+                {origens.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {o.label}
                   </SelectItem>
@@ -120,7 +137,7 @@ export function NovaRodadaForm({
                 <Plus className="h-3.5 w-3.5" /> Adicionar tinta
               </Button>
               <span className="font-mono text-xs text-muted-foreground">
-                total: {total.toFixed(2)}%{Math.abs(total - 100) > 0.5 ? " ⚠" : ""}
+                total: {num(total, 2)}%{somaFecha100(total) ? "" : " ⚠"}
               </span>
             </div>
           </div>

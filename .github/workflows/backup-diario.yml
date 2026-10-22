@@ -1,0 +1,89 @@
+name: Backup diário do banco
+
+# Copia o banco de produção (Neon, plano gratuito — sem retenção longa de histórico) inteiro
+# para um segundo banco Postgres em nuvem todo dia de madrugada, e guarda o arquivo do dump
+# por mais 14 dias como artefato do próprio GitHub Actions (uma segunda rede de segurança, caso
+# o segundo banco também tenha algum problema no mesmo dia). Ver BACKUP.md na raiz do repo para
+# o passo a passo de configuração (os dois segredos que este workflow precisa).
+#
+# Não depende de nenhuma conta pessoal (Drive, etc.) — só dos dois bancos Postgres e dos
+# "Secrets" deste repositório no GitHub, que já é onde o código mora.
+
+on:
+  schedule:
+    # 06:00 UTC = 03:00 no horário de Brasília (sem horário de verão hoje em dia).
+    - cron: "0 6 * * *"
+  workflow_dispatch: {} # botão "Run workflow" na aba Actions, pra rodar na hora sem esperar o horário
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # O pacote "postgresql-client" padrão do Ubuntu fica sempre uma versão major atrás (hoje
+      # só vai até a 16) — o pg_dump se recusa a extrair de um servidor Postgres MAIS NOVO que
+      # ele mesmo (o Neon já roda Postgres 18). Por isso instala do repositório oficial do
+      # projeto Postgres (apt.postgresql.org), que sempre tem a versão mais recente — sem
+      # travar num número fixo, pra continuar funcionando se o Neon atualizar de novo no futuro.
+      - name: Instala as ferramentas de Postgres (pg_dump / psql)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends ca-certificates curl gnupg
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -y
+          # O nome genérico "postgresql-client" (sem número) continua apontando pro pacote do
+          # próprio Ubuntu (16) mesmo com o repositório novo adicionado — é o Ubuntu quem "dono"
+          # desse nome. Precisa pedir a versão certa pelo nome específico. Se o Neon fizer outro
+          # upgrade de versão major no futuro (raro, é avisado com antecedência), troque o "18"
+          # abaixo pelo número novo.
+          sudo apt-get install -y --no-install-recommends postgresql-client-18
+          # A máquina do GitHub já vem com a versão 16 instalada em /usr/bin/pg_dump, e essa
+          # continua "ganhando" o comando mesmo depois de instalar a 18 — o Debian/Ubuntu não
+          # troca esse atalho sozinho neste caso. Em vez de depender dele, aponta as próximas
+          # etapas direto para o binário da versão certa (/usr/lib/postgresql/18/bin).
+          echo "/usr/lib/postgresql/18/bin" | sudo tee -a "$GITHUB_PATH"
+
+      - name: Confirma que os dois segredos foram configurados
+        run: |
+          if [ -z "${DATABASE_URL:-}" ] || [ -z "${DATABASE_URL_BACKUP:-}" ]; then
+            echo "::error::Faltam os secrets DATABASE_URL e/ou DATABASE_URL_BACKUP em Settings > Secrets and variables > Actions. Veja BACKUP.md."
+            exit 1
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_BACKUP: ${{ secrets.DATABASE_URL_BACKUP }}
+
+      # --no-owner/--no-privileges: os dois bancos são de provedores diferentes, com nomes de
+      # usuário/role diferentes — sem essas flags o dump tenta "ALTER TABLE ... OWNER TO
+      # <role de origem>" e o restore falha porque esse role não existe no banco de destino.
+      - name: Extrai o banco de produção
+        run: |
+          pg_dump "$DATABASE_URL" \
+            --no-owner --no-privileges --clean --if-exists \
+            --file=dump.sql
+          echo "Linhas no dump: $(wc -l < dump.sql)"
+          # Sanidade mínima — um dump vazio/truncado (ex.: pg_dump falhou mas não retornou erro,
+          # ou a conexão caiu no meio) não deve nunca ser restaurado por cima do backup de ontem.
+          if [ "$(wc -l < dump.sql)" -lt 20 ]; then
+            echo "::error::Dump suspeito de vazio/incompleto — abortando antes de tocar no banco de backup."
+            exit 1
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Restaura no banco de backup
+        run: psql "$DATABASE_URL_BACKUP" --set ON_ERROR_STOP=1 --file=dump.sql
+        env:
+          DATABASE_URL_BACKUP: ${{ secrets.DATABASE_URL_BACKUP }}
+
+      - name: Guarda o arquivo do dump por 14 dias (segunda rede de segurança)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dump-${{ github.run_id }}
+          path: dump.sql
+          retention-days: 14

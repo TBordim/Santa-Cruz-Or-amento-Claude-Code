@@ -3,8 +3,53 @@
 // Validados com Zod (ver schemas.ts) antes de qualquer gravação — o Prisma não valida o
 // conteúdo de campos Json.
 
-export type Suporte = { descricao: string; gramatura: string };
-export type SuporteTecnico = { formato: string; codigo: string };
+// Cada material a partir do segundo diz se é uma ALTERNATIVA aos outros ("opcao" — o cliente
+// quer o orçamento em mais de um papel, e cada opção gera as próprias SOs) ou se entra JUNTO no
+// produto ("conjunto" — vale pra todas as SOs). O primeiro material é sempre a opção base.
+// Materiais gravados antes de 30/09/2026 não têm o campo e contam como "conjunto": até então
+// não existia orçamento em papéis alternativos. Pedido do Thiago em 30/09/2026.
+import type { PreMontagemSalva } from "@/lib/montagem/salva";
+
+export type UsoMaterial = "opcao" | "conjunto";
+export type Suporte = { descricao: string; gramatura: string; uso?: UsoMaterial };
+
+// Engenharia, por material (um bloco por material da Solicitação, mesma ordem): cada papel tem
+// o próprio formato, código, quantidade por folha e aproveitamento. Os campos de formato suporte
+// ficavam uma vez só pro card inteiro (os soltos em ReqTecnicos) até 30/09/2026 — continuam lá
+// nos cards antigos e são exibidos como do primeiro material.
+export type SuporteTecnico = {
+  formato: string;
+  codigo: string;
+  qtdFolha?: string;
+  flsAcerto?: string;
+  fatorC?: string;
+  fatorL?: string;
+  corte?: string;
+  qtdCh?: string;
+  idealC?: string;
+  idealL?: string;
+};
+
+export type ClassificacaoModelo = "NOVO" | "REPETICAO_SEM_ALTERACAO" | "REPETICAO_COM_ALTERACAO" | "REPETICAO_NOVO";
+
+// Um modelo (produto) do orçamento. Vários modelos só dividem o mesmo orçamento quando usam a
+// mesma faca (produção conjugada): medidas, material, acabamento, quantidades e preço são do
+// conjunto, não de cada modelo. `id` liga o modelo à própria arte (Anexo.modeloId).
+export type Modelo = {
+  id: string;
+  descricao: string;
+  codigoCliente: string;
+  codInterno: string; // só dígitos, "" enquanto não houver cadastro
+  classificacao: ClassificacaoModelo;
+  // Cores de impressão no formato Frente/Verso ("3/0", "2/1"); ver cores.ts. Ausente nos
+  // orçamentos de antes de 05/10/2026.
+  cores?: string;
+  // Protocolo da arte deste modelo (Vendas): número, e a revisão em uso (0 = Rev 00). Ver
+  // src/lib/protocolos. Ausente em orçamentos de antes de 17/10/2026.
+  protocoloId?: string;
+  protocoloNumero?: string;
+  protocoloRevisao?: number;
+};
 
 // Etapa 1 — Solicitação de Orçamento (Em Aberto). Medidas/suportes/acabamento/verniz/
 // plástico/embalagem/impressão/fechamento são decisão de quem pede o orçamento, não da
@@ -25,6 +70,8 @@ export type ReqCliente = {
   fechamentoFundo?: string;
   // Uma ou mais quantidades pedidas — cada uma vira uma faixa em `precificacao`.
   quantidadesLista: string[];
+  // Link da arte quando o cliente manda por Drive/WeTransfer em vez de um arquivo por tipo.
+  linkArte?: string;
 };
 
 // Etapa 2 — Engenharia. Campos "mortos" (caixaC/L/A, recursos*, processosManuais,
@@ -34,6 +81,8 @@ export type ReqCliente = {
 // {...anterior, ...novo} ao salvar nunca os apaga.
 export type ReqTecnicos = {
   suportes: SuporteTecnico[];
+  // Campos soltos de formato suporte: só em cards de antes de 30/09/2026 (hoje ficam por
+  // material, em `suportes`).
   qtdFolha?: string;
   fatorC?: string;
   fatorL?: string;
@@ -44,7 +93,17 @@ export type ReqTecnicos = {
   flsAcerto?: string;
   anexos: string[];
   infoComplementares?: string;
+  // Ajustes que o Orçamento fez na Solicitação (quantidade ou papel novo) depois que o card já
+  // estava na etapa Orçamento — ver ajustarSolicitacao em painel/actions.ts. Fica aqui (e não em
+  // ReqCliente) porque salvar a Solicitação de novo recria o ReqCliente do zero, e o histórico
+  // não pode se perder.
+  ajustesOrcamento?: AjusteOrcamento[];
+  // Pré-montagem aprovada pela Engenharia, por material (chave = índice do material). Ver
+  // src/lib/montagem/salva.ts.
+  preMontagem?: Record<string, PreMontagemSalva>;
 };
+
+export type AjusteOrcamento = { em: string; por: string; itens: string[] };
 
 // Uma faixa de precificação — uma por quantidade pedida em quantidadesLista. Ver
 // avaliarCriterios/avaliarDiscrepanciaLegado/enviarParaDiretoria (motor.ts/tiers.ts) para como
@@ -54,6 +113,16 @@ export type StatusDiretoriaTier = "auto_aprovado" | "pendente" | "aprovado" | "r
 
 export type PrecificacaoTier = {
   quantidade: string;
+  // Opção de papel desta SO: índice do material em ReqCliente.suportes e o texto dele congelado
+  // na hora do cálculo. Cada SO é uma combinação quantidade × opção de papel (2 papéis × 2
+  // quantidades = 4 SOs). Ausente quando o orçamento tem um papel só (e nos cards antigos).
+  papelIdx?: number;
+  papel?: string;
+  // Uma SO ("Orçamento S.O. nº") por faixa/quantidade, não uma só pro card inteiro — cada
+  // quantidade é orçada separadamente e precisa dar pra rastrear cada uma pelo próprio número
+  // (pedido do Thiago em 25/09/2026). O número da solicitação inteira é o Nº de Pré Cadastro.
+  // O campo continua se chamando numeroSequencial por compatibilidade com o que já está gravado.
+  numeroSequencial: string;
   precoProjetado: number;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
@@ -83,6 +152,25 @@ export type PrecificacaoTier = {
   comentarioDiretoria?: string;
   rascunhoPrecoFinal?: number | null;
   rascunhoComentario?: string;
+
+  // Ajuste manual de preço feito DEPOIS da faixa já decidida (aprovada automática ou
+  // manualmente) — a Diretoria pode ter motivo pra mudar o preço mesmo com tudo certo (ex.:
+  // negociação com o cliente). Não apaga decididoPor/decididoEm original — os dois convivem,
+  // um mostra quem decidiu primeiro, o outro quem ajustou por último.
+  precoAjustadoPor?: string;
+  precoAjustadoEm?: number; // epoch ms
+
+  // As SOs de um orçamento são alternativas: o cliente fecha UMA delas. Marcada no Retorno do
+  // Cliente junto do desfecho positivo; é o valor dela que conta no Histórico e na comparação
+  // do próximo orçamento (último fornecimento).
+  escolhidaPeloCliente?: boolean;
+  // Nº do pedido do cliente (a ordem de compra dele), exigido ao registrar o desfecho positivo.
+  // Fica na SO que ele fechou.
+  pedidoCliente?: string;
+  // Linha que já foi ofertada ao cliente e ficou PRESERVADA enquanto uma quantidade nova é cotada
+  // (cotarNovaQuantidade): preço, SO e decisão da Diretoria não são recalculados nem reabertos.
+  // Sai quando a oferta nova é marcada como enviada.
+  ofertada?: boolean;
 };
 
 // Leitura automática por IA do Arquivo legado — fica deste tipo pronto, mas a Fase 2 não
