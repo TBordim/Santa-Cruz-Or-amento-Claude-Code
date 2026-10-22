@@ -1,6 +1,6 @@
 # Checklist de gravação: Representante, Novo Orçamento
 
-**Versão 1 (02/10/2026).** Acompanha o [roteiro](roteiro.md).
+**Versão 2 (06/10/2026).** Cena 7 nova: Minhas Solicitações (passos 18 a 21). **Versão 1 (02/10/2026).** Acompanha o [roteiro](roteiro.md).
 
 Grave **só a tela**, sem voz. A narração do Santinho entra depois, na edição.
 
@@ -73,7 +73,8 @@ Confira, antes de gravar, com a demo no ar:
 | **3 · Cliente** | 6. Clique em **"Buscar cliente cadastrado"** e digite `doce`. ⏸ 1 s na lista (2 resultados). 7. Clique em **Doces Serra Azul Ltda.** Aparece "Cliente do cadastro: Doces Serra Azul Ltda.". ⏸ 1 s. 8. Passe o mouse sobre **"Cliente não está na lista — cadastrar novo"**, **sem clicar**. ⏸ 1 s. |
 | **4 · Entrega e produto** | 9. Role até **Condições comerciais e entrega**. **Qtd. de entregas:** `1`. 10. **Data de entrega solicitada pelo Cliente:** `30/11/2026`. 11. Role até **Produto**. **Descrição do produto:** `Caixa para bolo 20 x 20 x 10 cm`. 12. **Quantidades a orçar:** `5000`; clique em **Adicionar quantidade**; `10000`. ⏸ 1 s. |
 | **5 · Detalhes técnicos** | 13. Role até **"Detalhes técnicos (toque para abrir)"** e **clique para abrir**. 14. **Formato — Comprimento (mm):** `200`. **Largura (mm):** `200`. **Altura (mm):** `100`. 15. **Descrição do material:** `Cartão duplex`; **Gramatura (g/m²):** `300`. ⏸ 1 s. 16. Role até **Acabamento** e passe o mouse sobre as opções, **sem marcar nada**. ⏸ 2 s. |
-| **6 · Enviar** | 17. Role até o fim. Clique em **Enviar solicitação**. Aparece **"Solicitação enviada"**. ⏸ 3 s. 18. ⏹ Pare. |
+| **6 · Enviar** | 17. Role até o fim. Clique em **Enviar solicitação**. Aparece **"Solicitação enviada"**. ⏸ 2 s. |
+| **7 · Minhas Solicitações** | 18. Clique em **Minhas Solicitações** (botão da confirmação ou item do menu). Aparece a lista com a solicitação que acabou de ser enviada (Doces Serra Azul Ltda., quantidades 5000, 10000). ⏸ 2 s. 19. Passe o mouse sobre **PDF**, **sem clicar** (clicar baixa um arquivo no aparelho). ⏸ 2 s. 20. Passe o mouse sobre **Repetir**, **sem clicar** (abriria o formulário preenchido). ⏸ 2 s. 21. ⏹ Pare. |
 
 ## Se errar
 

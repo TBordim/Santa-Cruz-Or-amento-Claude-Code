@@ -1,4 +1,4 @@
-# Monta o vídeo do Representante (Novo Orçamento em 1 minuto, 02/10/2026).
+# Monta o vídeo do Representante (Novo Orçamento em poucos minutos, 02/10/2026; v2 com a cena Minhas Solicitações, 06/10/2026).
 #
 #   python montar-representante.py <ffmpeg> <pasta-de-trabalho> <saida.mp4>
 #
@@ -11,21 +11,21 @@
 #   santinho-200.png, santinho-420.png, logo.png
 #
 # Linha do tempo (segundos de vídeo; tv = segundos da narração): a voz entra aos 2,6 s (TV). O vídeo tem três partes:
-#   A  0 a V(6,32)            abertura express + cena 1 (Santinho em tela cheia)
-#   B  V(6,32) a V(48,42)     cenas 2 a 6: a tela gravada (login acelerado/esticado para caber na cena 2; o resto em 1,0x,
+#   A  0 a V(5,98)            abertura express + cena 1 (Santinho em tela cheia)
+#   B  V(5,98) a V(61,62)     cenas 2 a 7: a tela gravada (login acelerado/esticado para caber na cena 2; o resto em 1,0x,
 #                             já gravado no ritmo da voz), com o Santinho na coluna da esquerda
-#   C  V(48,42) até o fim     cena 7: Santinho grande + logo
-# A voz fica CONTÍNUA (sem a folga de 0,8 s por cena do vídeo do Laboratório), para fechar abaixo de 1 minuto.
+#   C  V(61,62) até o fim     cena 8: Santinho grande + logo
+# A voz fica CONTÍNUA (sem a folga de 0,8 s por cena do vídeo do Laboratório), para o vídeo não crescer além da voz (cerca de 1 min 10 s).
 import difflib, glob, json, math, os, re, subprocess, sys, textwrap, unicodedata
 
 FF, W, SAIDA = sys.argv[1:4]
 os.chdir(W)
 TV = 2.6
 V = lambda tv: TV + tv
-FIM_VOZ = 51.20                  # fim da fala (tv)
+FIM_VOZ = 64.12                  # fim da fala (tv)
 CAUDA = 1.4                      # respiro depois da última palavra
 D = V(FIM_VOZ + CAUDA)           # duração total
-T_CENA2, T_CENA3, T_TROCA = 6.32, 10.48, 48.42
+T_CENA2, T_CENA3, T_TROCA = 5.98, 10.74, 61.62
 VCOD = ["-c:v", "libx264", "-profile:v", "high", "-level", "4.0", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "30"]
 ACOD = ["-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"]
 
@@ -125,12 +125,13 @@ def blocos(texto, palavras):
 
 
 TEXTOS = [
-    ("olá", "Olá! Eu sou o Santinho. Em um minuto, você aprende a pedir um orçamento!"),
+    ("olá", "Olá! Eu sou o Santinho. Em poucos minutos, você aprende a pedir um orçamento!"),
     ("entre", "Entre com seu nome e seu PIN: o Novo Orçamento já abre."),
     ("comece", "Comece pelo cliente: digite o nome ou o CNPJ, e escolha na lista. Se ele for novo, clique em cadastrar novo."),
     ("informe", "Informe quantas entregas e a data que o cliente pediu. Depois, descreva o produto e coloque as quantidades a orçar."),
-    ("preencha", "Preencha os detalhes técnicos: medidas, material, acabamento. Quanto mais informação, mais rápido sai o orçamento. Sem isso, a Engenharia precisa levantar, e atrasa."),
+    ("preencha", "Preencha os detalhes técnicos: medidas, material, acabamento. Quanto mais informação, mais rápido sai o orçamento. Sem isso, a Engenharia precisa levantar, e demora."),
     ("pronto", "Pronto! Clique em Enviar solicitação, e a Santa Cruz segue daqui."),
+    ("tudo", "Tudo o que você envia fica guardado em Minhas Solicitações, no menu. Baixe o PDF para guardar, ou clique em Repetir para abrir um novo pedido já preenchido."),
     ("foi", "Foi rápido, né? Bons negócios!"),
 ]
 palavras = json.load(open("rep.json", encoding="utf-8"))
@@ -182,7 +183,7 @@ ff("-framerate", "30", "-i", "quadros/%04d.jpg", "-vf", "scale=in_range=full:out
 m = json.load(open("rep-marcas.json", encoding="utf-8"))
 li, fo = m["login_ini"], m["form_ok"]
 dur_login = V(T_CENA3) - V(T_CENA2)          # a cena 2 inteira
-dur_form = T_TROCA - T_CENA3                 # da cena 3 até a troca para o fecho (1,0x)
+dur_form = T_TROCA - T_CENA3                 # da cena 3 até a troca para o fecho (1,0x); inclui a cena 7
 k1 = dur_login / (fo - li)
 DB = dur_login + dur_form
 ff("-i", "rep-tomada-01.webm", "-loop", "1", "-i", "santinho-200.png", "-filter_complex",
@@ -195,7 +196,7 @@ ff("-i", "rep-tomada-01.webm", "-loop", "1", "-i", "santinho-200.png", "-filter_
    "-map", "[v]", *VCOD, "-t", f"{DB:.2f}", "p-b.mp4")
 print(f"login esticado x{k1:.2f}: {fo - li:.2f} s -> {dur_login:.2f} s; formulário {dur_form:.2f} s em 1,0x")
 
-# ---------- parte C: fecho ----------
+# ---------- parte C: fecho (cena 8) ----------
 DC = D - V(T_TROCA)
 ff("-loop", "1", "-i", "santinho-420.png", "-loop", "1", "-i", "logo.png", "-filter_complex",
    f"color=c=0xF4EEE3:s=1280x720:r=30:d={DC:.2f}[bg];[0:v]scale=420:420,format=rgba[s];[1:v]scale=520:-1,format=rgba[lg];"

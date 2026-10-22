@@ -1,13 +1,15 @@
-# Roteiro: Representante, Novo Orçamento (vídeo de 1 minuto)
+# Roteiro: Representante, Novo Orçamento (vídeo de poucos minutos)
 
-**Versão 2 (02/10/2026).** Os detalhes técnicos deixam de ser "opcionais": o vídeo pede que o representante preencha, porque isso agiliza o orçamento (sem eles, a Engenharia precisa levantar e atrasa).
+**Versão 3 (06/10/2026).** Nova cena 7, **Minhas Solicitações** (o representante agora tem esse segundo acesso no menu: lista do que enviou, PDF para guardar e Repetir). O vídeo deixa de caber em 1 minuto: a meta passa a ser **cerca de 1 min 10 s**. A voz nova já foi gravada (06/10/2026, ElevenLabs, Nassif, velocidade 0,80): tempos, legendas e scripts atualizados. O título passou a "em poucos minutos".
+
+**Versão 2 (02/10/2026).** Os detalhes técnicos deixam de ser "opcionais": o vídeo pede que o representante preencha, porque isso agiliza o orçamento (sem eles, a Engenharia precisa levantar e demora).
 
 **Versão 1 (02/10/2026).** Baseado no código da `main` até o commit `8b21ddc` (Novo Orçamento com login,
 busca de cliente e campos obrigatórios).
 
 | | |
 |---|---|
-| **Duração** | **55,2 s** no vídeo pronto (meta: menos de 1 min). Previsão antes da montagem: A voz gravada em 02/10/2026 tem 51,2 s de fala; com a abertura de 3 s (a voz entra aos 2,6 s) e 1,2 s de fecho, o vídeo fecha perto de 55 s. Por isso a montagem usa a voz **contínua**, sem a folga de 0,8 s por cena do vídeo do Laboratório (que somaria uns 7 s e passaria de 1 min) |
+| **Duração** | **Previsão: 68,1 s** (voz nova de 06/10/2026: 64,7 s de fala; a voz entra aos 2,6 s e há 1,4 s de fecho). Os tempos da tabela abaixo seguem a voz nova. O vídeo antigo (55,2 s) não tem a cena 7 |
 | **Narração** | 109 palavras. Na voz usada nos outros vídeos (cerca de 150 palavras por minuto), dá uns 44 s de fala, mais as pausas entre as cenas |
 | **Público** | Representantes comerciais. Só abrem o Novo Orçamento; não veem Painel nem outros módulos |
 | **Apresentador** | só o Santinho. Nenhuma pessoa real aparece nem fala |
@@ -41,13 +43,14 @@ Estes valores precisam existir no ambiente demo (ver `gravacao.md`, "Dados e pre
 | Cena | Tempo | Fala do Santinho | O que aparece na tela | Ação a gravar | Pose |
 |---|---|---|---|---|---|
 | **0 · Abertura express** | 0:00–0:03 | *(sem fala; som de entrada)* | Logo da Santa Cruz → mini tornado laranja → Santinho. Sem aviso e sem texto de vinheta; só "Representantes" pequeno embaixo do logo | — | nascendo → feliz, acenando |
-| **1 · Boas-vindas** | 0:03–0:09 | Olá! Eu sou o Santinho. Em um minuto, você aprende a pedir um orçamento! | Santinho em tela cheia com o texto "Novo Orçamento em 1 minuto" | — | feliz, acenando |
-| **2 · Entrar** | 0:09–0:14 | Entre com seu nome e seu pin: o Novo Orçamento já abre. | Tela de login → nome → PIN → Entrar → formulário "Novo Orçamento" | Login como Rafael | apontando |
-| **3 · Cliente** | 0:14–0:25 | Comece pelo cliente: digite o nome ou o cê ene pê jota, e escolha na lista. Se ele for novo, clique em cadastrar novo. | Seção Cliente: campo "Buscar cliente cadastrado", lista com 2 resultados, cliente escolhido ("Cliente do cadastro: Doces Serra Azul Ltda."); o botão "Cliente não está na lista — cadastrar novo" destacado | Digitar "doce"; clicar no 1º resultado; passar o mouse no botão de cadastrar novo (**sem clicar**) | explicando |
-| **4 · Entrega e produto** | 0:25–0:36 | Informe quantas entregas e a data que o cliente pediu. Depois, descreva o produto e coloque as quantidades a orçar. | Campos "Qtd. de entregas (obrigatório)" e "Data de entrega solicitada pelo Cliente (obrigatório)"; depois "Descrição do produto" e "Quantidades a orçar (obrigatório)" com 2 quantidades | Preencher entregas e data; descrição; quantidade 5000; Adicionar quantidade; 10000 | explicando |
-| **5 · Detalhes técnicos** | 0:36–0:46 | Preencha os detalhes técnicos: medidas, material, acabamento. Quanto mais informação, mais rápido sai o orçamento. Sem isso, a Engenharia precisa levantar, e atrasa. | Seção "Detalhes técnicos" **aberta**: "Medidas e suporte" preenchida (comprimento, largura, altura, material, gramatura) e, logo abaixo, a seção "Acabamento" em destaque | Abrir a seção; preencher as medidas e o material; rolar até Acabamento e passar o mouse (**sem marcar nada**) | apontando |
-| **6 · Enviar** | 0:46–0:51 | Pronto! Clique em Enviar solicitação, e a Santa Cruz segue daqui. | Botão "Enviar solicitação" → cartão "Solicitação enviada" | Clicar em Enviar solicitação | comemorando |
-| **7 · Fecho** | 0:51–0:56 | Foi rápido, né? Bons negócios! | Santinho em destaque + logo da Santa Cruz | — | feliz |
+| **1 · Boas-vindas** | 0:03–0:09 | Olá! Eu sou o Santinho. Em poucos minutos, você aprende a pedir um orçamento! | Santinho em tela cheia com o texto "Novo Orçamento em poucos minutos" | — | feliz, acenando |
+| **2 · Entrar** | 0:09–0:13 | Entre com seu nome e seu pin: o Novo Orçamento já abre. | Tela de login → nome → PIN → Entrar → formulário "Novo Orçamento" | Login como Rafael | apontando |
+| **3 · Cliente** | 0:13–0:23 | Comece pelo cliente: digite o nome ou o cê ene pê jota, e escolha na lista. Se ele for novo, clique em cadastrar novo. | Seção Cliente: campo "Buscar cliente cadastrado", lista com 2 resultados, cliente escolhido ("Cliente do cadastro: Doces Serra Azul Ltda."); o botão "Cliente não está na lista — cadastrar novo" destacado | Digitar "doce"; clicar no 1º resultado; passar o mouse no botão de cadastrar novo (**sem clicar**) | explicando |
+| **4 · Entrega e produto** | 0:23–0:32 | Informe quantas entregas e a data que o cliente pediu. Depois, descreva o produto e coloque as quantidades a orçar. | Campos "Qtd. de entregas (obrigatório)" e "Data de entrega solicitada pelo Cliente (obrigatório)"; depois "Descrição do produto" e "Quantidades a orçar (obrigatório)" com 2 quantidades | Preencher entregas e data; descrição; quantidade 5000; Adicionar quantidade; 10000 | explicando |
+| **5 · Detalhes técnicos** | 0:32–0:46 | Preencha os detalhes técnicos: medidas, material, acabamento. Quanto mais informação, mais rápido sai o orçamento. Sem isso, a Engenharia precisa levantar, e demora. | Seção "Detalhes técnicos" **aberta**: "Medidas e suporte" preenchida (comprimento, largura, altura, material, gramatura) e, logo abaixo, a seção "Acabamento" em destaque | Abrir a seção; preencher as medidas e o material; rolar até Acabamento e passar o mouse (**sem marcar nada**) | apontando |
+| **6 · Enviar** | 0:46–0:52 | Pronto! Clique em Enviar solicitação, e a Santa Cruz segue daqui. | Botão "Enviar solicitação" → cartão "Solicitação enviada" | Clicar em Enviar solicitação | comemorando |
+| **7 · Minhas Solicitações** | 0:52–1:04 | Tudo o que você envia fica guardado em Minhas Solicitações, no menu. Baixe o PDF para guardar, ou clique em Repetir para abrir um novo pedido já preenchido. | Menu lateral com "Minhas Solicitações" em destaque; a página com a solicitação recém-enviada (Doces Serra Azul Ltda., quantidades 5000, 10000, data e hora) e, à direita, os botões **PDF** e **Repetir** | Na confirmação, clicar em **Minhas Solicitações** (ou no item do menu); passar o mouse em **PDF** e em **Repetir** (**sem clicar**: PDF abre o download do aparelho; Repetir abre o formulário preenchido) | apontando |
+| **8 · Fecho** | 1:04–1:08 | Foi rápido, né? Bons negócios! | Santinho em destaque + logo da Santa Cruz | — | feliz |
 
 ---
 
@@ -56,7 +59,7 @@ Estes valores precisam existir no ambiente demo (ver `gravacao.md`, "Dados e pre
 Cortes, em ordem (do que menos faz falta):
 1. Cena 3: tirar "Se ele for novo, clique em cadastrar novo" (−2 s).
 2. Cena 1: reduzir a "Olá! Eu sou o Santinho." (−3 s).
-3. Cena 5: tirar "medidas, material, acabamento" e ficar só com "Preencha os detalhes técnicos. Quanto mais informação, mais rápido sai o orçamento." (−4 s). **Evite cortar o aviso de que sem os detalhes a Engenharia atrasa.**
+3. Cena 5: tirar "medidas, material, acabamento" e ficar só com "Preencha os detalhes técnicos. Quanto mais informação, mais rápido sai o orçamento." (−4 s). **Evite cortar o aviso de que sem os detalhes a Engenharia demora.**
 
 ## Notas de produção
 
