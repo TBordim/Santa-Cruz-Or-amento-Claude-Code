@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; background: #F4EEE3; font-family: "Segoe UI", Arial, sans-serif; }
+  #fundo { position: absolute; inset: -30px; background: url(fundo.png) center/cover; filter: blur(9px) saturate(.9); opacity: 0; }
+  #veu { position: absolute; inset: 0; background: rgba(244,238,227,.35); opacity: 0; }
+  #logo { position: absolute; left: 0; top: 42%; display: flex; align-items: center; gap: 22px; transform-origin: 60px 50%; }
+  #simbolo { width: 120px; height: 120px; }
+  #marca { display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
+  #marca .nome { font: 800 86px/1 "Segoe UI", Arial, sans-serif; color: #5E5E5E; letter-spacing: -2px; }
+  #marca .sub { font: 500 22px/1 "Segoe UI", Arial, sans-serif; color: #7A7A7A; margin-top: 4px; }
+  #textos { position: absolute; left: 0; right: 0; top: 64%; text-align: center; }
+  #textos .programa { font: 600 22px "Segoe UI", Arial, sans-serif; letter-spacing: 6px; color: #9A430A; }
+  #textos .modulo { font: 700 44px "Segoe UI", Arial, sans-serif; color: #3A1905; margin-top: 10px; }
+  #tornado { position: absolute; left: 640px; top: 0; width: 0; height: 0; opacity: 0; }
+  .anel { position: absolute; border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(255,166,70,0) 0deg, #FFB060 70deg, #F47216 180deg, #DA5E0C 260deg, rgba(244,114,22,0) 350deg);
+    -webkit-mask: radial-gradient(closest-side, transparent 72%, #000 76%, #000 98%, transparent 100%);
+    mask: radial-gradient(closest-side, transparent 72%, #000 76%, #000 98%, transparent 100%); }
+  #flash { position: absolute; left: 640px; top: 330px; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: radial-gradient(circle, #fff, rgba(255,255,255,0) 70%); opacity: 0; }
+  #santinho { position: absolute; left: 640px; top: 350px; width: 560px; height: 560px; margin: -280px 0 0 -280px; opacity: 0; }
+  #legenda { position: absolute; left: 0; right: 0; bottom: 42px; text-align: center; }
+  #legenda span { display: inline-block; max-width: 900px; padding: 10px 22px; border-radius: 10px; background: rgba(20,12,6,.78); color: #fff; font: 600 30px/1.3 "Segoe UI", Arial, sans-serif; white-space: pre-line; }
+  #nome { position: absolute; top: 58px; left: 0; width: 0; height: 0; }
+  #nome .l { position: absolute; top: 0; font: 700 92px/1 "Fredoka", sans-serif; letter-spacing: 0;
+    background: linear-gradient(180deg, #FFC27A 0%, #FFA646 35%, #F47216 75%, #DA5E0C 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-text-stroke: 7px #4A2208; paint-order: stroke fill;
+    filter: drop-shadow(0 6px 0 #9A430A) drop-shadow(0 10px 12px rgba(74,34,8,.25)); transform-origin: 50% 85%; }
+  #nome .l.cruz { background: none; -webkit-text-stroke: 0; }
+  #preto { position: absolute; inset: 0; background: #000; opacity: 0; }
+</style>
+</head>
+<body>
+  <div id="fundo"></div><div id="veu"></div>
+  <div id="tornado"></div>
+  <div id="logo">
+    <svg id="simbolo" viewBox="170 45 510 505">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFA646"/><stop offset="1" stop-color="#E0600E"/></linearGradient></defs>
+      <g fill="url(#g)">
+        <path d="M 645.371094 246.878906 C 579.953125 181.335938 537.601562 139.003906 472.03125 73.59375 C 443.375 45.085938 397.253906 45.085938 368.703125 73.640625 C 355.710938 86.625 348.605469 103.394531 347.460938 120.488281 C 367.761719 119.105469 388.605469 126.0625 404.175781 141.449219 L 404.460938 141.722656 C 470.15625 206.433594 511.941406 249.230469 577.183594 314.40625 C 605.753906 342.972656 605.753906 389.710938 577.183594 418.28125 L 645.292969 350.195312 C 673.855469 321.636719 673.855469 275.492188 645.371094 246.878906"/>
+        <path d="M 300.511719 245.039062 C 272.03125 216.425781 272.03125 170.28125 300.605469 141.722656 L 368.699219 73.640625 C 340.121094 102.195312 340.125 148.953125 368.703125 177.507812 L 540.371094 349.132812 C 568.945312 377.691406 568.945312 424.445312 540.371094 452.992188 L 472.273438 521.078125 C 500.835938 492.523438 500.835938 445.769531 472.273438 417.210938 Z"/>
+        <path d="M 196.378906 348.078125 C 261.796875 413.621094 304.148438 455.953125 369.714844 521.359375 C 398.378906 549.867188 444.496094 549.867188 473.046875 521.3125 C 486.042969 508.332031 514.546875 479.152344 531.074219 462.257812 C 496.832031 482.972656 460.535156 473.898438 437.574219 453.507812 L 437.292969 453.234375 C 371.589844 388.519531 329.804688 345.722656 264.566406 280.546875 C 235.996094 251.984375 235.996094 205.242188 264.566406 176.675781 L 196.457031 244.761719 C 167.894531 273.316406 167.894531 319.464844 196.378906 348.078125"/>
+      </g>
+    </svg>
+    <div id="marca"><div class="nome">santa cruz</div><div class="sub">Indústria Gráfica</div></div>
+  </div>
+  <div id="textos"><div class="programa">PROGRAMA DE TREINAMENTO</div><div class="modulo">Módulo Laboratório</div></div>
+  <div id="flash"></div>
+  <img id="santinho" src="santinho.svg">
+  <div id="nome"></div>
+  <div id="legenda"><span></span></div>
+  <div id="preto"></div>
+<script>
+  const INICIO_FALA = 5.4, DUR_FALA = Number(new URLSearchParams(location.search).get("fala") || 11.36);
+  const FIM = INICIO_FALA + DUR_FALA + 1.2;
+  // Legenda da cena 1 (mesmos blocos do legendas.srt), com o tempo redistribuído pela duração real da voz.
+  const BLOCOS = ["Olá! Eu sou o Santinho, e hoje a gente\nvai colocar esse módulo no registro!",
+                  "Em poucos minutos, você vai cadastrar uma\ncor, registrar fórmulas e puxadas, aprovar",
+                  "a rodada certa e calcular a\ntinta de um lote na Produção."];
+  const pal = BLOCOS.map(b => b.split(/\s+/).length), tot = pal.reduce((a, b) => a + b, 0);
+  const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const ease = x => 1 - Math.pow(1 - cl(x), 3);
+  const easeIn = x => Math.pow(cl(x), 2.2);
+  const $ = id => document.getElementById(id);
+  const logo = $("logo"), textos = $("textos"), marca = $("marca"), tornado = $("tornado"), flash = $("flash"), sant = $("santinho"), leg = $("legenda").firstElementChild;
+
+  // Nome "Santinho": uma letra por span, pra cada uma pular na sua vez.
+  const NOME = "Santinho", nomeEl = document.getElementById("nome"), letras = [];
+  document.fonts.load('700 92px "Fredoka"');
+  // O "t" vira uma cruz (Santa Cruz), no mesmo estilo das letras: contorno marrom, degradê laranja.
+  const CRUZ = `<svg width="50" height="92" viewBox="0 0 50 92" style="display:block;overflow:visible">
+    <defs><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC27A"/><stop offset=".35" stop-color="#FFA646"/><stop offset=".75" stop-color="#F47216"/><stop offset="1" stop-color="#DA5E0C"/></linearGradient></defs>
+    <g fill="#4A2208" stroke="#4A2208" stroke-width="7" stroke-linejoin="round"><rect x="16" y="CT" width="18" height="CH" rx="7"/><rect x="3" y="BT" width="44" height="17" rx="7"/></g>
+    <g fill="url(#gc)"><rect x="16" y="CT" width="18" height="CH" rx="7"/><rect x="3" y="BT" width="44" height="17" rx="7"/></g></svg>`
+    .replaceAll("CT", 12).replaceAll("CH", 66).replaceAll("BT", 30);
+  for (const ch of NOME) {
+    const sp = document.createElement("span"); sp.className = "l";
+    if (ch === "t") { sp.innerHTML = CRUZ; sp.classList.add("cruz"); } else sp.textContent = ch;
+    nomeEl.appendChild(sp); letras.push(sp);
+  }
+  let larg = null;
+  const ANEIS = 9, aneis = [];
+  for (let i = 0; i < ANEIS; i++) { const a = document.createElement("div"); a.className = "anel"; tornado.appendChild(a); aneis.push(a); }
+  const larguraLogo = logo.getBoundingClientRect().width;
+  window.render = function (t) {
+    // 1) Vinheta (0–3 s): logo e textos aparecem.
+    const aparece = ease((t - 0.2) / 0.8);
+    // 2) Transformação (3–5 s): o logo gira cada vez mais rápido, encolhe e vira um redemoinho.
+    const tr = cl((t - 3) / 1.7);
+    const giro = 1080 * easeIn(tr);
+    const escala = (0.92 + 0.08 * aparece) * (1 - 0.85 * easeIn(tr));
+    logo.style.opacity = aparece * (1 - cl((tr - 0.75) / 0.2));
+    // Começa com o logo inteiro centralizado; ao girar, desliza até o símbolo ficar no centro.
+    const xIni = 640 - larguraLogo / 2, xFim = 640 - 60;
+    logo.style.left = (xIni + (xFim - xIni) * ease(tr / 0.4)) + "px";
+    logo.style.transform = `translateY(-50%) rotate(${giro}deg) scale(${escala})`;
+    marca.style.opacity = 1 - cl(tr / 0.35);
+    marca.style.transform = `translateX(${-120 * easeIn(tr / 0.35)}px) scale(${1 - 0.6 * easeIn(tr / 0.35)})`;
+    textos.style.opacity = ease((t - 0.8) / 0.7) * (1 - cl(tr / 0.3));
+    textos.style.transform = `translateY(${-90 * easeIn(tr / 0.3)}px) scale(${1 - 0.5 * easeIn(tr / 0.3)})`;
+    // Tornado: funil de anéis girando (largo em cima, fino embaixo) que cresce e colapsa no ponto
+    // onde o Santinho nasce (x 640, y ~360).
+    const tw = cl((t - 3.15) / 1.55);
+    const forca = Math.sin(Math.PI * Math.min(1, tw * 1.15));
+    const colapso = easeIn(cl((tw - 0.62) / 0.38));
+    tornado.style.opacity = forca > 0 ? 1 : 0;
+    for (let i = 0; i < ANEIS; i++) {
+      const f = i / (ANEIS - 1);                       // 0 = topo, 1 = ponta
+      const larg = (420 - 360 * f) * forca * (1 - colapso);
+      const alt = larg * 0.26;
+      const y = (150 + 230 * f) + 90 * colapso * (1 - f); // anéis descem até a ponta ao colapsar
+      const onda = Math.sin(t * 9 + f * 5) * 18 * forca * (1 - f * 0.5);
+      const a = aneis[i];
+      a.style.width = larg + "px"; a.style.height = larg + "px";
+      a.style.left = (-larg / 2 + onda) + "px"; a.style.top = (y - larg / 2) + "px";
+      a.style.opacity = (0.55 + 0.45 * (1 - f)) * forca;
+      a.style.transform = `scaleY(${alt / Math.max(1, larg)}) rotate(${(t * (900 + 260 * f)) % 360}deg)`;
+    }
+    const fl = cl((t - 4.55) / 0.5);
+    const rf = 20 + 380 * ease(fl);
+    flash.style.width = flash.style.height = rf * 2 + "px";
+    flash.style.margin = `${-rf}px 0 0 ${-rf}px`;
+    flash.style.opacity = Math.sin(Math.PI * fl) * 0.9;
+    // 3) Santinho aterrissa (4.6–5.3 s) e fica "vivo" (respira e balança de leve).
+    const nasce = cl((t - 4.6) / 0.7);
+    const pop = nasce < 1 ? (1.12 * ease(nasce / 0.7) - 0.12 * ease((nasce - 0.7) / 0.3)) : 1;
+    const vivo = Math.max(0, t - 5.3);
+    const boia = Math.sin(vivo * 2.4) * 7, balanca = Math.sin(vivo * 1.7) * 2.5;
+    // Durante a fala o Santinho vai para a esquerda, deixando a tela do app aparecer à direita.
+    const desloca = ease((t - 5.3) / 0.8);
+    sant.style.opacity = cl(nasce * 3);
+    sant.style.left = (640 - 250 * desloca) + "px";
+    sant.style.transform = `translateY(${boia}px) rotate(${balanca}deg) scale(${pop * (1 - 0.12 * desloca)})`;
+    // Nome em cima do Santinho: letras pulam uma a uma (5,0 s em diante), seguem o balanço dele e
+    // somem ao fim da primeira frase da fala.
+    if (!larg && document.fonts.check('700 92px "Fredoka"')) larg = letras.map(l => l.getBoundingClientRect().width + 4);
+    if (larg) {
+      const total = larg.reduce((a, b) => a + b, 0);
+      const cx = 640 - 250 * desloca;
+      let x = cx - total / 2;
+      const fimNome = INICIO_FALA + DUR_FALA * pal[0] / tot - 0.2;
+      const some = cl((t - fimNome) / 0.5);
+      letras.forEach((l, i) => {
+        const e = cl((t - (5.0 + i * 0.07)) / 0.45);
+        const pulo = e < 1 ? 1.25 * ease(e / 0.6) - 0.25 * ease((e - 0.6) / 0.4) : 1;
+        const onda = Math.sin(vivo * 2.4 + i * 0.6) * 5 + boia;
+        const incl = (i % 2 ? 1 : -1) * 5 + Math.sin(vivo * 1.7 + i) * 2;
+        l.style.left = x + "px";
+        l.style.opacity = cl(e * 4) * (1 - some);
+        l.style.transform = `translateY(${onda - 40 * (1 - ease(e))}px) rotate(${incl}deg) scale(${pulo * (1 - 0.3 * some)})`;
+        x += larg[i];
+      });
+    }
+    // Fundo: a tela do Laboratório desfocada entra junto com o Santinho.
+    $("fundo").style.opacity = ease((t - 4.9) / 0.6);
+    $("veu").style.opacity = ease((t - 4.9) / 0.6);
+    // Legenda sincronizada com a voz.
+    let txt = "";
+    if (t >= INICIO_FALA && t < INICIO_FALA + DUR_FALA + 0.3) {
+      let acc = 0;
+      for (let i = 0; i < BLOCOS.length; i++) {
+        const fim = INICIO_FALA + DUR_FALA * (acc + pal[i]) / tot;
+        if (t < fim || i === BLOCOS.length - 1) { txt = BLOCOS[i]; break; }
+        acc += pal[i];
+      }
+    }
+    leg.textContent = txt;
+    leg.parentElement.style.opacity = txt ? 1 : 0;
+    $("preto").style.opacity = cl((t - (FIM - 0.5)) / 0.5);
+  };
+  window.FIM = FIM;
+  render(0);
+</script>
+</body>
+</html>
