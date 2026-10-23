@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { FileText, Image as ImageIcon, Maximize2, Paperclip, Trash2 } from "lucide-react";
 import { ImagemAmpliavel, VisualizadorAmpliado } from "./VisualizadorAmpliado";
 import { prepararAnexo } from "@/lib/anexos/compressao";
-import { upload } from "@vercel/blob/client";
-import { adicionarAnexo, excluirAnexo, registrarAnexoEnviado } from "./actions";
+import { put } from "@vercel/blob/client";
+import { adicionarAnexo, excluirAnexo, gerarTokenDeEnvio, registrarAnexoEnviado } from "./actions";
 import { FormSection } from "@/components/form-section";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,10 +94,11 @@ export function AnexoUpload({
         } else {
           // Arquivo grande: vai direto do navegador para o Blob (a Vercel recusa mais de 4,5 MB
           // dentro da requisição) e só o registro passa pelo servidor.
-          const blob = await upload(`orcamentos/${orcamentoId}/${Date.now()}-${preparado.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`, preparado, {
+          const ingresso = await gerarTokenDeEnvio(orcamentoId, tipo, preparado.name);
+          if ("erro" in ingresso) throw new Error(ingresso.erro);
+          const blob = await put(ingresso.pathname, preparado, {
             access: "public",
-            handleUploadUrl: "/api/anexos/upload",
-            clientPayload: JSON.stringify({ orcamentoId, tipo }),
+            token: ingresso.token,
             multipart: preparado.size > 8_000_000,
           });
           fd.set("url", blob.url);
