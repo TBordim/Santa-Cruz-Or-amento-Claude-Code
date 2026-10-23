@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { detalheDaQuantidade } from "@/lib/orcamentos/quantidades";
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
 import { salvarOrcamento, enviarParaDiretoria, solicitarCompras, registrarRetornoCompras } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
@@ -157,6 +158,11 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
             );
             return (
               <FormSection key={chave(quantidade)} title={combinacoes.length === 1 ? "Precificação" : `Quantidade: ${quantidade}`}>
+                {detalheDaQuantidade(quantidade, c) && (
+                  <p className="-mt-1 text-xs text-muted-foreground">
+                    Por modelo: {detalheDaQuantidade(quantidade, c)!.map((x) => `${x.descricao || "Modelo"} ${Number(x.quantidade).toLocaleString("pt-BR")}`).join(" · ")} (total {quantidade})
+                  </p>
+                )}
                 {!numeroPorPapel &&
                   campoNumero(
                     primeiro.i,

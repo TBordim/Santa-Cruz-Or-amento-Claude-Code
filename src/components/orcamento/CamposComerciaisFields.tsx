@@ -1,6 +1,5 @@
-import { ListaDinamica } from "./ListaDinamica";
 import { SuportesLista } from "./SuportesLista";
-import { ModelosLista } from "./ModelosLista";
+import { ProdutoQuantidades } from "./ProdutoQuantidades";
 import { ClienteProvider, ClienteSecao, CampoCliente } from "./ClienteSecao";
 import { AnexosNovo } from "./AnexosNovo";
 import {
@@ -152,13 +151,15 @@ export function CamposComerciaisFields({
         {/* `key` pelo conteúdo gravado: depois de salvar, a lista recomeça com o que voltou do
             servidor — é lá que um modelo novo ganha o id que liga ele à própria arte. Sem isso,
             a linha continuava sem id e ganhava OUTRO id no salvamento seguinte. */}
-        <ModelosLista key={JSON.stringify(defaults?.modelos ?? [])} valoresIniciais={defaults?.modelos} codigoOpcional={codigoOpcional} />
-        <Field
-          label={comBuscaCliente ? "Quantidades a orçar (obrigatório)" : "Quantidades a orçar"}
-          hint="Total do conjunto (todos os modelos). Cada quantidade gera uma SO."
-        >
-          <ListaDinamica name="quantidades" placeholder="Ex.: 5000" botaoLabel="Adicionar quantidade" obrigatorio={comBuscaCliente} valoresIniciais={r?.quantidadesLista} />
-        </Field>
+        <ProdutoQuantidades
+          key={JSON.stringify([defaults?.modelos ?? [], r?.quantidadesLista ?? [], r?.quantidadesPorModelo ?? {}])}
+          modelosIniciais={defaults?.modelos}
+          quantidadesIniciais={r?.quantidadesLista}
+          detalheInicial={r?.quantidadesPorModelo}
+          codigoOpcional={codigoOpcional}
+          obrigatorio={comBuscaCliente}
+          rotulo={comBuscaCliente ? "Quantidades a orçar (obrigatório)" : "Quantidades a orçar"}
+        />
         <Field label="Observações">
           <Textarea name="obs" rows={2} defaultValue={defaults?.obs ?? ""} />
         </Field>

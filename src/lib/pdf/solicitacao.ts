@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { textoQuantidades } from "@/lib/orcamentos/quantidades";
 import { classificacaoLabel } from "@/lib/orcamentos/constantes";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { modelosDoDoc, textoMaterial } from "@/lib/orcamentos/modelos";
@@ -235,7 +236,7 @@ export async function gerarPdfSolicitacao(d: DadosSolicitacao): Promise<Uint8Arr
     ]),
   );
   e.y -= 4;
-  e.campo("Quantidades a orçar", c?.quantidadesLista?.join(", "));
+  e.campo("Quantidades a orçar", textoQuantidades(c));
   e.campo("Observações", d.obs);
   e.campo("Link da arte", c?.linkArte);
   e.campo("Arquivos anexados", d.anexos.map((a) => a.nome).join(", "));

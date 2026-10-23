@@ -72,6 +72,10 @@ export type ReqCliente = {
   fechamentoFundo?: string;
   // Uma ou mais quantidades pedidas — cada uma vira uma faixa em `precificacao`.
   quantidadesLista: string[];
+  // Com mais de um modelo, a quantidade de cada um por quantidade total (a chave é só os dígitos
+  // do total, ex.: "50000"). O total é a soma e é ele que vira SO; isto é só o detalhe. Ausente
+  // em orçamentos de um modelo só e nos de antes de 23/10/2026.
+  quantidadesPorModelo?: Record<string, { descricao: string; quantidade: string }[]>;
   // Link da arte quando o cliente manda por Drive/WeTransfer em vez de um arquivo por tipo.
   linkArte?: string;
 };

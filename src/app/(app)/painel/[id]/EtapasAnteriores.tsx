@@ -4,6 +4,7 @@ import type { ReqCliente, ReqTecnicos, PrecificacaoTier, SuporteTecnico } from "
 import { ETAPAS, classificacaoLabel, fmtMoney, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { fmtPct } from "@/lib/orcamentos/motor";
+import { textoQuantidades } from "@/lib/orcamentos/quantidades";
 import { rotuloProtocolo } from "@/lib/protocolos/comum";
 import { modelosDoDoc, anexosDoModelo, usoDoMaterial, textoMaterial, rotuloSO, soEscolhida } from "@/lib/orcamentos/modelos";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
@@ -168,7 +169,7 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
           {
             titulo: modelos.length > 1 ? "Conjunto" : undefined,
             linhas: [
-              { label: "Quantidades a orçar", value: c?.quantidadesLista?.filter(Boolean).join(", ") },
+              { label: "Quantidades a orçar", value: textoQuantidades(c) },
               { label: "Observações", value: doc.obs },
             ],
           },
