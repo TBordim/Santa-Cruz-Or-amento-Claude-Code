@@ -63,7 +63,8 @@ export async function gerarTokenDeEnvio(orcamentoId: string, tipoBruto: string, 
     return { token, pathname };
   } catch (e) {
     console.error("gerarTokenDeEnvio", e);
-    return { erro: "Não foi possível preparar o envio do arquivo. Avise o administrador." };
+    const detalhe = e instanceof Error ? e.message.replace(/vercel_blob_[A-Za-z0-9_]+/g, "[chave]").slice(0, 200) : "";
+    return { erro: `Não foi possível preparar o envio do arquivo. Avise o administrador.${detalhe ? ` (${detalhe})` : ""}` };
   }
 }
 
