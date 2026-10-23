@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { ETAPAS, fmtMoney, desfechoInfo } from "@/lib/orcamentos/constantes";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { discrepanciasDoOrcamento } from "@/lib/orcamentos/discrepancia";
+import { diasAguardando, textoDiasAguardando, textoDiasCurto, tomEspera, ESTILO_ESPERA } from "@/lib/orcamentos/espera";
 import { Badge } from "@/components/ui/badge";
 
 function precoExibicao(precificacao: PrecificacaoTier[] | null): string {
@@ -71,13 +72,16 @@ export async function PainelBoard() {
             ) : (
               itens.map((d, i) => {
                 const tiers = d.precificacao as unknown as PrecificacaoTier[] | null;
+                // Oferta enviada e cliente ainda não respondeu: mostra há quantos dias, pra cobrar.
+                const aguardaCliente = d.etapa === "FINALIZADO" && (!d.desfecho || d.desfecho === "AGUARDANDO");
+                const dias = aguardaCliente ? diasAguardando(d.finalizadoEm ?? d.atualizadoEm) : null;
                 const pendFlag = (d.etapa === "DIRETORIA" && d.statusDiretoria === "PENDENTE") || d.aguardandoCompras || d.etapa === "CADASTRO_PRODUTO";
                 let pill: { texto: string; classe: string } | null = null;
                 if (d.etapa === "DIRETORIA" && d.statusDiretoria === "PENDENTE") pill = { texto: "Aguarda diretoria", classe: "pend" };
                 else if (d.etapa === "ORCAMENTO" && d.aguardandoCompras) pill = { texto: "Aguarda Compras", classe: "pend" };
                 else if (d.statusDiretoria === "REVISAO") pill = { texto: "Revisão solicitada", classe: "bad" };
                 else if (d.etapa === "CADASTRO_PRODUTO") pill = { texto: "Falta Nº de cadastro", classe: "pend" };
-                else if (d.etapa === "FINALIZADO" && d.desfecho) {
+                else if (d.etapa === "FINALIZADO" && d.desfecho && !aguardaCliente) {
                   const info = desfechoInfo(d.desfecho);
                   pill = { texto: info.label.split(" —")[0].split(" (")[0], classe: info.pill };
                 } else if (d.statusDiretoria === "AUTO_APROVADO" || d.statusDiretoria === "APROVADO") {
@@ -97,6 +101,16 @@ export async function PainelBoard() {
                   >
                     <div className="truncate text-sm font-semibold text-foreground">{d.cliente}</div>
                     <div className="truncate text-xs text-muted-foreground">{d.produtoDescricao}</div>
+                    {aguardaCliente && dias !== null && (
+                      <>
+                        <div className="flex min-w-0 items-center gap-1.5" title={`${textoDiasAguardando(dias)} o retorno do cliente`}>
+                          <Badge className={`shrink-0 rounded-full border-0 text-[12px] font-bold ${ESTILO_ESPERA[tomEspera(dias)]}`}>
+                            ⏱ {textoDiasCurto(dias)}
+                          </Badge>
+                        </div>
+                        {d.representante && <div className="truncate text-[11.5px] text-muted-foreground">Rep.: {d.representante}</div>}
+                      </>
+                    )}
                     {pill && (
                       <Badge className={`w-fit rounded-full border-0 font-mono text-[10.5px] font-bold ${PILL_STYLE[pill.classe]}`}>
                         {pill.texto}
