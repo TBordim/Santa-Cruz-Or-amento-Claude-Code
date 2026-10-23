@@ -6,6 +6,8 @@ import { sessaoAtual } from "@/lib/permissions";
 import { salvarAnexoNoBlob, excluirAnexoDoBlob } from "@/lib/anexos/storage";
 import { podeAnexar, tipoDe } from "./permissao";
 import { registrarArteDeAnexo } from "@/lib/protocolos/arte";
+import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
+import { TAMANHO_MAXIMO_ANEXO } from "@/lib/anexos/compressao";
 
 export async function adicionarAnexo(formData: FormData) {
   const orcamentoId = String(formData.get("orcamentoId") ?? "");
@@ -39,6 +41,30 @@ export async function adicionarAnexo(formData: FormData) {
     await registrarArteDeAnexo({ anexoId: anexo.id, orcamentoId, modeloId, rotulo: arquivo.name, origem: "ORCAMENTO", enviadoPor: sessao.nome });
   }
   if (caminho) revalidatePath(caminho);
+}
+
+// Arquivo grande: em vez de passar o arquivo pelo servidor (a Vercel recusa mais de 4,5 MB), o
+// servidor confere quem é a pessoa e entrega um "ingresso" de envio direto ao Blob, válido só para
+// esta pasta do orçamento. Vai por Server Action (e não por uma rota de API) porque a Server Action
+// já é o caminho que o anexo usa e passa pela mesma verificação de sessão.
+export async function gerarTokenDeEnvio(orcamentoId: string, tipoBruto: string, nomeArquivo: string): Promise<{ token: string; pathname: string } | { erro: string }> {
+  try {
+    const sessao = await sessaoAtual();
+    if (!sessao) return { erro: "Sessão expirada. Entre de novo." };
+    if (!orcamentoId || !podeAnexar(sessao, tipoDe(tipoBruto))) return { erro: "Sem permissão para anexar arquivo nesta etapa." };
+    const seguro = nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120) || "arquivo";
+    const pathname = `orcamentos/${orcamentoId}/${Date.now()}-${seguro}`;
+    const token = await generateClientTokenFromReadWriteToken({
+      pathname,
+      maximumSizeInBytes: TAMANHO_MAXIMO_ANEXO,
+      addRandomSuffix: true,
+      validUntil: Date.now() + 60 * 60 * 1000,
+    });
+    return { token, pathname };
+  } catch (e) {
+    console.error("gerarTokenDeEnvio", e);
+    return { erro: "Não foi possível preparar o envio do arquivo. Avise o administrador." };
+  }
 }
 
 // Arquivo grande: o navegador já enviou direto para o Vercel Blob (ver api/anexos/upload/route.ts)
