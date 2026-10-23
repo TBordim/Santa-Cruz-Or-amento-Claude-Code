@@ -83,6 +83,8 @@ export type ResultadoDiscrepancia = {
   temDados: boolean;
   campos: string[];
   motivo?: string;
+  // Cada campo que estourou o limite, com os valores (pra mostrar à Diretoria e pedir a justificativa).
+  itens: { label: string; anterior: number; atual: number; variacao: number }[];
 };
 
 // Critério 2 (adicional e independente do Critério 1): compara custo primário, quantidade,
@@ -91,22 +93,28 @@ export type ResultadoDiscrepancia = {
 // nesta fase). Campo sem dado anterior não conta nem a favor nem contra.
 export function avaliarDiscrepanciaLegado(campos: CampoAnterior[]): ResultadoDiscrepancia {
   let temDados = false;
-  const estourou: { label: string; variacao: number }[] = [];
+  const estourou: { label: string; variacao: number; anterior: number; atual: number }[] = [];
 
   for (const c of campos) {
     if (c.anterior === null || c.anterior === undefined || Number.isNaN(c.anterior) || c.anterior === 0) continue;
     if (c.atual === null || c.atual === undefined || Number.isNaN(c.atual)) continue;
     temDados = true;
     const variacao = (Math.abs(c.atual - c.anterior) / Math.abs(c.anterior)) * 100;
-    if (variacao > LIMITE_DISCREPANCIA_LEGADO) estourou.push({ label: c.label, variacao });
+    if (variacao > LIMITE_DISCREPANCIA_LEGADO) estourou.push({ label: c.label, variacao, anterior: c.anterior, atual: c.atual });
   }
 
-  if (!temDados) return { bloqueia: false, temDados: false, campos: [] };
-  if (!estourou.length) return { bloqueia: false, temDados: true, campos: [] };
+  if (!temDados) return { bloqueia: false, temDados: false, campos: [], itens: [] };
+  if (!estourou.length) return { bloqueia: false, temDados: true, campos: [], itens: [] };
 
   const motivo = estourou
     .map((e) => `Discrepância de ${fmtPct(e.variacao)} em ${e.label} frente ao orçamento anterior (limite: ${String(LIMITE_DISCREPANCIA_LEGADO).replace(".", ",")}%).`)
     .join(" ");
 
-  return { bloqueia: true, temDados: true, campos: estourou.map((e) => e.label), motivo };
+  return {
+    bloqueia: true,
+    temDados: true,
+    campos: estourou.map((e) => e.label),
+    motivo,
+    itens: estourou.map((e) => ({ label: e.label, anterior: e.anterior, atual: e.atual, variacao: e.variacao })),
+  };
 }

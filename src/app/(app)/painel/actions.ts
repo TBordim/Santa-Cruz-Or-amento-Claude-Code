@@ -22,7 +22,10 @@ import { CREDITO_LIBERA } from "@/lib/orcamentos/constantes";
 import { erroNosModelos } from "@/lib/orcamentos/validacao-modelos";
 import { abrirAceite, desfazerAceiteSemAndamento, removerAceite, limparEscolhaDoDesfecho } from "@/lib/aceite/abrir";
 
-export type FormState = { erro?: string } | undefined;
+// `discrepancias`: SOs (pelo índice da combinação) que passaram de 2,5% frente ao orçamento anterior e
+// ainda não têm o motivo — a tela abre o campo de justificativa de cada uma.
+export type DiscrepanciaPedida = { indice: number; titulo: string; itens: { label: string; anterior: number; atual: number; variacao: number }[] };
+export type FormState = { erro?: string; discrepancias?: DiscrepanciaPedida[] } | undefined;
 
 async function exigirEdicao(id: string): Promise<{ etapa: AreaKey; nomeAtor: string }> {
   const sessao = await sessaoAtual();
@@ -387,7 +390,7 @@ export async function registrarRetornoCompras(formData: FormData) {
 export async function enviarParaDiretoria(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
-  await exigirEdicao(id);
+  const { nomeAtor } = await exigirEdicao(id);
 
   const combinacoes = combinacoesSO(doc.reqCliente as ReqCliente | null);
   if (!combinacoes.length) {
@@ -440,6 +443,25 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   });
 
   const calculadas = montarPrecificacao({ faixas, comissaoEspecial, acabamentoAtual: acabamento, produtoNovoClassificacao, anterior });
+
+  // Discrepância acima de 2,5% frente ao orçamento anterior: quem fez o preço diz o motivo, e a
+  // Diretoria vê isso no topo da SO. Linhas já ofertadas ao cliente não entram (valem como estão).
+  const pedidas: DiscrepanciaPedida[] = [];
+  calculadas.forEach((t, i) => {
+    if (!t.discrepancia || existentes.get(chaveSO(faixas[i]))?.ofertada) return;
+    const motivo = String(formData.get(`justificativaDiscrepancia_${i}`) ?? "").trim();
+    if (motivo.length < 5) {
+      pedidas.push({ indice: i, titulo: `${t.quantidade}${t.papel ? ` · ${t.papel}` : ""}${t.numeroSequencial ? ` — SO ${t.numeroSequencial}` : ""}`, itens: t.discrepancia.itens });
+    } else {
+      t.discrepancia = { ...t.discrepancia, justificativa: motivo.slice(0, 1000), justificadaPor: nomeAtor, justificadaEm: Date.now() };
+    }
+  });
+  if (pedidas.length) {
+    return {
+      erro: "Há discrepância acima de 2,5% frente ao orçamento anterior. Explique o motivo em cada SO destacada abaixo (a Diretoria vai ver) e envie de novo.",
+      discrepancias: pedidas,
+    };
+  }
   // As linhas ofertadas mantêm o objeto gravado (inclusive a decisão da Diretoria); só as novas
   // usam o cálculo.
   const precificacao = calculadas.map((t, i) => {

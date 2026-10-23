@@ -130,6 +130,10 @@ export function montarPrecificacao(input: MontarPrecificacaoInput): Precificacao
       { label: "Último preço", anterior: anterior?.precoFinal ?? null, atual: f.precoProjetado },
     ]);
 
+    // Qualquer discrepância acima do limite pede justificativa de quem fez o preço (a Diretoria vê o
+    // motivo), mesmo quando outro critério já impediria a aprovação automática.
+    if (discrepancia.bloqueia) tier.discrepancia = { itens: discrepancia.itens, justificativa: "" };
+
     // Anterior achado só por MEDIDAS (card sem código): o vínculo é mais fraco que o de código —
     // pode ser outro produto de mesma medida, e o orçamento antigo pode ter sido recusado pelo
     // cliente. Então a regra automática nunca aprova sozinha: a Diretoria vê a comparação e decide.

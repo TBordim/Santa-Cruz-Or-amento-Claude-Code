@@ -8,6 +8,8 @@ import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQu
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
 import { fmtMoney, fmtDate, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
 import { modelosDoDoc } from "@/lib/orcamentos/modelos";
+import { textoItemDiscrepancia } from "@/lib/orcamentos/discrepancia";
+import { AlertTriangle } from "lucide-react";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -111,6 +113,41 @@ function ComparacaoAnteriorAtual({
   );
 }
 
+// Faixa que a Diretoria enxerga primeiro: discrepância acima de 2,5% frente ao orçamento anterior e o
+// motivo que quem fez o preço informou. Sem motivo (cards de antes desta regra), diz isso em vermelho.
+function FaixaDiscrepancia({ tier, discrepanciaViva }: { tier: PrecificacaoTier; discrepanciaViva: ReturnType<typeof avaliarDiscrepanciaLegado> }) {
+  const itens = tier.discrepancia?.itens?.length ? tier.discrepancia.itens : discrepanciaViva.itens;
+  if (!itens.length) return null;
+  const d = tier.discrepancia;
+  const motivo = d?.justificativa?.trim();
+  return (
+    <div className="overflow-hidden rounded-lg border-2 border-bad bg-bad/10">
+      <div className="flex items-center gap-2 bg-bad px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white">
+        <AlertTriangle className="h-4 w-4 shrink-0" />
+        Discrepância acima de {String(LIMITE_DISCREPANCIA_LEGADO).replace(".", ",")}% — não foi aprovado automaticamente
+      </div>
+      <div className="flex flex-col gap-2 px-3 py-2.5">
+        <ul className="text-sm text-foreground">
+          {itens.map((x) => (
+            <li key={x.label} className="font-medium">{textoItemDiscrepancia(x)}</li>
+          ))}
+        </ul>
+        {motivo ? (
+          <div className="rounded-md bg-card px-3 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Motivo informado{d?.justificadaPor ? ` por ${d.justificadaPor}` : ""}
+              {d?.justificadaEm ? ` · ${fmtDateTime(new Date(d.justificadaEm))}` : ""}
+            </div>
+            <div className="mt-0.5 text-base font-semibold leading-snug text-foreground">“{motivo}”</div>
+          </div>
+        ) : (
+          <div className="rounded-md bg-card px-3 py-2 text-sm font-semibold text-bad">Nenhum motivo informado para esta discrepância.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CritRow({ ok, label }: { ok: boolean | null; label: string }) {
   const cor = ok === null ? "bg-muted-foreground/40" : ok ? "bg-good" : "bg-bad";
   return (
@@ -153,8 +190,17 @@ function TierCard({
     quantidade: primeiro(anteriorAoVivo?.quantidade, tier.quantidadeAnterior),
   };
 
+  const discrepanciaViva = avaliarDiscrepanciaLegado([
+    { label: "Custo primário (%)", anterior: anterior.custoPrimarioPct, atual: tier.custoPrimarioPct },
+    { label: "Quantidade", anterior: parseQuantidade(anterior.quantidade), atual: parseQuantidade(tier.quantidade) },
+    { label: "Margem P2 (%)", anterior: anterior.margemP2Pct, atual: tier.margemP2Pct },
+    { label: "Preço", anterior: anterior.precoFinal, atual: tier.precoProjetado },
+  ]);
+
   return (
     <FormSection title={titulo}>
+      {pendente && <FaixaDiscrepancia tier={tier} discrepanciaViva={discrepanciaViva} />}
+      {!pendente && tier.discrepancia?.justificativa && <FaixaDiscrepancia tier={tier} discrepanciaViva={discrepanciaViva} />}
       <ComparacaoAnteriorAtual
         tier={tier}
         anterior={anterior}
