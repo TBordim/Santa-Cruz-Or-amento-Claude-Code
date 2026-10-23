@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { chave } from "@/lib/orcamentos/chave";
-import { rotuloRevisao } from "@/lib/protocolos/comum";
+import { fmtDataProtocolo } from "@/lib/protocolos/comum";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { RevisoesProtocolo } from "../RevisoesProtocolo";
 
 export const dynamic = "force-dynamic";
 
-// Rastreabilidade por cliente: todos os protocolos e TODAS as versões (revisões) da arte de um
+// Rastreabilidade por cliente: todos os protocolos e TODAS as versões (datas) da arte de um
 // cliente. Pedido do Thiago em 17/10/2026.
 export default async function ProtocolosPorClientePage({ searchParams }: { searchParams: Promise<{ q?: string; cliente?: string }> }) {
   const { q, cliente } = await searchParams;
@@ -40,7 +40,7 @@ export default async function ProtocolosPorClientePage({ searchParams }: { searc
     <>
       <PageHeader
         title="Protocolos por cliente"
-        description="Todas as artes protocoladas de cada cliente, com todas as revisões. Nada é apagado: a arte é propriedade do cliente."
+        description="Todas as artes protocoladas de cada cliente, com o histórico de datas. Nada é apagado: a arte é propriedade do cliente."
       />
 
       {escolhido ? (
@@ -57,7 +57,7 @@ export default async function ProtocolosPorClientePage({ searchParams }: { searc
                 <Link href={`/protocolos/${p.id}`} className="font-mono text-sm font-semibold text-foreground underline underline-offset-2">
                   {p.numero}
                 </Link>
-                <span className="text-xs text-muted-foreground">{p.revisoes.length} revisão(ões), em uso {p.revisoes[0] ? rotuloRevisao(p.revisoes[0].revisao) : "—"}</span>
+                <span className="text-xs text-muted-foreground">{p.revisoes.length > 1 ? `${p.revisoes.length} datas, ` : ""}protocolado em {p.revisoes[0] ? fmtDataProtocolo(p.revisoes[0].dataProtocolo) : "—"}</span>
               </div>
               <div className="text-sm text-muted-foreground">{p.descricao}</div>
               <RevisoesProtocolo revisoes={p.revisoes} />

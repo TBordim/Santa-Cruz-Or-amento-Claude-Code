@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { podeEditar, sessaoAtual } from "@/lib/permissions";
-import { ErroProtocolo, protocolarAlterado, protocolarJaExistente, protocolarNovo } from "@/lib/protocolos/decidir";
+import { lerDataProtocolo } from "@/lib/protocolos/comum";
+import { ErroProtocolo,protocolarAlterado, protocolarJaExistente, protocolarNovo } from "@/lib/protocolos/decidir";
 
 export type FormState = { erro?: string; ok?: string } | undefined;
 
@@ -18,7 +19,7 @@ export async function decidirArte(_prev: FormState, fd: FormData): Promise<FormS
   const modo = t("modo");
   const copiaBruta = fd.get("copia");
   const copia = copiaBruta instanceof File && copiaBruta.size > 0 ? copiaBruta : null;
-  const base = { arteId, por: sessao?.nome ?? "Vendas", modeloId: t("modeloId") || null, copia };
+  const base = { arteId, por: sessao?.nome ?? "Vendas", modeloId: t("modeloId") || null, copia, data: lerDataProtocolo(t("dataProtocolo")) };
 
   try {
     // Protocolo escolhido na lista de sugestões ou digitado pelo número.
@@ -33,6 +34,7 @@ export async function decidirArte(_prev: FormState, fd: FormData): Promise<FormS
     } else if (modo === "alterado") {
       if (!protocoloId) return { erro: "Escolha o protocolo de que esta arte é uma versão alterada." };
       await protocolarAlterado({ ...base, protocoloId, mudou: t("mudou") });
+      // Mesmo número, data nova (a data garante a rastreabilidade).
     } else if (modo === "existente") {
       if (!protocoloId) return { erro: "Escolha o protocolo a que esta arte já pertence." };
       await protocolarJaExistente({ ...base, protocoloId });

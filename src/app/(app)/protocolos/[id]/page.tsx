@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { chave } from "@/lib/orcamentos/chave";
 import { modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { fmtDateTime } from "@/lib/orcamentos/constantes";
-import { origemLabel, rotuloRevisao } from "@/lib/protocolos/comum";
+import { fmtDataProtocolo, origemLabel } from "@/lib/protocolos/comum";
 import { PageHeader } from "@/components/page-header";
 import { ResumoBox } from "@/components/form-section";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { RevisoesProtocolo } from "../RevisoesProtocolo";
 
 export const dynamic = "force-dynamic";
 
-// Um protocolo: as revisões da arte, os orçamentos/modelos que usam esse protocolo e as artes que
+// Um protocolo: o histórico de datas e artes, os orçamentos/modelos que usam esse protocolo e as artes que
 // chegaram depois e foram descartadas por já existir este protocolo.
 export default async function ProtocoloPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,7 +34,7 @@ export default async function ProtocoloPage({ params }: { params: Promise<{ id: 
   const usos = doCliente.flatMap((o) =>
     (Array.isArray(o.modelos) ? modelosDoDoc(o) : [])
       .filter((m) => m.protocoloId === p.id)
-      .map((m) => ({ orcamentoId: o.id, criadoEm: o.criadoEm, modelo: m.descricao, revisao: m.protocoloRevisao ?? 0 })),
+      .map((m) => ({ orcamentoId: o.id, criadoEm: o.criadoEm, modelo: m.descricao, data: m.protocoloData ?? null })),
   );
 
   return (
@@ -54,13 +54,13 @@ export default async function ProtocoloPage({ params }: { params: Promise<{ id: 
           rows={[
             { label: "Cliente", value: p.clienteNome },
             { label: "Código interno", value: p.codInterno || "—" },
-            { label: "Revisão em uso", value: p.revisoes[0] ? rotuloRevisao(p.revisoes[0].revisao) : "—" },
+            { label: "Data do protocolo", value: p.revisoes[0] ? fmtDataProtocolo(p.revisoes[0].dataProtocolo) : "—" },
             { label: "Criado por", value: `${p.criadoPor} · ${fmtDateTime(p.criadoEm)}` },
           ]}
         />
 
         <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-foreground">Revisões da arte</h3>
+          <h3 className="text-sm font-semibold text-foreground">Histórico de datas e artes</h3>
           <RevisoesProtocolo revisoes={p.revisoes} />
         </section>
 
@@ -72,7 +72,7 @@ export default async function ProtocoloPage({ params }: { params: Promise<{ id: 
             usos.map((u, i) => (
               <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border px-3 py-2 text-sm">
                 <span className="min-w-0 flex-1 break-words">{u.modelo || "Modelo sem descrição"}</span>
-                <span className="font-mono text-xs text-muted-foreground">{rotuloRevisao(u.revisao)}</span>
+                <span className="font-mono text-xs text-muted-foreground">{fmtDataProtocolo(u.data)}</span>
                 <span className="text-xs text-muted-foreground">{fmtDateTime(u.criadoEm)}</span>
                 <Button asChild variant="ghost" size="sm">
                   <Link href={`/painel/${u.orcamentoId}`}>Ver</Link>
