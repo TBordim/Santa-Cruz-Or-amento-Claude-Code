@@ -112,7 +112,8 @@ function SidebarContent({
   ];
 
   const itemsDiretoria: NavItem[] = [
-    { href: "/diretoria", label: "Pendências e decididos", icon: Gavel, color: "#946522", prefixo: true },
+    { href: "/diretoria", label: "Pendências e decididos", icon: Gavel, color: "#946522" },
+    { href: "/diretoria/financeiro", label: "Painel financeiro", icon: BarChart3, color: "#2C6E8C" },
   ];
 
   // Atendimento ao Cliente: retorno dos orçamentos, data ao cliente e acompanhamento dos pedidos.
