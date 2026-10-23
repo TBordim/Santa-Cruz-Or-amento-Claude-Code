@@ -18,7 +18,7 @@ const TENTATIVAS: Array<[number, number]> = [
 // não intencionais indo pro Blob sem necessidade.
 const TAMANHO_ALVO = 2_000_000;
 
-export const TAMANHO_MAXIMO_ANEXO = 15_000_000; // 15MB — sanidade para PDFs (nunca comprimidos)
+export const TAMANHO_MAXIMO_ANEXO = 30_000_000; // 30MB — sanidade para PDFs (nunca comprimidos)
 
 function carregarImagem(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
