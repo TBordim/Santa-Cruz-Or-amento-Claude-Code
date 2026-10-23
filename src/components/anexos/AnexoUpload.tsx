@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { FileText, Image as ImageIcon, Maximize2, Paperclip, Trash2 } from "lucide-react";
 import { ImagemAmpliavel, VisualizadorAmpliado } from "./VisualizadorAmpliado";
 import { prepararAnexo } from "@/lib/anexos/compressao";
-import { adicionarAnexo, excluirAnexo } from "./actions";
+import { upload } from "@vercel/blob/client";
+import { adicionarAnexo, excluirAnexo, registrarAnexoEnviado } from "./actions";
 import { FormSection } from "@/components/form-section";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +20,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+// Até aqui o arquivo vai dentro da requisição do servidor (limite de 4,5 MB da Vercel, com folga).
+const LIMITE_PELO_SERVIDOR = 3_000_000;
 
 type AnexoItem = { id: string; nome: string; url: string; mime: string; tamanho: number };
 
@@ -84,10 +88,28 @@ export function AnexoUpload({
         fd.set("tipo", tipo);
         if (modeloId) fd.set("modeloId", modeloId);
         fd.set("caminho", pathname);
-        fd.set("arquivo", preparado);
-        await adicionarAnexo(fd);
+        if (preparado.size <= LIMITE_PELO_SERVIDOR) {
+          fd.set("arquivo", preparado);
+          await adicionarAnexo(fd);
+        } else {
+          // Arquivo grande: vai direto do navegador para o Blob (a Vercel recusa mais de 4,5 MB
+          // dentro da requisição) e só o registro passa pelo servidor.
+          const blob = await upload(`orcamentos/${orcamentoId}/${Date.now()}-${preparado.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`, preparado, {
+            access: "public",
+            handleUploadUrl: "/api/anexos/upload",
+            clientPayload: JSON.stringify({ orcamentoId, tipo }),
+            multipart: preparado.size > 8_000_000,
+          });
+          fd.set("url", blob.url);
+          fd.set("pathname", blob.pathname);
+          fd.set("nome", preparado.name);
+          fd.set("mime", preparado.type);
+          fd.set("tamanho", String(preparado.size));
+          await registrarAnexoEnviado(fd);
+        }
       } catch (err) {
-        setErro(err instanceof Error ? err.message : "Falha ao anexar o arquivo.");
+        const msg = err instanceof Error ? err.message : "";
+        setErro(/unexpected response/i.test(msg) ? "Não foi possível enviar o arquivo. Tente de novo; se continuar, reduza o arquivo." : msg || "Falha ao anexar o arquivo.");
       }
     });
     if (inputRef.current) inputRef.current.value = "";
