@@ -3,10 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { sessaoAtual } from "@/lib/permissions";
-import { salvarAnexoNoBlob, excluirAnexoDoBlob } from "@/lib/anexos/storage";
+import { salvarAnexoNoBlob, excluirAnexoDoBlob, lerArquivoGuardado } from "@/lib/anexos/storage";
 import { podeAnexar, tipoDe } from "./permissao";
 import { registrarArteDeAnexo } from "@/lib/protocolos/arte";
-import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 import { TAMANHO_MAXIMO_ANEXO } from "@/lib/anexos/compressao";
 
 export async function adicionarAnexo(formData: FormData) {
@@ -43,58 +42,80 @@ export async function adicionarAnexo(formData: FormData) {
   if (caminho) revalidatePath(caminho);
 }
 
-// Arquivo grande: em vez de passar o arquivo pelo servidor (a Vercel recusa mais de 4,5 MB), o
-// servidor confere quem é a pessoa e entrega um "ingresso" de envio direto ao Blob, válido só para
-// esta pasta do orçamento. Vai por Server Action (e não por uma rota de API) porque a Server Action
-// já é o caminho que o anexo usa e passa pela mesma verificação de sessão.
-export async function gerarTokenDeEnvio(orcamentoId: string, tipoBruto: string, nomeArquivo: string): Promise<{ token: string; pathname: string } | { erro: string }> {
+// Arquivo grande (PDF de arte de 14 MB, e-mail com anexos): a Vercel recusa mais de 4,5 MB numa
+// requisição, e o envio direto ao Blob não funcionou com a chave de produção. Então o navegador
+// manda o arquivo em pedaços de até 3 MB (enviarParteAnexo) e, no fim, o servidor junta os pedaços
+// num só arquivo e registra o anexo (concluirAnexoGrande). Só usa o mesmo "put" dos anexos comuns.
+const ID_ENVIO = /^[a-z0-9-]{8,64}$/;
+const MAX_PARTE = 3_500_000;
+
+export async function enviarParteAnexo(formData: FormData): Promise<{ url: string; pathname: string } | { erro: string }> {
   try {
+    const orcamentoId = String(formData.get("orcamentoId") ?? "");
+    const tipo = tipoDe(formData.get("tipo"));
+    const envioId = String(formData.get("envioId") ?? "");
+    const indice = Number(formData.get("indice"));
+    const parte = formData.get("parte");
+    if (!orcamentoId || !ID_ENVIO.test(envioId) || !Number.isInteger(indice) || indice < 0 || !(parte instanceof File)) return { erro: "Pedaço de arquivo inválido." };
+    if (parte.size > MAX_PARTE) return { erro: "Pedaço de arquivo grande demais." };
     const sessao = await sessaoAtual();
     if (!sessao) return { erro: "Sessão expirada. Entre de novo." };
-    if (!orcamentoId || !podeAnexar(sessao, tipoDe(tipoBruto))) return { erro: "Sem permissão para anexar arquivo nesta etapa." };
-    const seguro = nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120) || "arquivo";
-    const pathname = `orcamentos/${orcamentoId}/${Date.now()}-${seguro}`;
-    const token = await generateClientTokenFromReadWriteToken({
-      pathname,
-      maximumSizeInBytes: TAMANHO_MAXIMO_ANEXO,
-      addRandomSuffix: true,
-      validUntil: Date.now() + 60 * 60 * 1000,
-    });
-    return { token, pathname };
+    if (!podeAnexar(sessao, tipo)) return { erro: "Sem permissão para anexar arquivo nesta etapa." };
+    const salvo = await salvarAnexoNoBlob(orcamentoId, new File([parte], `${envioId}.${indice}.parte`, { type: "application/octet-stream" }));
+    return { url: salvo.url, pathname: salvo.pathname };
   } catch (e) {
-    console.error("gerarTokenDeEnvio", e);
-    const detalhe = e instanceof Error ? e.message.replace(/vercel_blob_[A-Za-z0-9_]+/g, "[chave]").slice(0, 200) : "";
-    return { erro: `Não foi possível preparar o envio do arquivo. Avise o administrador.${detalhe ? ` (${detalhe})` : ""}` };
+    console.error("enviarParteAnexo", e);
+    return { erro: "Falha ao enviar parte do arquivo. Tente de novo." };
   }
 }
 
-// Arquivo grande: o navegador já enviou direto para o Vercel Blob (ver api/anexos/upload/route.ts)
-// e aqui só se registra no banco. A confirmação do endereço evita registrar um link qualquer.
-export async function registrarAnexoEnviado(formData: FormData) {
-  const orcamentoId = String(formData.get("orcamentoId") ?? "");
-  const tipo = tipoDe(formData.get("tipo"));
-  const caminho = String(formData.get("caminho") ?? "");
-  const modeloId = String(formData.get("modeloId") ?? "") || null;
-  const url = String(formData.get("url") ?? "");
-  const pathname = String(formData.get("pathname") ?? "");
-  const nome = String(formData.get("nome") ?? "").slice(0, 255);
-  const mime = String(formData.get("mime") ?? "");
-  const tamanho = Number(formData.get("tamanho") ?? 0);
-  if (!orcamentoId || !nome || !pathname.startsWith(`orcamentos/${orcamentoId}/`) || pathname.includes("..")) throw new Error("Arquivo inválido.");
-  let host = "";
-  try { host = new URL(url).hostname; } catch { /* url inválida cai no erro abaixo */ }
-  if (!host.endsWith(".public.blob.vercel-storage.com")) throw new Error("Endereço do arquivo inválido.");
+export async function concluirAnexoGrande(formData: FormData): Promise<{ ok: true } | { erro: string }> {
+  const partes: { url: string; pathname: string }[] = [];
+  try {
+    const orcamentoId = String(formData.get("orcamentoId") ?? "");
+    const tipo = tipoDe(formData.get("tipo"));
+    const caminho = String(formData.get("caminho") ?? "");
+    const modeloId = String(formData.get("modeloId") ?? "") || null;
+    const envioId = String(formData.get("envioId") ?? "");
+    const nome = String(formData.get("nome") ?? "").slice(0, 255);
+    const mime = String(formData.get("mime") ?? "");
+    const lista = JSON.parse(String(formData.get("partes") ?? "[]")) as { url: string; pathname: string }[];
+    if (!orcamentoId || !nome || !ID_ENVIO.test(envioId) || !Array.isArray(lista) || lista.length === 0 || lista.length > 20) return { erro: "Arquivo inválido." };
+    // Só aceita pedaços que este envio gravou, na pasta deste orçamento.
+    for (const p of lista) {
+      if (typeof p?.pathname !== "string" || typeof p?.url !== "string" || p.pathname.includes("..") || !p.pathname.startsWith(`orcamentos/${orcamentoId}/`) || !p.pathname.includes(envioId)) {
+        return { erro: "Arquivo inválido." };
+      }
+      partes.push(p);
+    }
+    const sessao = await sessaoAtual();
+    if (!sessao) return { erro: "Sessão expirada. Entre de novo." };
+    if (!podeAnexar(sessao, tipo)) return { erro: "Sem permissão para anexar arquivo nesta etapa." };
 
-  const sessao = await sessaoAtual();
-  if (!sessao || !podeAnexar(sessao, tipo)) throw new Error("Sem permissão para anexar arquivo nesta etapa.");
-
-  const anexo = await prisma.anexo.create({
-    data: { orcamentoId, tipo, modeloId, nome, mime, tamanho: Number.isFinite(tamanho) ? tamanho : 0, url, pathname, enviadoPorId: sessao.usuarioId },
-  });
-  if (tipo === "ARTE") {
-    await registrarArteDeAnexo({ anexoId: anexo.id, orcamentoId, modeloId, rotulo: nome, origem: "ORCAMENTO", enviadoPor: sessao.nome });
+    const blocos: Buffer[] = [];
+    let total = 0;
+    for (const p of partes) {
+      const b = await lerArquivoGuardado(p.url, p.pathname);
+      total += b.length;
+      if (total > TAMANHO_MAXIMO_ANEXO) return { erro: "Arquivo grande demais." };
+      blocos.push(b);
+    }
+    const arquivo = new File(blocos as unknown as BlobPart[], nome, { type: mime });
+    const { url, pathname } = await salvarAnexoNoBlob(orcamentoId, arquivo);
+    const anexo = await prisma.anexo.create({
+      data: { orcamentoId, tipo, modeloId, nome, mime, tamanho: arquivo.size, url, pathname, enviadoPorId: sessao.usuarioId },
+    });
+    if (tipo === "ARTE") {
+      await registrarArteDeAnexo({ anexoId: anexo.id, orcamentoId, modeloId, rotulo: nome, origem: "ORCAMENTO", enviadoPor: sessao.nome });
+    }
+    if (caminho) revalidatePath(caminho);
+    return { ok: true };
+  } catch (e) {
+    console.error("concluirAnexoGrande", e);
+    return { erro: "Não foi possível juntar o arquivo. Tente de novo." };
+  } finally {
+    for (const p of partes) await excluirAnexoDoBlob(p.pathname).catch(() => {});
   }
-  if (caminho) revalidatePath(caminho);
 }
 
 export async function excluirAnexo(formData: FormData) {

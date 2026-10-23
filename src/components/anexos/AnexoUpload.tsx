@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 import { FileText, Image as ImageIcon, Maximize2, Paperclip, Trash2 } from "lucide-react";
 import { ImagemAmpliavel, VisualizadorAmpliado } from "./VisualizadorAmpliado";
 import { prepararAnexo } from "@/lib/anexos/compressao";
-import { put } from "@vercel/blob/client";
-import { adicionarAnexo, excluirAnexo, gerarTokenDeEnvio, registrarAnexoEnviado } from "./actions";
+import { adicionarAnexo, concluirAnexoGrande, enviarParteAnexo, excluirAnexo } from "./actions";
 import { FormSection } from "@/components/form-section";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +22,7 @@ import {
 
 // Até aqui o arquivo vai dentro da requisição do servidor (limite de 4,5 MB da Vercel, com folga).
 const LIMITE_PELO_SERVIDOR = 3_000_000;
+const TAMANHO_PARTE = 3_000_000;
 
 type AnexoItem = { id: string; nome: string; url: string; mime: string; tamanho: number };
 
@@ -92,21 +92,27 @@ export function AnexoUpload({
           fd.set("arquivo", preparado);
           await adicionarAnexo(fd);
         } else {
-          // Arquivo grande: vai direto do navegador para o Blob (a Vercel recusa mais de 4,5 MB
-          // dentro da requisição) e só o registro passa pelo servidor.
-          const ingresso = await gerarTokenDeEnvio(orcamentoId, tipo, preparado.name);
-          if ("erro" in ingresso) throw new Error(ingresso.erro);
-          const blob = await put(ingresso.pathname, preparado, {
-            access: "public",
-            token: ingresso.token,
-            multipart: preparado.size > 8_000_000,
-          });
-          fd.set("url", blob.url);
-          fd.set("pathname", blob.pathname);
+          // Arquivo grande: vai em pedaços de 3 MB (a Vercel recusa mais de 4,5 MB por requisição)
+          // e o servidor junta no fim.
+          const envioId = crypto.randomUUID();
+          const partes: { url: string; pathname: string }[] = [];
+          for (let i = 0, ini = 0; ini < preparado.size; i++, ini += TAMANHO_PARTE) {
+            const pf = new FormData();
+            pf.set("orcamentoId", orcamentoId);
+            pf.set("tipo", tipo);
+            pf.set("envioId", envioId);
+            pf.set("indice", String(i));
+            pf.set("parte", preparado.slice(ini, ini + TAMANHO_PARTE));
+            const r = await enviarParteAnexo(pf);
+            if ("erro" in r) throw new Error(r.erro);
+            partes.push(r);
+          }
+          fd.set("envioId", envioId);
           fd.set("nome", preparado.name);
           fd.set("mime", preparado.type);
-          fd.set("tamanho", String(preparado.size));
-          await registrarAnexoEnviado(fd);
+          fd.set("partes", JSON.stringify(partes));
+          const fim = await concluirAnexoGrande(fd);
+          if ("erro" in fim) throw new Error(fim.erro);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
