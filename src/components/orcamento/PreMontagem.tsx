@@ -13,7 +13,7 @@ import { Cubo3D } from "@/components/orcamento/Cubo3D";
 import { calcularOpcoes, type Entrada, type FibraCartucho, type FibraMaquina, type Opcao } from "@/lib/montagem/calcular";
 import { calcularComBerco } from "@/lib/montagem/berco";
 import { conjugar } from "@/lib/montagem/conjugar";
-import { facaFundoCartucho, OPCOES_FUNDO, OPCOES_TAMPA, type Cabeca, type Fechamento } from "@/lib/montagem/cartucho";
+import { facaFundoCartucho, MODELOS_REFERENCIA, OPCOES_FUNDO, OPCOES_TAMPA, type Cabeca, type Fechamento } from "@/lib/montagem/cartucho";
 import { facaRetangular, type Arte, type Faca, type ModoArte } from "@/lib/montagem/geometria";
 import { arteDaPagina, lerFacaDoPdf, type PdfJsLike } from "@/lib/montagem/pdf";
 import { facaDaSalva, montarPreMontagemSalva, type PreMontagemSalva } from "@/lib/montagem/salva";
@@ -128,6 +128,8 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
   const [fundoIdx, setFundoIdx] = useState(0);
   const [cabecaTampa, setCabecaTampa] = useState<Cabeca>("canto");
   const [cabecaFundo, setCabecaFundo] = useState<Cabeca>("meio");
+  // Modelo de referência escolhido (índice em MODELOS_REFERENCIA) ou -1 para escolher tampa e fundo à mão.
+  const [modeloRef, setModeloRef] = useState(-1);
   const [facaL, setFacaL] = useState("");
   const [facaA, setFacaA] = useState("");
   const [facaPdf, setFacaPdf] = useState<Faca | null>(null);
@@ -252,6 +254,20 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
     return lista.length >= 2 ? { feito: conjugar(op.posesPorFator, lista, CONFIG.toleranciaAcima) } : null;
   }, [op, conj]);
 
+  // Preenche tampa, fundo e cabeças com o desenho de referência escolhido.
+  function aplicarModelo(i: number) {
+    setModeloRef(i);
+    const m = MODELOS_REFERENCIA[i];
+    if (!m) return;
+    const t = OPCOES_TAMPA.findIndex((o) => o.nome === m.tampa);
+    const f = OPCOES_FUNDO.findIndex((o) => o.nome === m.fundo);
+    if (t >= 0) setTampaIdx(t);
+    if (f >= 0) setFundoIdx(f);
+    setCabecaTampa(m.cabecaTampa);
+    setCabecaFundo(m.cabecaFundo);
+    setSel(0);
+  }
+
   async function aoEscolherArte(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0];
     e.target.value = "";
@@ -357,6 +373,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
         setFundoIdx(fi >= 0 ? fi : Math.max(0, OPCOES_FUNDO.findIndex((o) => o.tipo === f.fechamento?.fundo.tipo)));
         setCabecaTampa(f.fechamento.tampa.cabeca);
         setCabecaFundo(f.fechamento.fundo.cabeca);
+        setModeloRef(-1);
       }
     } else {
       setOrigem("retangulo");
@@ -574,9 +591,44 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                   <Field label="Aba de cola (mm)" hint="Exemplo. As fórmulas reais de cada modelo virão da Engenharia.">
                     <Input inputMode="decimal" value={cola} onChange={(e) => setCola(e.target.value)} />
                   </Field>
+                  <Field label="Modelo de referência" hint="Os desenhos de exemplo da Engenharia. Escolher um preenche tampa, fundo e cabeças; você ainda pode mudar cada um abaixo.">
+                    <select className={selectCls} value={modeloRef} onChange={(e) => aplicarModelo(Number(e.target.value))}>
+                      <option value={-1}>Escolher tampa e fundo à mão</option>
+                      {MODELOS_REFERENCIA.map((m, i) => (
+                        <option key={m.nome} value={i}>
+                          {m.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  {modeloRef >= 0 && (
+                    <div className="rounded-md border border-dashed px-2.5 py-1.5 text-xs text-muted-foreground">
+                      {MODELOS_REFERENCIA[modeloRef].medidas ? (
+                        <>
+                          Desenho de exemplo: Frente {MODELOS_REFERENCIA[modeloRef].medidas?.F} × Lateral {MODELOS_REFERENCIA[modeloRef].medidas?.L} × Altura {MODELOS_REFERENCIA[modeloRef].medidas?.A} mm.{" "}
+                          <button
+                            type="button"
+                            className="underline"
+                            onClick={() => {
+                              const med = MODELOS_REFERENCIA[modeloRef].medidas;
+                              if (!med) return;
+                              setMedF(String(med.F).replace(".", ","));
+                              setMedLs(String(med.L).replace(".", ","));
+                              setMedA(String(med.A).replace(".", ","));
+                            }}
+                          >
+                            Usar essas medidas
+                          </button>
+                        </>
+                      ) : (
+                        "O desenho de exemplo não traz medidas."
+                      )}
+                      {MODELOS_REFERENCIA[modeloRef].obs ? ` ${MODELOS_REFERENCIA[modeloRef].obs}` : ""}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Tampa">
-                      <select className={selectCls} value={tampaIdx} onChange={(e) => setTampaIdx(Number(e.target.value))}>
+                      <select className={selectCls} value={tampaIdx} onChange={(e) => { setTampaIdx(Number(e.target.value)); setModeloRef(-1); }}>
                         {OPCOES_TAMPA.map((o, i) => (
                           <option key={o.nome} value={i}>
                             {o.nome}
@@ -585,7 +637,7 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                       </select>
                     </Field>
                     <Field label="Fundo">
-                      <select className={selectCls} value={fundoIdx} onChange={(e) => setFundoIdx(Number(e.target.value))}>
+                      <select className={selectCls} value={fundoIdx} onChange={(e) => { setFundoIdx(Number(e.target.value)); setModeloRef(-1); }}>
                         {OPCOES_FUNDO.map((o, i) => (
                           <option key={o.nome} value={i}>
                             {o.nome}
@@ -593,14 +645,14 @@ export function PreMontagem({ doc }: { doc: OrcamentoComAnexos }) {
                         ))}
                       </select>
                     </Field>
-                    <Field label="Cabeça da tampa" hint="Canto: painel ao lado da aba de cola.">
-                      <select className={selectCls} value={cabecaTampa} onChange={(e) => setCabecaTampa(e.target.value as Cabeca)}>
+                    <Field label="Cabeça da tampa" hint="Canto: painel ao lado da aba de cola. Só vale para tampa de encaixe (americana ou asa de avião).">
+                      <select className={selectCls} value={cabecaTampa} onChange={(e) => { setCabecaTampa(e.target.value as Cabeca); setModeloRef(-1); }}>
                         <option value="canto">Canto</option>
                         <option value="meio">Meio</option>
                       </select>
                     </Field>
-                    <Field label="Cabeça do fundo" hint="Só vale para fundo de encaixe (americano ou asa de avião).">
-                      <select className={selectCls} value={cabecaFundo} onChange={(e) => setCabecaFundo(e.target.value as Cabeca)}>
+                    <Field label="Cabeça do fundo" hint="Só vale para fundo de encaixe (americano ou asa de avião); hot melt, semi-automático e automático não têm cabeça.">
+                      <select className={selectCls} value={cabecaFundo} onChange={(e) => { setCabecaFundo(e.target.value as Cabeca); setModeloRef(-1); }}>
                         <option value="canto">Canto</option>
                         <option value="meio">Meio</option>
                       </select>
