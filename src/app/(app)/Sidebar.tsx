@@ -157,6 +157,7 @@ function SidebarContent({
 
   const itemsAdministracao: NavItem[] = [
     { href: "/administracao", label: "Usuários e perfis", icon: Settings2, color: "#233248" },
+    { href: "/administracao/armazenamento", label: "Armazenamento", icon: Archive, color: "#5B6270" },
   ];
 
   const itemNovo: NavItem = { href: "/novo", label: "Novo orçamento", icon: FilePlus2, color: "#3D6B49" };
