@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Copy, Plus, X } from "lucide-react";
 import { CLASSIFICACOES } from "@/lib/orcamentos/constantes";
 import { normalizarCores } from "@/lib/orcamentos/cores";
@@ -50,7 +50,18 @@ function semEnviar(e: React.KeyboardEvent) {
 // Desde 05/10/2026 dá pra criar muitos de uma vez: orçamento com dezenas de tipos do mesmo
 // produto (sabores, nuances) era lento e sujeito a erro lançando um a um. Cada tipo continua
 // sendo um modelo de verdade (código próprio, rastreabilidade, comparação na Diretoria).
-export function ModelosLista({ valoresIniciais, codigoOpcional = false }: { valoresIniciais?: Modelo[]; codigoOpcional?: boolean }) {
+export type ItemModelo = { chave: number; descricao: string };
+
+export function ModelosLista({
+  valoresIniciais,
+  codigoOpcional = false,
+  onMudar,
+}: {
+  valoresIniciais?: Modelo[];
+  codigoOpcional?: boolean;
+  // Quantidade por modelo (QuantidadesPorModelo) precisa saber quais modelos existem agora.
+  onMudar?: (itens: ItemModelo[]) => void;
+}) {
   const proxima = useRef(valoresIniciais?.length ?? 1);
   const [linhas, setLinhas] = useState<Linha[]>(
     valoresIniciais?.length
@@ -62,6 +73,11 @@ export function ModelosLista({ valoresIniciais, codigoOpcional = false }: { valo
   const [padraoClass, setPadraoClass] = useState<ClassificacaoModelo>("NOVO");
   const [padraoCores, setPadraoCores] = useState("");
   const [aviso, setAviso] = useState<string | null>(null);
+
+  useEffect(() => {
+    onMudar?.(linhas.map((l) => ({ chave: l.chave, descricao: l.modelo.descricao })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhas]);
 
   function atualizar(chave: number, parcial: Partial<Modelo>) {
     setLinhas((ls) => ls.map((l) => (l.chave === chave ? { ...l, modelo: { ...l.modelo, ...parcial } } : l)));

@@ -61,6 +61,27 @@ export function lerModelos(fd: FormData): Modelo[] {
     .filter((m) => m.descricao || m.codigoCliente || m.codInterno);
 }
 
+// "quantidadesDetalhe" vem pareado, por posição, com "quantidades" (um JSON por quantidade, "" quando
+// o orçamento tem um modelo só). Só guarda o detalhe de quantidade que tem total e mais de um modelo.
+function lerQuantidadesPorModelo(fd: FormData): Pick<ReqCliente, "quantidadesPorModelo"> {
+  const totais = fd.getAll("quantidades").map(String);
+  const detalhes = fd.getAll("quantidadesDetalhe").map(String);
+  const resultado: NonNullable<ReqCliente["quantidadesPorModelo"]> = {};
+  totais.forEach((total, i) => {
+    const chaveTotal = total.replace(/\D/g, "");
+    if (!chaveTotal || !detalhes[i]) return;
+    try {
+      const itens = (JSON.parse(detalhes[i]) as { descricao?: unknown; quantidade?: unknown }[])
+        .map((x) => ({ descricao: String(x.descricao ?? "").slice(0, 200), quantidade: String(x.quantidade ?? "").replace(/\D/g, "") }))
+        .filter((x) => x.quantidade);
+      if (itens.length > 1) resultado[chaveTotal] = itens;
+    } catch {
+      /* detalhe inválido é ignorado: o total continua valendo */
+    }
+  });
+  return Object.keys(resultado).length ? { quantidadesPorModelo: resultado } : {};
+}
+
 function lerReqCliente(fd: FormData): ReqCliente {
   return {
     medidaF: str(fd, "medidaF"),
@@ -78,6 +99,7 @@ function lerReqCliente(fd: FormData): ReqCliente {
     fechamentoFundo: str(fd, "fechamentoFundo"),
     // Quantidades vazias não viram faixa de preço.
     quantidadesLista: fd.getAll("quantidades").map(String).map((s) => s.trim()).filter(Boolean),
+    ...lerQuantidadesPorModelo(fd),
     // Formato certo é normalizado; errado fica como veio pra erroNoLink poder avisar.
     linkArte: normalizarLink(str(fd, "linkArte")) ?? str(fd, "linkArte"),
   };
