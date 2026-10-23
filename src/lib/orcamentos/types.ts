@@ -117,6 +117,16 @@ export type AjusteOrcamento = { em: string; por: string; itens: string[] };
 // são preenchidos.
 export type StatusDiretoriaTier = "auto_aprovado" | "pendente" | "aprovado" | "revisao";
 
+// Discrepância acima de 2,5% frente ao orçamento anterior (um dos motivos de não haver aprovação
+// automática). Quem fez o preço precisa explicar o motivo; a Diretoria vê isso no topo da SO e na
+// lista de pendências. Pedido do Thiago em 23/10/2026.
+export type DiscrepanciaTier = {
+  itens: { label: string; anterior: number; atual: number; variacao: number }[];
+  justificativa: string;
+  justificadaPor?: string;
+  justificadaEm?: number; // epoch ms
+};
+
 export type PrecificacaoTier = {
   quantidade: string;
   // Opção de papel desta SO: índice do material em ReqCliente.suportes e o texto dele congelado
@@ -150,6 +160,8 @@ export type PrecificacaoTier = {
   variacaoPct: number | null;
   precoFinalSugerido: number;
   motivoPendencia: string;
+  // Presente quando algum dos 4 campos comparados (custo, quantidade, margem P2, último preço) passa de 2,5%.
+  discrepancia?: DiscrepanciaTier;
 
   statusDiretoria: StatusDiretoriaTier;
   precoFinal?: number;
