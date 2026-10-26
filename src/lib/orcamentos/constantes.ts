@@ -85,7 +85,8 @@ export function fmtMoney(n: number | null | undefined): string {
 
 export function fmtDate(d: Date | string | null | undefined): string {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  // Sempre no fuso de São Paulo: o servidor da Vercel roda em UTC (3 h à frente) e mostrava horários errados.
+  return new Date(d).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 // new Date() em vez de new Date(Date.now() - x) — o linter (react-hooks/purity) reclama de
@@ -99,5 +100,6 @@ export function dataLimite(diasAtras: number): Date {
 export function fmtDateTime(d: Date | string | null | undefined): string {
   if (!d) return "—";
   const dt = new Date(d);
-  return dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const tz = { timeZone: "America/Sao_Paulo" } as const;
+  return dt.toLocaleDateString("pt-BR", { ...tz, day: "2-digit", month: "2-digit" }) + " " + dt.toLocaleTimeString("pt-BR", { ...tz, hour: "2-digit", minute: "2-digit" });
 }
