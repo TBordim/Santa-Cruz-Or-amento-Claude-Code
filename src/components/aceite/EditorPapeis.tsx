@@ -51,7 +51,9 @@ export function EditorPapeis({
   return (
     <>
       {suportes.map((x, n) => {
-        const sugestao = n === 0 ? folhasEstimadas(produzir || null, x.qtdFolha) : null;
+        const producaoFolhas = n === 0 ? folhasEstimadas(produzir || null, x.qtdFolha) : null;
+        const acerto = x.folhasAcerto ?? 0;
+        const sugestao = producaoFolhas === null ? null : producaoFolhas + acerto;
         const d = x.doOrcamento;
         const trocou = !!d && (d.codigo !== x.codigo || d.descricao !== x.descricao || d.formato !== x.formato || d.gramatura !== x.gramatura);
         return (
@@ -89,7 +91,7 @@ export function EditorPapeis({
               <Field label="Qtd por folha">
                 <Input value={x.qtdFolha ?? ""} inputMode="numeric" onChange={(e) => muda(x.id, "qtdFolha", numero(e.target.value))} />
               </Field>
-              <Field label={sugestao ? `Folhas (conta: ${fmtQuantidade(sugestao)})` : "Folhas"}>
+              <Field label={sugestao ? `Folhas (conta: ${fmtQuantidade(sugestao)}${acerto ? `, com ${fmtQuantidade(acerto)} de acerto` : ""})` : "Folhas"}>
                 <Input value={x.folhas ?? ""} inputMode="numeric" placeholder={sugestao ? String(sugestao) : ""} onChange={(e) => muda(x.id, "folhas", numero(e.target.value))} />
               </Field>
             </div>

@@ -16,7 +16,11 @@ export async function abrirAceite(orcamentoId: string) {
   const suportes = suportesDoOrcamento(doc.reqCliente as ReqCliente | null, doc.reqTecnicos as ReqTecnicos | null, so);
   const itens = itensIniciais(modelosDoDoc(doc), so, suportes[0]?.qtdFolha ?? null);
   // Folhas do papel principal pela conta do formulário (quantidade ÷ quantidade por folha).
-  if (suportes[0]) suportes[0].folhas = folhasEstimadas(producaoTotal(itens) || null, suportes[0].qtdFolha);
+  // Mais as folhas de acerto que o orçamento já previu.
+  if (suportes[0]) {
+    const producao = folhasEstimadas(producaoTotal(itens) || null, suportes[0].qtdFolha);
+    suportes[0].folhas = producao === null ? null : producao + (suportes[0].folhasAcerto ?? 0);
+  }
   await prisma.aceite.upsert({
     where: { orcamentoId },
     create: {

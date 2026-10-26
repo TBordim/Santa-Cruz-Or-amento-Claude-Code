@@ -21,6 +21,8 @@ export type SuporteAceite = {
   formato: string;
   qtdFolha: number | null;
   folhas: number | null;
+  // Folhas de acerto previstas no orçamento (somam às de produção na conta sugerida). Ausente em Aceites antigos.
+  folhasAcerto?: number | null;
   situacao: SituacaoSuporte;
   obs: string;
   // Como o orçamento especificou, quando o papel veio dele; mostra a troca se Vendas mudar.
@@ -47,7 +49,7 @@ export function suportesDoOrcamento(reqCliente: ReqCliente | null, reqTecnicos: 
     const t = reqTecnicos?.suportes?.[idx];
     const qtdFolhaTxt = t?.qtdFolha ?? (idx === 0 ? reqTecnicos?.qtdFolha : undefined);
     const base = { descricao: s.descricao ?? "", gramatura: s.gramatura ?? "", codigo: t?.codigo ?? "", formato: t?.formato ?? "" };
-    return { id: `s${n + 1}`, ...base, qtdFolha: parseQuantidade(qtdFolhaTxt ?? null), folhas: null, situacao: "NAO_VERIFICADO", obs: "", doOrcamento: base };
+    return { id: `s${n + 1}`, ...base, qtdFolha: parseQuantidade(qtdFolhaTxt ?? null), folhas: null, folhasAcerto: parseQuantidade(t?.flsAcerto ?? (idx === 0 ? reqTecnicos?.flsAcerto : undefined) ?? null), situacao: "NAO_VERIFICADO", obs: "", doOrcamento: base };
   });
 }
 
