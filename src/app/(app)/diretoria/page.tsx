@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { fmtMoney, fmtDateTime } from "@/lib/orcamentos/constantes";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { rotuloSO } from "@/lib/orcamentos/modelos";
-import { textoItemDiscrepancia } from "@/lib/orcamentos/discrepancia";
+import { textoItemDiscrepancia, itensVigentes } from "@/lib/orcamentos/discrepancia";
 import { AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,11 +53,11 @@ export default async function DiretoriaPage() {
                     <div className="text-sm font-semibold text-foreground">
                       {d.cliente} — <span className="font-normal text-muted-foreground">{d.produtoDescricao}</span>
                     </div>
-                    {tiers.filter((t) => t.discrepancia?.itens?.length).map((t, k) => (
+                    {tiers.filter((t) => itensVigentes(t.discrepancia?.itens).length > 0).map((t, k) => (
                       <div key={k} className="mt-1.5 rounded-md border-2 border-bad bg-bad/10 px-2.5 py-1.5 text-sm">
                         <div className="flex items-center gap-1.5 font-bold text-bad">
                           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                          Discrepância acima de 2,5%{t.numeroSequencial ? ` · SO ${t.numeroSequencial}` : ""}: {t.discrepancia!.itens.map(textoItemDiscrepancia).join("; ")}
+                          Discrepância acima de 2,5%{t.numeroSequencial ? ` · SO ${t.numeroSequencial}` : ""}: {itensVigentes(t.discrepancia!.itens).map(textoItemDiscrepancia).join("; ")}
                         </div>
                         <div className="mt-0.5 font-semibold text-foreground">
                           {t.discrepancia!.justificativa ? `Motivo: “${t.discrepancia!.justificativa}”${t.discrepancia!.justificadaPor ? ` — ${t.discrepancia!.justificadaPor}` : ""}` : "Nenhum motivo informado."}

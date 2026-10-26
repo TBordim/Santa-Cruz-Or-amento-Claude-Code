@@ -121,7 +121,8 @@ export type StatusDiretoriaTier = "auto_aprovado" | "pendente" | "aprovado" | "r
 // automática). Quem fez o preço precisa explicar o motivo; a Diretoria vê isso no topo da SO e na
 // lista de pendências. Pedido do Thiago em 23/10/2026.
 export type DiscrepanciaTier = {
-  itens: { label: string; anterior: number; atual: number; variacao: number }[];
+  // `pontos`: diferença em pontos percentuais (custo primário e margem P2); sem ele, variação relativa em %.
+  itens: { label: string; anterior: number; atual: number; variacao: number; pontos?: boolean }[];
   justificativa: string;
   justificadaPor?: string;
   justificadaEm?: number; // epoch ms

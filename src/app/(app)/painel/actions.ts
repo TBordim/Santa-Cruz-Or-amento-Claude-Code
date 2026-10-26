@@ -24,7 +24,7 @@ import { abrirAceite, desfazerAceiteSemAndamento, removerAceite, limparEscolhaDo
 
 // `discrepancias`: SOs (pelo índice da combinação) que passaram de 2,5% frente ao orçamento anterior e
 // ainda não têm o motivo — a tela abre o campo de justificativa de cada uma.
-export type DiscrepanciaPedida = { indice: number; titulo: string; itens: { label: string; anterior: number; atual: number; variacao: number }[] };
+export type DiscrepanciaPedida = { indice: number; titulo: string; itens: { label: string; anterior: number; atual: number; variacao: number; pontos?: boolean }[] };
 export type FormState = { erro?: string; discrepancias?: DiscrepanciaPedida[] } | undefined;
 
 async function exigirEdicao(id: string): Promise<{ etapa: AreaKey; nomeAtor: string }> {

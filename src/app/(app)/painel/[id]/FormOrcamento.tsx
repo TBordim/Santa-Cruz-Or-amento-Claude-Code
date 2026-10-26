@@ -24,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useSalvoToast } from "@/hooks/use-salvo-toast";
 
-type ItemDiscrepancia = { label: string; anterior: number; atual: number; variacao: number };
+type ItemDiscrepancia = { label: string; anterior: number; atual: number; variacao: number; pontos?: boolean };
 const num = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
 // Pergunta o motivo da discrepância (acima de 2,5% frente ao orçamento anterior) de quem fez o
@@ -41,7 +41,7 @@ function CaixaDiscrepancia({ indice, itens, inicial, destaque }: { indice: numbe
         {itens.map((x) => (
           <li key={x.label}>
             <strong>{x.label}:</strong> {num(x.anterior)} → {num(x.atual)} ({x.atual >= x.anterior ? "+" : "−"}
-            {num(x.variacao)}%)
+            {num(x.variacao)}{x.pontos ? " pontos" : "%"})
           </li>
         ))}
       </ul>
