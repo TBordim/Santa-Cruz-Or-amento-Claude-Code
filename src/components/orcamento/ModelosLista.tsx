@@ -56,11 +56,14 @@ export function ModelosLista({
   valoresIniciais,
   codigoOpcional = false,
   onMudar,
+  campoQuantidade,
 }: {
   valoresIniciais?: Modelo[];
   codigoOpcional?: boolean;
-  // Quantidade por modelo (QuantidadesPorModelo) precisa saber quais modelos existem agora.
+  // Quantidade por modelo (ProdutoQuantidades) precisa saber quais modelos existem agora.
   onMudar?: (itens: ItemModelo[]) => void;
+  // Campo(s) de quantidade na linha de cada modelo, do lado da descrição.
+  campoQuantidade?: (chave: number, indice: number) => React.ReactNode;
 }) {
   const proxima = useRef(valoresIniciais?.length ?? 1);
   const [linhas, setLinhas] = useState<Linha[]>(
@@ -219,6 +222,7 @@ export function ModelosLista({
               <Field label={varios ? `Modelo ${i + 1} — descrição do produto` : "Descrição do produto"} className="flex-1">
                 <Input name="modeloDescricao" required value={modelo.descricao} onChange={(e) => atualizar(chave, { descricao: e.target.value })} />
               </Field>
+              {campoQuantidade?.(chave, i)}
               <Button type="button" variant="ghost" size="icon-sm" aria-label={`Duplicar o modelo ${i + 1}`} title="Duplicar" onClick={() => duplicar(chave)}>
                 <Copy className="h-3.5 w-3.5" />
               </Button>
