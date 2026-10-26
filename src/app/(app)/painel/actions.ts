@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { precisaDeMotivo } from "@/lib/orcamentos/discrepancia";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { sessaoAtual, podeEditar, ehAdmin } from "@/lib/permissions";
@@ -450,6 +451,7 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   calculadas.forEach((t, i) => {
     if (!t.discrepancia || existentes.get(chaveSO(faixas[i]))?.ofertada) return;
     const motivo = String(formData.get(`justificativaDiscrepancia_${i}`) ?? "").trim();
+    if (!precisaDeMotivo(t) && motivo.length < 5) return; // o sistema já explica (ver explicacaoDoSistema)
     if (motivo.length < 5) {
       pedidas.push({ indice: i, titulo: `${t.quantidade}${t.papel ? ` · ${t.papel}` : ""}${t.numeroSequencial ? ` — SO ${t.numeroSequencial}` : ""}`, itens: t.discrepancia.itens });
     } else {
@@ -458,7 +460,7 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   });
   if (pedidas.length) {
     return {
-      erro: "Há discrepância acima de 2,5% frente ao orçamento anterior. Explique o motivo em cada SO destacada abaixo (a Diretoria vai ver) e envie de novo.",
+      erro: "Há discrepância acima de 2,5% frente ao orçamento anterior e o motivo não está claro. Explique em cada SO destacada abaixo (a Diretoria vai ver) e envie de novo.",
       discrepancias: pedidas,
     };
   }

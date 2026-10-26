@@ -8,7 +8,7 @@ import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQu
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
 import { fmtMoney, fmtDate, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
 import { modelosDoDoc } from "@/lib/orcamentos/modelos";
-import { textoItemDiscrepancia, itensVigentes } from "@/lib/orcamentos/discrepancia";
+import { textoItemDiscrepancia, itensVigentes, explicacaoDoSistema } from "@/lib/orcamentos/discrepancia";
 import { AlertTriangle } from "lucide-react";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
@@ -139,6 +139,11 @@ function FaixaDiscrepancia({ tier, discrepanciaViva }: { tier: PrecificacaoTier;
               {d?.justificadaEm ? ` · ${fmtDateTime(new Date(d.justificadaEm))}` : ""}
             </div>
             <div className="mt-0.5 text-base font-semibold leading-snug text-foreground">“{motivo}”</div>
+          </div>
+        ) : explicacaoDoSistema(tier) ? (
+          <div className="rounded-md bg-card px-3 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Explicação do sistema</div>
+            <div className="mt-0.5 text-base font-semibold leading-snug text-foreground">{explicacaoDoSistema(tier)}</div>
           </div>
         ) : (
           <div className="rounded-md bg-card px-3 py-2 text-sm font-semibold text-bad">Nenhum motivo informado para esta discrepância.</div>
