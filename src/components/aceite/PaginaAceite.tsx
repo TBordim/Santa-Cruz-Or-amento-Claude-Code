@@ -235,6 +235,13 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         <FormSection title="Do orçamento">
           <ResumoBox
             rows={[
+              // O papel especificado no orçamento fica visível em toda etapa, mesmo depois de Vendas definir outro a utilizar.
+              ...suportes
+                .filter((x) => x.doOrcamento)
+                .map((x, n, l) => ({
+                  label: l.length > 1 ? `Papel especificado ${n + 1}` : "Papel especificado",
+                  value: `${textoSuporte(x.doOrcamento!)} · código ${x.doOrcamento!.codigo || "—"}`,
+                })),
               { label: "Lotes orçados", value: doOrc.lotes ?? "—" },
               { label: "Entregas", value: doOrc.entregas ? `${doOrc.entregas}${doOrc.datasEntrega ? ` · ${doOrc.datasEntrega}` : ""}${doOrc.localEntrega ? ` · ${doOrc.localEntrega}` : ""}` : "—" },
               ...doOrc.materiais.flatMap((m, n) => [
