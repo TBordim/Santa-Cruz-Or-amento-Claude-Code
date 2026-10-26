@@ -213,7 +213,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                         legado, que pode ser longo, pode passar pra linha de baixo. */}
                     <td className={`p-2 align-middle text-muted-foreground ${dataTexto.length <= 12 ? "whitespace-nowrap" : "break-words"}`}>{dataTexto}</td>
                     <td className="p-2 align-middle">
-                      {legado ? "—" : <Badge title={info.label} className={`border-0 ${PILL_STYLE[info.pill]}`}>{DESFECHO_CURTO[info.key]}</Badge>}
+                      {legado && !d.desfecho ? "—" : <Badge title={info.label} className={`border-0 ${PILL_STYLE[info.pill]}`}>{DESFECHO_CURTO[info.key]}</Badge>}
                     </td>
                     <td className="p-2 align-middle">
                       <div className="flex justify-end gap-0.5">
@@ -243,7 +243,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                     <div className="break-words text-sm font-semibold text-foreground">{d.cliente}</div>
                     {d.produtoDescricao && <div className="break-words text-sm text-muted-foreground">{d.produtoDescricao}</div>}
                   </div>
-                  {!legado && <Badge title={info.label} className={`shrink-0 border-0 ${PILL_STYLE[info.pill]}`}>{DESFECHO_CURTO[info.key]}</Badge>}
+                  {(!legado || !!d.desfecho) && <Badge title={info.label} className={`shrink-0 border-0 ${PILL_STYLE[info.pill]}`}>{DESFECHO_CURTO[info.key]}</Badge>}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <Badge variant="secondary" className="border-0 text-[10px]">{legado ? "Legado" : "Fluxo"}</Badge>

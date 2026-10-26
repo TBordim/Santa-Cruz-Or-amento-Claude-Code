@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { CodigoInternoInput } from "@/components/orcamento/CodigoInternoInput";
+import { DESFECHOS_LEGADO } from "@/lib/orcamentos/constantes";
 
 export function LegadoForm() {
   const [state, formAction, pending] = useActionState(criarLegado, undefined);
@@ -88,6 +89,20 @@ export function LegadoForm() {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="quantidade">Quantidade</Label>
             <Input id="quantidade" name="quantidade" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="desfecho">Desfecho do orçamento (obrigatório)</Label>
+            <select
+              id="desfecho"
+              name="desfecho"
+              required
+              defaultValue=""
+              className="h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:h-8 md:text-sm"
+            >
+              <option value="" disabled>Escolha…</option>
+              {DESFECHOS_LEGADO.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+            </select>
+            <span className="text-xs text-muted-foreground">Como aquele orçamento terminou. A Diretoria vê isso ao comparar com o orçamento novo.</span>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="obs">Observação</Label>
