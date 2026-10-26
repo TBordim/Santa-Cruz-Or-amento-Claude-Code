@@ -13,7 +13,8 @@ import { lerSuportes, suportesSemPM, textoSuporte, SITUACOES_SUPORTE, type Supor
 import { lerItensLote, lotesDoAceite, comoAceite, loteGarantido } from "@/lib/aceite/lotes";
 import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
-import type { ReqCliente } from "@/lib/orcamentos/types";
+import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
+import { doOrcamento } from "@/lib/aceite/do-orcamento";
 import { modelosDoDoc, rotuloSO, valorSO } from "@/lib/orcamentos/modelos";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
@@ -144,6 +145,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
     suportes: Array.isArray(l.suportes) ? (l.suportes as SuporteAceite[]) : [],
     comPM: pms.some((p) => p.loteId === l.id && p.status !== "CANCELADO"),
   }));
+  const doOrc = doOrcamento(doc, doc.reqCliente as ReqCliente | null, doc.reqTecnicos as unknown as ReqTecnicos | null, so);
   const alerta = temAlertaPendente(pms);
   // Em um lote só voltam as etapas do cadastro do pedido em diante; o resto é pelo Aceite.
   const podeVoltar = a.lote
@@ -228,6 +230,24 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
             { label: "Cliente aprovou em", value: fmtDateTime(doc.desfechoEm) },
           ]}
         />
+
+        {/* Já definido no orçamento (lotes, entregas, acerto e montagem): aparece aqui para ninguém depender do papel físico. */}
+        <FormSection title="Do orçamento">
+          <ResumoBox
+            rows={[
+              { label: "Lotes orçados", value: doOrc.lotes ?? "—" },
+              { label: "Entregas", value: doOrc.entregas ? `${doOrc.entregas}${doOrc.datasEntrega ? ` · ${doOrc.datasEntrega}` : ""}${doOrc.localEntrega ? ` · ${doOrc.localEntrega}` : ""}` : "—" },
+              ...doOrc.materiais.flatMap((m, n) => [
+                { label: doOrc.materiais.length > 1 ? `Folhas de acerto · ${m.papel}` : "Folhas de acerto", value: m.folhasAcerto != null ? fmtQuantidade(m.folhasAcerto) : "não informado" },
+                ...(m.montagem
+                  ? [{ label: doOrc.materiais.length > 1 ? `Montagem · ${m.papel}` : "Montagem", value: `folha ${m.montagem.formatoFolha} · ${m.montagem.pecasPorFolha} peça(s) por folha · aproveitamento ${m.montagem.aproveitamento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% · ${fmtQuantidade(m.montagem.folhas)} folhas de produção` }]
+                  : n === 0
+                    ? [{ label: "Montagem", value: "sem pré-montagem aprovada no orçamento" }]
+                    : []),
+              ]),
+            ]}
+          />
+        </FormSection>
 
         {alerta && (
           <div className="flex flex-col gap-2 rounded-lg border border-bad/30 bg-bad-soft p-3 text-sm text-bad">
