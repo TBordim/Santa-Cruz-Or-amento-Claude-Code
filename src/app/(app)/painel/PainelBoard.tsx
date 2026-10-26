@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { ETAPAS, fmtMoney, desfechoInfo } from "@/lib/orcamentos/constantes";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { discrepanciasDoOrcamento } from "@/lib/orcamentos/discrepancia";
+import { observacaoDoOrcamento } from "@/lib/orcamentos/observacao";
 import { diasAguardando, textoDiasAguardando, textoDiasCurto, tomEspera, ESTILO_ESPERA } from "@/lib/orcamentos/espera";
 import { Badge } from "@/components/ui/badge";
 
@@ -118,6 +119,9 @@ export async function PainelBoard() {
                     )}
                     {d.etapa === "DIRETORIA" && d.statusDiretoria === "PENDENTE" && discrepanciasDoOrcamento(tiers).length > 0 && (
                       <Badge className="w-fit rounded-full border-0 bg-bad text-[10.5px] font-bold text-white">⚠ Discrepância &gt; 2,5%</Badge>
+                    )}
+                    {d.etapa === "DIRETORIA" && d.statusDiretoria === "PENDENTE" && observacaoDoOrcamento(d.reqTecnicos) && (
+                      <Badge className="w-fit rounded-full border-0 bg-warn-soft text-[10.5px] font-bold text-warn">📝 Ponto de atenção</Badge>
                     )}
                     <div className="mt-0.5 flex min-w-0 items-center justify-between gap-1.5 border-t border-dashed border-line-strong pt-1.5">
                       <span className="truncate font-mono text-xs font-semibold text-muted-foreground">{precoExibicao(tiers)}</span>

@@ -6,6 +6,7 @@ import { fmtMoney, fmtDateTime } from "@/lib/orcamentos/constantes";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { rotuloSO } from "@/lib/orcamentos/modelos";
 import { textoItemDiscrepancia, itensVigentes, explicacaoDoSistema } from "@/lib/orcamentos/discrepancia";
+import { observacaoDoOrcamento } from "@/lib/orcamentos/observacao";
 import { AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,6 +54,15 @@ export default async function DiretoriaPage() {
                     <div className="text-sm font-semibold text-foreground">
                       {d.cliente} — <span className="font-normal text-muted-foreground">{d.produtoDescricao}</span>
                     </div>
+                    {observacaoDoOrcamento(d.reqTecnicos) && (
+                      <div className="mt-1.5 rounded-md border-2 border-warn bg-warn-soft px-2.5 py-1.5 text-sm">
+                        <div className="flex items-center gap-1.5 font-bold text-warn">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          Ponto de atenção · {observacaoDoOrcamento(d.reqTecnicos)!.por}
+                        </div>
+                        <div className="mt-0.5 whitespace-pre-line font-semibold text-foreground">{observacaoDoOrcamento(d.reqTecnicos)!.texto}</div>
+                      </div>
+                    )}
                     {tiers.filter((t) => itensVigentes(t.discrepancia?.itens).length > 0).map((t, k) => (
                       <div key={k} className="mt-1.5 rounded-md border-2 border-bad bg-bad/10 px-2.5 py-1.5 text-sm">
                         <div className="flex items-center gap-1.5 font-bold text-bad">

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { comObservacaoDiretoria } from "@/lib/orcamentos/observacao";
 import { precisaDeMotivo } from "@/lib/orcamentos/discrepancia";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
@@ -212,7 +213,7 @@ function resumoSopp(rascunho: { numeroSequencial: string }[]): string {
 export async function salvarOrcamento(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
-  await exigirEdicao(id);
+  const { nomeAtor } = await exigirEdicao(id);
   const faixas = lerFaixas(formData, combinacoesSO(doc.reqCliente as ReqCliente | null));
   // Casa cada SO com a gravada pela combinação (quantidade + papel), não pela posição: se uma
   // quantidade ou um papel entrou/saiu da lista, a posição das outras muda.
@@ -242,6 +243,7 @@ export async function salvarOrcamento(_prev: FormState, formData: FormData): Pro
       comissaoEspecial: formData.get("comissaoEspecial") === "on",
       comissaoObs: String(formData.get("comissaoObs") ?? "").trim(),
       acabamento: String(formData.get("acabamento") ?? "").trim(),
+      reqTecnicos: comObservacaoDiretoria(doc.reqTecnicos as ReqTecnicos | null, String(formData.get("observacaoDiretoria") ?? ""), nomeAtor) as object,
     },
   });
   revalidatePath(`/painel/${id}`);
@@ -486,6 +488,7 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
       precoAnterior: anterior?.precoFinal ?? null,
       comissaoEspecial,
       comissaoObs: String(formData.get("comissaoObs") ?? "").trim(),
+      reqTecnicos: comObservacaoDiretoria(doc.reqTecnicos as ReqTecnicos | null, String(formData.get("observacaoDiretoria") ?? ""), nomeAtor) as object,
       acabamento,
       produtoNovo: t0.produtoNovo,
       conflitoClassificacao: doc.classificacao === "REPETICAO_SEM_ALTERACAO" && t0.premissasDivergentes.length > 0,

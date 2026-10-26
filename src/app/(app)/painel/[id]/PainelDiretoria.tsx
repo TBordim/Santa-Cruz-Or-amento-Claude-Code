@@ -8,6 +8,7 @@ import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQu
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
 import { fmtMoney, fmtDate, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
 import { modelosDoDoc } from "@/lib/orcamentos/modelos";
+import { observacaoDoOrcamento } from "@/lib/orcamentos/observacao";
 import { textoItemDiscrepancia, itensVigentes, explicacaoDoSistema } from "@/lib/orcamentos/discrepancia";
 import { AlertTriangle } from "lucide-react";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
@@ -281,6 +282,7 @@ export function PainelDiretoria({
   // botão não haveria nenhum jeito de avançar de novo. Ver liberarDiretoriaResolvida em actions.ts.
   const tudoResolvido = tiers.length > 0 && tiers.every((t) => t.statusDiretoria !== "pendente");
   const nModelos = modelosDoDoc(doc).length;
+  const obs = observacaoDoOrcamento(doc.reqTecnicos);
 
   return (
     <>
@@ -292,6 +294,20 @@ export function PainelDiretoria({
       {/* Condição comercial especial (comissão/desconto) lançada no Orçamento: pode pesar na
           aprovação do preço, então aparece aqui em destaque e não só dentro da sanfona da etapa
           3. Pedido do Thiago em 01/10/2026. */}
+      {obs && (
+        <div className="mb-4 overflow-hidden rounded-lg border-2 border-warn bg-warn-soft">
+          <div className="flex items-center gap-2 bg-warn px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            Ponto de atenção do orçamento
+          </div>
+          <div className="px-3 py-2.5">
+            <div className="whitespace-pre-line text-base font-semibold leading-snug text-foreground">{obs.texto}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {obs.por} · {fmtDateTime(new Date(obs.em))}
+            </div>
+          </div>
+        </div>
+      )}
       {doc.comissaoEspecial && (
         <div className="mb-4 rounded-lg border border-warn/30 bg-warn-soft p-3 text-sm">
           <div className="font-semibold text-warn">Condição comercial especial (comissão/desconto)</div>
