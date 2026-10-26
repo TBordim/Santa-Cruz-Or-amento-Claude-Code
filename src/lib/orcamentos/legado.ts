@@ -186,3 +186,57 @@ export async function legadosDoCliente(clienteNome: string) {
   });
   return todos.filter((l) => l.clienteChave?.includes(needle));
 }
+
+// Orçamentos anteriores do mesmo produto, de QUALQUER desfecho, para a Diretoria ver como terminaram
+// (positivo, negativo, sem retorno, aguardando ou ainda em andamento). Pedido do Thiago em 26/10/2026.
+// Casa pelo código interno (qualquer um dos modelos do card); sem código, por cliente + medidas. Os
+// registros do Arquivo legado são pedidos antigos, sem desfecho gravado.
+export type HistoricoProduto = {
+  id: string;
+  origem: "NOVO" | "LEGADO";
+  data: string; // ISO
+  quantidade: string | null;
+  preco: number | null;
+  // Chave do desfecho (POSITIVO, NEGATIVO, SEM_RETORNO, AGUARDANDO) ou null quando ainda não chegou à oferta.
+  desfecho: string | null;
+  etapa: string | null;
+};
+
+export async function historicoDoProduto(modelos: Modelo[], card: CardParaRastrear, excludeId?: string, limite = 6): Promise<HistoricoProduto[]> {
+  const codigos = new Set(modelos.map((m) => normalizarCodigoInterno(m.codInterno)).filter(Boolean));
+  const meu = medidasDoReq(card.reqCliente);
+  const porMedidas = codigos.size === 0 && temMedidasParaComparar(meu);
+  if (!codigos.size && !porMedidas) return [];
+
+  const base = { id: excludeId ? { not: excludeId } : undefined };
+  const variantes = [...codigos].flatMap((c) => [c, formatarCodigoInterno(c)]);
+  const [sistema, legado] = await Promise.all([
+    prisma.orcamento.findMany({ where: { ...base, origem: "NOVO" }, orderBy: { criadoEm: "desc" }, take: 1000 }),
+    codigos.size
+      ? prisma.orcamento.findMany({ where: { ...base, origem: "LEGADO", codInterno: { in: variantes } }, orderBy: { criadoEm: "desc" }, take: 200 })
+      : Promise.resolve([]),
+  ]);
+
+  const itens: HistoricoProduto[] = [];
+  for (const d of sistema) {
+    const mesmo = codigos.size
+      ? modelosDoDoc(d).some((m) => codigos.has(normalizarCodigoInterno(m.codInterno)))
+      : mesmoCliente(card, d as CandidatoMedidas) && medidasIguais(meu, medidasDoReq(d.reqCliente));
+    if (!mesmo) continue;
+    const tiers = (d.precificacao as PrecificacaoTier[] | null) ?? [];
+    const t = soEscolhida(tiers) ?? tiers.find((x) => x.precoFinal != null) ?? tiers[0];
+    itens.push({
+      id: d.id,
+      origem: "NOVO",
+      data: (d.finalizadoEm ?? d.criadoEm).toISOString(),
+      quantidade: t?.quantidade ?? null,
+      preco: t?.precoFinal ?? null,
+      desfecho: d.desfecho ?? null,
+      etapa: d.etapa ?? null,
+    });
+  }
+  for (const l of legado) {
+    itens.push({ id: l.id, origem: "LEGADO", data: l.criadoEm.toISOString(), quantidade: l.quantidade ? String(l.quantidade) : null, preco: l.precoAtual ? Number(l.precoAtual) : null, desfecho: null, etapa: null });
+  }
+  return itens.sort((a, b) => (a.data < b.data ? 1 : -1)).slice(0, limite);
+}

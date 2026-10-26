@@ -4,6 +4,7 @@ import { decidirDiretoriaFaixa, salvarRascunhoDiretoria, liberarDiretoriaResolvi
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import type { OrcamentoAnteriorRef } from "@/lib/orcamentos/tiers";
+import type { HistoricoProduto } from "@/lib/orcamentos/legado";
 import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQuantidade } from "@/lib/orcamentos/motor";
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
 import { fmtMoney, fmtDate, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
@@ -121,6 +122,8 @@ function FaixaDiscrepancia({ tier, discrepanciaViva }: { tier: PrecificacaoTier;
   if (!itens.length) return null;
   const d = tier.discrepancia;
   const motivo = d?.justificativa?.trim();
+  // Card antigo, sem a discrepância gravada: a explicação do sistema usa os itens calculados agora.
+  const explicacao = explicacaoDoSistema({ ...tier, discrepancia: d ?? { itens, justificativa: "" } });
   return (
     <div className="overflow-hidden rounded-lg border-2 border-bad bg-bad/10">
       <div className="flex items-center gap-2 bg-bad px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white">
@@ -141,14 +144,54 @@ function FaixaDiscrepancia({ tier, discrepanciaViva }: { tier: PrecificacaoTier;
             </div>
             <div className="mt-0.5 text-base font-semibold leading-snug text-foreground">“{motivo}”</div>
           </div>
-        ) : explicacaoDoSistema(tier) ? (
+        ) : explicacao ? (
           <div className="rounded-md bg-card px-3 py-2">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Explicação do sistema</div>
-            <div className="mt-0.5 text-base font-semibold leading-snug text-foreground">{explicacaoDoSistema(tier)}</div>
+            <div className="mt-0.5 text-base font-semibold leading-snug text-foreground">{explicacao}</div>
           </div>
         ) : (
           <div className="rounded-md bg-card px-3 py-2 text-sm font-semibold text-bad">Nenhum motivo informado para esta discrepância.</div>
         )}
+      </div>
+    </div>
+  );
+}
+
+const DESFECHO_HIST: Record<string, { texto: string; classe: string }> = {
+  POSITIVO: { texto: "Positivo — virou pedido", classe: "bg-good-soft text-good" },
+  NEGATIVO: { texto: "Negativo — perdido", classe: "bg-bad text-white" },
+  SEM_RETORNO: { texto: "Sem retorno do cliente", classe: "bg-bad-soft text-bad" },
+  AGUARDANDO: { texto: "Aguardando retorno do cliente", classe: "bg-warn-soft text-warn" },
+};
+
+function situacaoHistorico(h: HistoricoProduto): { texto: string; classe: string } {
+  if (h.origem === "LEGADO") return { texto: "Pedido anterior (Arquivo legado)", classe: "bg-secondary text-muted-foreground" };
+  if (h.desfecho && DESFECHO_HIST[h.desfecho]) return DESFECHO_HIST[h.desfecho];
+  return { texto: "Ainda em andamento", classe: "bg-secondary text-muted-foreground" };
+}
+
+// Como terminaram os orçamentos anteriores deste produto (positivo, negativo, sem retorno, aguardando).
+function HistoricoDoProduto({ historico, comparadoId }: { historico: HistoricoProduto[]; comparadoId: string | null }) {
+  if (!historico.length) return null;
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <div className="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Orçamentos anteriores deste produto e como terminaram
+      </div>
+      <div className="flex flex-col divide-y divide-border">
+        {historico.map((h) => {
+          const sit = situacaoHistorico(h);
+          return (
+            <div key={h.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
+              <span className="font-mono text-xs text-muted-foreground">{fmtDate(h.data)}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${sit.classe}`}>{sit.texto}</span>
+              <span className="text-muted-foreground">
+                {h.quantidade ? `${h.quantidade} un.` : "—"} · {h.preco !== null ? fmtMoney(h.preco) : "sem preço"}
+              </span>
+              {h.id === comparadoId && <span className="ml-auto text-xs font-semibold text-foreground">← base da comparação</span>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -170,12 +213,14 @@ function TierCard({
   idx,
   total,
   anteriorAoVivo,
+  historico,
 }: {
   doc: OrcamentoComAnexos;
   tier: PrecificacaoTier;
   idx: number;
   total: number;
   anteriorAoVivo: OrcamentoAnteriorRef | null;
+  historico: HistoricoProduto[];
 }) {
   // Uma SO por quantidade × papel, não uma só pro card — o número aparece já no título de cada
   // uma, pra facilitar o rastreamento.
@@ -212,6 +257,8 @@ function TierCard({
         anterior={anterior}
         rastreio={anteriorAoVivo?.via === "medidas" && anteriorAoVivo.rastreio ? { id: anteriorAoVivo.id, ...anteriorAoVivo.rastreio } : undefined}
       />
+
+      <HistoricoDoProduto historico={historico} comparadoId={anteriorAoVivo?.id ?? null} />
 
       <div className="flex flex-col gap-1.5 rounded-lg border border-border p-3">
         <CritRow ok={tier.custoPrimarioPct !== null && tier.custoPrimarioPct <= LIMITE_CUSTO} label={`Custo primário até ${LIMITE_CUSTO}% (atual: ${fmtPctHelper(tier.custoPrimarioPct)})`} />
@@ -272,9 +319,11 @@ function TierCard({
 export function PainelDiretoria({
   doc,
   anteriorAoVivo,
+  historico = [],
 }: {
   doc: OrcamentoComAnexos;
   anteriorAoVivo: OrcamentoAnteriorRef | null;
+  historico?: HistoricoProduto[];
 }) {
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
   // Card que voltou pra Diretoria (via "Voltar etapa" a partir do Envio de Oferta) já com tudo
@@ -323,7 +372,7 @@ export function PainelDiretoria({
       />
 
       {tiers.map((t, i) => (
-        <TierCard key={i} doc={doc} tier={t} idx={i} total={tiers.length} anteriorAoVivo={anteriorAoVivo} />
+        <TierCard key={i} doc={doc} tier={t} idx={i} total={tiers.length} anteriorAoVivo={anteriorAoVivo} historico={historico} />
       ))}
 
       {tudoResolvido && (
