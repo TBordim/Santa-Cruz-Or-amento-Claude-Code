@@ -3,7 +3,7 @@ import { CornerUpLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { podeEditar } from "@/lib/permissions";
 import { etapaInfo } from "@/lib/orcamentos/constantes";
-import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
+import { buscarOrcamentoAnterior, historicoDoProduto } from "@/lib/orcamentos/legado";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { voltarEtapa } from "../actions";
@@ -56,7 +56,12 @@ export async function Drawer({ id }: { id: string }) {
         cnpj: doc.cnpj,
         reqCliente: doc.reqCliente,
       });
-      corpo = <PainelDiretoria doc={doc} anteriorAoVivo={anteriorAoVivo} />;
+      const historico = await historicoDoProduto(
+        modelos,
+        { clienteId: doc.clienteId, clienteChave: doc.clienteChave, cnpj: doc.cnpj, reqCliente: doc.reqCliente },
+        doc.id,
+      );
+      corpo = <PainelDiretoria doc={doc} anteriorAoVivo={anteriorAoVivo} historico={historico} />;
       break;
     }
     case "ENVIO_OFERTA":
