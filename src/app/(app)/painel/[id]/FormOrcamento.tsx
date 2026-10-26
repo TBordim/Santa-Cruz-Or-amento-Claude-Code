@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { observacaoDoOrcamento } from "@/lib/orcamentos/observacao";
 import { explicacaoDoSistema, itensVigentes } from "@/lib/orcamentos/discrepancia";
 import { detalheDaQuantidade } from "@/lib/orcamentos/quantidades";
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
@@ -266,6 +267,12 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
           </label>
           <Field label="Observação da condição especial">
             <Input name="comissaoObs" defaultValue={doc.comissaoObs ?? ""} form="form-orcamento" />
+          </Field>
+          <Field
+            label="Observação para a Diretoria (opcional)"
+            hint="Algo que você percebeu no orçamento e a Diretoria precisa saber. Se preencher, aparece para ela como ponto de atenção."
+          >
+            <Textarea name="observacaoDiretoria" rows={2} maxLength={1000} defaultValue={observacaoDoOrcamento(doc.reqTecnicos)?.texto ?? ""} form="form-orcamento" />
           </Field>
         </FormSection>
       </form>

@@ -85,8 +85,13 @@ export type ReqCliente = {
 // mas continuam podendo existir em registros antigos — o tipo aqui não os declara de
 // propósito; como o campo é Json, eles sobrevivem soltos no objeto gravado e o spread
 // {...anterior, ...novo} ao salvar nunca os apaga.
+// Observação opcional de quem fez o orçamento para a Diretoria (algo que percebeu no processo). Quando
+// existe, aparece como ponto de atenção no card, na lista e no quadro. Pedido do Thiago em 26/10/2026.
+export type ObservacaoDiretoria = { texto: string; por: string; em: number };
+
 export type ReqTecnicos = {
   suportes: SuporteTecnico[];
+  observacaoDiretoria?: ObservacaoDiretoria;
   // Campos soltos de formato suporte: só em cards de antes de 30/09/2026 (hoje ficam por
   // material, em `suportes`).
   qtdFolha?: string;
