@@ -79,6 +79,7 @@ export function FormVendas({
     estoque: acabado === "sim" ? (lerQuantidade(estoques[i.modeloId] ?? "") ?? 0) : 0,
   }));
   const lotesParaEnvio = lotes.map((l, n) => ({
+    id: l.id,
     numero: n + 1,
     itens: l.itens.map((i) => ({ modeloId: i.modeloId, quantidade: lerQuantidade(i.quantidade), emEstoque: acabado === "sim" ? lerQuantidade(i.emEstoque) : null })),
     datasCliente: datasParaEnvio(l.datas),
@@ -213,9 +214,12 @@ export function FormVendas({
           </p>
           <EditorLotes modelos={modelosDoPedido} lotes={lotes} onChange={setLotes} comEstoque={acabado === "sim"} semPM={papeisSemPMPorLote} suportesBase={suportes} />
           <div>
-            <Button type="button" size="sm" variant="ghost" className="text-bad" disabled={lotes.some((l) => l.comPM)} onClick={() => setLotes([])}>
+            <Button type="button" size="sm" variant="ghost" className="text-bad" onClick={() => setLotes([])}>
               Desfazer a divisão (voltar a um lote só)
             </Button>
+            {lotes.some((l) => l.comPM) && (
+              <span className="ml-2 text-xs text-muted-foreground">Os Pedidos de Material dos lotes passam a ser do Aceite todo; nenhum é apagado.</span>
+            )}
           </div>
         </FormSection>
       ) : (

@@ -270,6 +270,13 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
           )
         ) : (
           <FormSection title="Vendas">
+            {podeVendas && ["ENGENHARIA_MATERIAL", "EM_LOTES"].includes(base.etapa) && (
+              <p className="rounded-md border border-border bg-muted/40 p-2.5 text-xs text-muted-foreground">
+                Este Aceite já foi liberado para a Engenharia, por isso Vendas não edita mais aqui. Para mudar quantidades, lotes ou papel, use
+                <b className="text-foreground"> {base.etapa === "EM_LOTES" ? "Voltar o Aceite (refazer a divisão)" : "Voltar etapa"}</b>:
+                ele volta a Vendas, onde tudo é editável de novo.
+              </p>
+            )}
             <ResumoBox
               rows={[
                 ...suportes.map((x, n) => ({
