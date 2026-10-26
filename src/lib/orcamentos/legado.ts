@@ -159,7 +159,7 @@ export function escolherPorMedidas(
     custoPrimarioPct: l.custoPrimarioPct ? Number(l.custoPrimarioPct) : null,
     margemP2Pct: l.margemP2Pct ? Number(l.margemP2Pct) : null,
     via: "medidas",
-    rastreio: { origem: "LEGADO", cliente: l.cliente, data: l.criadoEm.toISOString(), desfecho: null, medidas: textoMedidas(medidasDoReq(l.reqCliente)) },
+    rastreio: { origem: "LEGADO", cliente: l.cliente, data: l.criadoEm.toISOString(), desfecho: l.desfecho, medidas: textoMedidas(medidasDoReq(l.reqCliente)) },
   };
 }
 
@@ -190,7 +190,7 @@ export async function legadosDoCliente(clienteNome: string) {
 // Orçamentos anteriores do mesmo produto, de QUALQUER desfecho, para a Diretoria ver como terminaram
 // (positivo, negativo, sem retorno, aguardando ou ainda em andamento). Pedido do Thiago em 26/10/2026.
 // Casa pelo código interno (qualquer um dos modelos do card); sem código, por cliente + medidas. Os
-// registros do Arquivo legado são pedidos antigos, sem desfecho gravado.
+// registros do Arquivo legado trazem o desfecho informado no cadastro (os mais antigos podem não ter).
 export type HistoricoProduto = {
   id: string;
   origem: "NOVO" | "LEGADO";
@@ -236,7 +236,7 @@ export async function historicoDoProduto(modelos: Modelo[], card: CardParaRastre
     });
   }
   for (const l of legado) {
-    itens.push({ id: l.id, origem: "LEGADO", data: l.criadoEm.toISOString(), quantidade: l.quantidade ? String(l.quantidade) : null, preco: l.precoAtual ? Number(l.precoAtual) : null, desfecho: null, etapa: null });
+    itens.push({ id: l.id, origem: "LEGADO", data: l.criadoEm.toISOString(), quantidade: l.quantidade ? String(l.quantidade) : null, preco: l.precoAtual ? Number(l.precoAtual) : null, desfecho: l.desfecho ?? null, etapa: null });
   }
   return itens.sort((a, b) => (a.data < b.data ? 1 : -1)).slice(0, limite);
 }

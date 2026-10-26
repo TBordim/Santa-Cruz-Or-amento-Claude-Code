@@ -165,7 +165,10 @@ const DESFECHO_HIST: Record<string, { texto: string; classe: string }> = {
 };
 
 function situacaoHistorico(h: HistoricoProduto): { texto: string; classe: string } {
-  if (h.origem === "LEGADO") return { texto: "Pedido anterior (Arquivo legado)", classe: "bg-secondary text-muted-foreground" };
+  if (h.origem === "LEGADO") {
+    const d = h.desfecho ? DESFECHO_HIST[h.desfecho] : null;
+    return d ? { texto: `${d.texto} (Arquivo legado)`, classe: d.classe } : { texto: "Arquivo legado — desfecho não informado", classe: "bg-secondary text-muted-foreground" };
+  }
   if (h.desfecho && DESFECHO_HIST[h.desfecho]) return DESFECHO_HIST[h.desfecho];
   return { texto: "Ainda em andamento", classe: "bg-secondary text-muted-foreground" };
 }

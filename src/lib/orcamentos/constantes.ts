@@ -28,6 +28,18 @@ export const DESFECHOS = [
   { key: "SEM_RETORNO", label: "Sem retorno do cliente", pill: "neutral" },
 ] as const;
 
+// Desfecho de um registro do Arquivo legado (pedido em 26/10/2026): quem digitaliza a folha informa como
+// aquele orçamento terminou. Sem "aguardando": é papelada antiga, já resolvida.
+export const DESFECHOS_LEGADO = [
+  { key: "POSITIVO", label: "Positivo — virou pedido" },
+  { key: "NEGATIVO", label: "Negativo — o cliente não fechou" },
+  { key: "SEM_RETORNO", label: "Sem retorno do cliente" },
+] as const;
+
+export function desfechoLegadoValido(v: unknown): v is "POSITIVO" | "NEGATIVO" | "SEM_RETORNO" {
+  return DESFECHOS_LEGADO.some((d) => d.key === v);
+}
+
 export const PERIODOS = [
   { key: "todos", label: "Todos", dias: null },
   { key: "7d", label: "Última semana", dias: 7 },

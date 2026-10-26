@@ -48,6 +48,7 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
                 <TableHead>Produto</TableHead>
                 <TableHead>Código interno</TableHead>
                 <TableHead>Preço</TableHead>
+                <TableHead>Desfecho</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -66,6 +67,7 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
                     margemP2Pct: l.margemP2Pct ? Number(l.margemP2Pct) : null,
                     quantidade: l.quantidade ? Number(l.quantidade) : null,
                     dataLegadoTexto: l.dataLegadoTexto,
+                    desfecho: l.desfecho,
                     obs: l.obs,
                     fotoUrl: l.fotoUrl,
                     fotoMime: l.fotoMime,

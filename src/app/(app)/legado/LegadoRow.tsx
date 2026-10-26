@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { salvarDadosLegado, excluirLegado } from "./actions";
-import { fmtMoney, fmtDate } from "@/lib/orcamentos/constantes";
+import { fmtMoney, fmtDate, DESFECHOS_LEGADO } from "@/lib/orcamentos/constantes";
 import { paraCampoBR } from "@/lib/orcamentos/motor";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { TableRow, TableCell } from "@/components/ui/table";
@@ -35,6 +35,8 @@ type Legado = {
   margemP2Pct: number | null;
   quantidade: number | null;
   dataLegadoTexto: string | null;
+  // POSITIVO, NEGATIVO, SEM_RETORNO; null nos registros de antes de 26/10/2026 (a preencher).
+  desfecho: string | null;
   obs: string | null;
   fotoUrl: string | null;
   fotoMime: string | null;
@@ -73,6 +75,18 @@ export function LegadoRow({ legado }: { legado: Legado }) {
           )}
         </TableCell>
         <TableCell className="font-mono">{fmtMoney(legado.precoAtual)}</TableCell>
+        <TableCell>
+          {legado.desfecho ? (
+            <Badge
+              variant="secondary"
+              className={`border-0 ${legado.desfecho === "POSITIVO" ? "bg-good-soft text-good" : legado.desfecho === "NEGATIVO" ? "bg-bad text-white" : "bg-bad-soft text-bad"}`}
+            >
+              {DESFECHOS_LEGADO.find((d) => d.key === legado.desfecho)?.label.split(" —")[0] ?? legado.desfecho}
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="border-0 bg-warn-soft text-warn">Informar</Badge>
+          )}
+        </TableCell>
         <TableCell className="text-muted-foreground">{legado.dataLegadoTexto || fmtDate(legado.criadoEm)}</TableCell>
         <TableCell>
           <div className="flex justify-end gap-1">
@@ -104,7 +118,7 @@ export function LegadoRow({ legado }: { legado: Legado }) {
       </TableRow>
       {aberto && (
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={6} className="whitespace-normal bg-muted/30">
+          <TableCell colSpan={7} className="whitespace-normal bg-muted/30">
             {/* sticky + largura da tela: a tabela é mais larga que o celular (rola na horizontal); sem isso
                 o formulário abria fora da área visível e precisava rolar de lado pra digitar. */}
             <div className="sticky left-0 flex w-[calc(100vw-4.5rem)] max-w-full flex-col gap-3 py-2 md:w-auto">
@@ -147,6 +161,20 @@ export function LegadoRow({ legado }: { legado: Legado }) {
                     <Label htmlFor={`margemP2Pct-${legado.id}`}>Margem P2 (%)</Label>
                     <Input id={`margemP2Pct-${legado.id}`} name="margemP2Pct" defaultValue={paraCampoBR(legado.margemP2Pct)} />
                   </div>
+                </div>
+                <div className="flex flex-col gap-1.5 sm:max-w-[360px]">
+                  <Label htmlFor={`desfecho-${legado.id}`}>Desfecho do orçamento (obrigatório)</Label>
+                  <select
+                    id={`desfecho-${legado.id}`}
+                    name="desfecho"
+                    required
+                    defaultValue={legado.desfecho ?? ""}
+                    className="h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:h-8 md:text-sm"
+                  >
+                    <option value="" disabled>Escolha…</option>
+                    {DESFECHOS_LEGADO.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                  </select>
+                  {!legado.desfecho && <span className="text-xs text-warn">Este registro é anterior à regra: informe como o orçamento terminou.</span>}
                 </div>
                 <div>
                   <Button type="submit" variant="outline">Salvar dados de comparação</Button>

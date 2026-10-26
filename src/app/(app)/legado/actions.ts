@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { podeEditar } from "@/lib/permissions";
 import { chave } from "@/lib/orcamentos/legado";
+import { desfechoLegadoValido } from "@/lib/orcamentos/constantes";
 import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
 import { salvarAnexoNoBlob, excluirAnexoDoBlob } from "@/lib/anexos/storage";
 import { parseValorBR } from "@/lib/orcamentos/leitura";
@@ -29,6 +30,9 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
   const cliente = String(formData.get("cliente") ?? "").trim();
   const produtoDescricao = String(formData.get("produtoDescricao") ?? "").trim();
   if (!cliente || !produtoDescricao) return { erro: "Preencha ao menos o cliente e a descrição do produto." };
+  // Obrigatório: a Diretoria precisa saber se aquele orçamento antigo virou pedido ou foi perdido.
+  const desfecho = formData.get("desfecho");
+  if (!desfechoLegadoValido(desfecho)) return { erro: "Informe o desfecho: o orçamento virou pedido, foi perdido ou o cliente não deu retorno?" };
 
   // A Diretoria compara pelo Código interno OU, sem código, pelas medidas do mesmo cliente — então
   // basta um dos dois. Folha de orçamento que o cliente não aprovou não tem código.
@@ -57,6 +61,7 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
       reqCliente: { medidaF: medidas.valores.F, medidaL: medidas.valores.L, medidaA: medidas.valores.A },
       produtoDescricao,
       produtoChave: chave(produtoDescricao),
+      desfecho,
       precoAtual: Number.isNaN(precoAtual) ? null : precoAtual,
       custoPrimarioPct: Number.isNaN(custoPrimarioPct) ? null : custoPrimarioPct,
       margemP2Pct: Number.isNaN(margemP2Pct) ? null : margemP2Pct,
@@ -84,6 +89,8 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
 export async function salvarDadosLegado(formData: FormData) {
   await exigirLegado();
   const id = String(formData.get("id") ?? "");
+  const desfecho = formData.get("desfecho");
+  if (!desfechoLegadoValido(desfecho)) throw new Error("Informe o desfecho deste registro (positivo, negativo ou sem retorno).");
   const precoAtual = parseValorBR(String(formData.get("precoAtual") ?? ""));
   const custoPrimarioPct = parseValorBR(String(formData.get("custoPrimarioPct") ?? ""));
   const margemP2Pct = parseValorBR(String(formData.get("margemP2Pct") ?? ""));
@@ -105,6 +112,7 @@ export async function salvarDadosLegado(formData: FormData) {
       custoPrimarioPct: Number.isNaN(custoPrimarioPct) ? null : custoPrimarioPct,
       margemP2Pct: Number.isNaN(margemP2Pct) ? null : margemP2Pct,
       quantidade: Number.isNaN(quantidade) ? null : quantidade,
+      desfecho,
       ...(codInternoForm ? { codInterno: codInternoForm } : {}),
       reqCliente: {
         ...((atual?.reqCliente as Record<string, unknown> | null) ?? {}),
