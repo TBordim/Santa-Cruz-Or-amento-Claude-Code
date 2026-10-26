@@ -14,12 +14,13 @@ import { erroNosModelos } from "@/lib/orcamentos/validacao-modelos";
 import { ETAPAS_ACEITE, lerQuantidade, type EtapaAceiteKey } from "@/lib/aceite/constantes";
 import { lerSuportes, situacaoGeral, suportesSemPM, textoSuporte, type SuporteAceite, type SituacaoSuporte } from "@/lib/aceite/suportes";
 import { lerItens, erroNaMontagem, type ItemAceite } from "@/lib/aceite/montagem";
-import { erroNaDivisao, lerItensLote, pmsDoLote, type ItemLote } from "@/lib/aceite/lotes";
+import { erroNaDivisao, lerItensLote, pmsDoLote } from "@/lib/aceite/lotes";
 import type { DataCliente } from "@/lib/aceite/datas-cliente";
 import { exigirArea, nomeSePode, revalidarAceite, avancarSePronto, type FormState } from "@/lib/aceite/servidor";
 import { carregarAlvo, gravarAlvo } from "@/lib/aceite/alvo";
 import { SETOR_AVISO, type SetorAviso } from "@/lib/aceite/cancelamento";
 import { executarCancelamento } from "@/lib/aceite/cancelar";
+import { operacoesDosLotes, type LoteEnviado } from "@/lib/aceite/gravar-lotes";
 import { erroPorArtePendente } from "@/lib/protocolos/arte";
 
 // Ações do módulo Aceite (Vendas e Engenharia). Pedido de Material mora no módulo Compras
@@ -63,18 +64,14 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
   // lista vazia desfaz a divisão; com lotes confere a soma por modelo contra o pedido digitado agora.
   const lotesEnviados = lerLotesDoForm(formData.get("lotes"), [...lerSuportes(a), ...a.lotes.flatMap((l) => (Array.isArray(l.suportes) ? (l.suportes as SuporteAceite[]) : []))]);
   if (lotesEnviados === null) return { erro: "Não consegui ler os lotes. Recarregue a página e tente de novo." };
-  const pmDoLote = (loteId: string) => a.pedidosMaterial.some((p) => p.loteId === loteId && p.status !== "CANCELADO");
-  if (lotesEnviados !== undefined) {
-    if (lotesEnviados.length === 0) {
-      const comPM = a.lotes.find((l) => pmDoLote(l.id));
-      if (comPM) return { erro: `O lote ${comPM.numero} tem Pedido de Material: cancele-o antes de desfazer a divisão.` };
-    } else {
-      const erroDiv = erroNaDivisao(itens, lotesEnviados);
-      if (erroDiv) return { erro: erroDiv };
-      const comPM = a.lotes.find((l) => l.numero > lotesEnviados.length && pmDoLote(l.id));
-      if (comPM) return { erro: `O lote ${comPM.numero} tem Pedido de Material: cancele-o antes de remover o lote.` };
-    }
-  } else if (a.lotes.length) {
+  // Os lotes enviados são reconhecidos pelo id (a posição pode mudar ao remover um lote). Pedido de Material
+  // NÃO trava mais a divisão: o PM de um lote removido fica sem lote (nunca é apagado) e Vendas o liga a outro
+  // lote; ao desfazer a divisão, ele passa a ser PM do Aceite todo.
+  const idsDosLotes = new Set(a.lotes.map((l) => l.id));
+  if (lotesEnviados !== undefined && lotesEnviados.length > 0) {
+    const erroDiv = erroNaDivisao(itens, lotesEnviados);
+    if (erroDiv) return { erro: erroDiv };
+  } else if (lotesEnviados === undefined && a.lotes.length) {
     const erroDiv = erroNaDivisao(itens, a.lotes.map((l) => ({ itens: lerItensLote(l.itens) })));
     if (erroDiv) return { erro: `A divisão em lotes não bate mais com o pedido: ${erroDiv}` };
   }
@@ -82,7 +79,7 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
   const lotesEfetivos =
     lotesEnviados === undefined
       ? a.lotes.map((l) => ({ id: l.id as string | null, numero: l.numero, suportes: (Array.isArray(l.suportes) ? l.suportes : []) as SuporteAceite[] }))
-      : lotesEnviados.map((l) => ({ id: (a.lotes.find((x) => x.numero === l.numero)?.id ?? null) as string | null, numero: l.numero, suportes: l.suportes }));
+      : lotesEnviados.map((l) => ({ id: (l.id && idsDosLotes.has(l.id) ? l.id : null) as string | null, numero: l.numero, suportes: l.suportes }));
 
   // Nº do Aceite vem do ERP (Vendas digita). Não pode repetir em outro Aceite.
   const numero = String(formData.get("numero") ?? "").trim() || null;
@@ -120,26 +117,7 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
 
   // Situação geral do papel: do conjunto de papéis do Aceite, ou de todos os papéis de todos os lotes.
   const situacao = situacaoGeral(lotesEfetivos.length ? lotesEfetivos.flatMap((l) => l.suportes) : suportes);
-  const gravarLotes =
-    lotesEnviados === undefined
-      ? []
-      : [
-          ...lotesEnviados.map((l) => {
-            const campos = {
-              itens: JSON.parse(JSON.stringify(l.itens)),
-              dataCliente: l.datas[0] ? new Date(l.datas[0].data + "T00:00:00.000Z") : null,
-              datasCliente: l.datas.length ? (JSON.parse(JSON.stringify(l.datas)) as Prisma.InputJsonValue) : Prisma.JsonNull,
-              suportes: JSON.parse(JSON.stringify(l.suportes)),
-              situacaoPapel: situacaoGeral(l.suportes),
-            };
-            return prisma.loteAceite.upsert({
-              where: { aceiteId_numero: { aceiteId: id, numero: l.numero } },
-              create: { aceiteId: id, numero: l.numero, ...campos },
-              update: campos,
-            });
-          }),
-          prisma.loteAceite.deleteMany({ where: { aceiteId: id, numero: { gt: lotesEnviados.length } } }),
-        ];
+  const gravarLotes = lotesEnviados === undefined ? [] : operacoesDosLotes(id, nome, a, lotesEnviados);
 
   await prisma.$transaction([
     prisma.aceite.update({
@@ -391,7 +369,8 @@ export async function voltarEtapaAceite(formData: FormData) {
           clienteInformadoPor: null,
         },
       }),
-      prisma.aceite.update({ where: { id }, data: { etapa: "ENGENHARIA_MATERIAL", engenhariaEm: null, engenhariaPor: null } }),
+      // Direto a Vendas, onde a divisão e o papel se refazem (antes parava na Engenharia e exigia outro "voltar").
+      prisma.aceite.update({ where: { id }, data: { etapa: "VENDAS", vendasLiberadoEm: null, vendasLiberadoPor: null, engenhariaEm: null, engenhariaPor: null } }),
     ]);
     revalidarAceite();
     redirect(destino);
@@ -466,7 +445,6 @@ function datasValidas(lista: unknown): DataCliente[] {
     .sort((x, y) => x.data.localeCompare(y.data));
 }
 
-type LoteEnviado = { numero: number; itens: ItemLote[]; datas: DataCliente[]; suportes: SuporteAceite[] };
 
 // Lotes enviados pelo formulário (campo escondido "lotes"): undefined = campo ausente (não mexe nos
 // lotes), null = ilegível, lista = a divisão (vazia = sem divisão). O número é a posição na lista.
@@ -486,7 +464,7 @@ function lerLotesDoForm(valor: FormDataEntryValue | null, suportesConhecidos: Su
           quantidade: typeof it.quantidade === "number" ? Math.round(it.quantidade) : null,
           emEstoque: typeof it.emEstoque === "number" && it.emEstoque > 0 ? Math.round(it.emEstoque) : null,
         }));
-      out.push({ numero: i + 1, itens, datas: datasValidas(x.datasCliente), suportes });
+      out.push({ id: typeof x.id === "string" ? x.id : null, numero: i + 1, itens, datas: datasValidas(x.datasCliente), suportes });
     }
     return out;
   } catch {

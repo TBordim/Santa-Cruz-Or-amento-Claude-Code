@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { TriangleAlert } from "lucide-react";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
-import { criarPedidoMaterial, cancelarPedidoMaterial, atualizarPedidoMaterial, registrarRecebimento, registrarRecebimentoSobra } from "@/app/(app)/compras/actions";
+import { criarPedidoMaterial, cancelarPedidoMaterial, atualizarPedidoMaterial, registrarRecebimento, registrarRecebimentoSobra, ligarPedidoMaterialAoLote } from "@/app/(app)/compras/actions";
 import {
   TIPOS_MATERIAL,
   STATUS_PM,
@@ -63,10 +63,8 @@ export function PedidosMaterial({
               podeCompras={podeCompras}
               podeCancelar={podeCancelar}
               cabecalho={
-                p.loteId ? (
-                  <div className="mb-1.5 text-xs font-semibold text-foreground">{rotuloDoLote(p.loteId) ?? "Lote"}</div>
-                ) : lotes.length > 0 && p.status !== "CANCELADO" ? (
-                  <div className="mb-1.5 text-xs font-semibold text-warn">Sem lote: cancele este PM e emita de novo escolhendo o lote</div>
+                lotes.length > 0 && p.status !== "CANCELADO" ? (
+                  <LigarLote pm={p} rotulo={rotuloDoLote(p.loteId)} lotes={lotes} pode={podeEmitir} />
                 ) : undefined
               }
             />
@@ -75,6 +73,48 @@ export function PedidosMaterial({
       )}
       {podeEmitir && <NovoPM aceiteId={aceiteId} papeis={papeis} lotes={lotes} />}
     </FormSection>
+  );
+}
+
+// Aceite dividido: de qual lote é o PM. Vendas liga um PM sem lote (ou muda de lote) por aqui.
+function LigarLote({ pm, rotulo, lotes, pode }: { pm: PMTela; rotulo?: string; lotes: { id: string; rotulo: string }[]; pode: boolean }) {
+  const [state, onSubmit, pending] = useFormActionSemReset(ligarPedidoMaterialAoLote, undefined);
+  const [loteId, setLoteId] = useState(pm.loteId ?? "");
+  const [mudando, setMudando] = useState(false);
+  const semLote = !pm.loteId;
+  return (
+    <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs">
+      {semLote ? <span className="font-semibold text-warn">Sem lote: ligue este PM a um lote</span> : <span className="font-semibold text-foreground">{rotulo ?? "Lote"}</span>}
+      {pode && (semLote || mudando) ? (
+        <form onSubmit={onSubmit} className="flex items-center gap-1.5">
+          <input type="hidden" name="pedidoId" value={pm.id} />
+          <select
+            name="loteId"
+            value={loteId}
+            onChange={(e) => setLoteId(e.target.value)}
+            className="h-7 rounded-md border border-border bg-card px-2 text-xs"
+            aria-label="Lote do Pedido de Material"
+          >
+            <option value="">Escolha o lote…</option>
+            {lotes.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.rotulo}
+              </option>
+            ))}
+          </select>
+          <Button type="submit" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pending || !loteId}>
+            {pending ? "Ligando…" : "Ligar"}
+          </Button>
+          {state?.erro && <span className="text-bad">{state.erro}</span>}
+        </form>
+      ) : (
+        pode && (
+          <button type="button" className="text-muted-foreground underline" onClick={() => setMudando(true)}>
+            mudar de lote
+          </button>
+        )
+      )}
+    </div>
   );
 }
 

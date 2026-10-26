@@ -121,15 +121,15 @@ export function EditorLotes({
               <span className="text-sm font-semibold text-foreground">
                 Lote {i + 1} de {lotes.length}
                 <span className="ml-2 text-xs font-normal text-muted-foreground">{fmtQuantidade(total)} un.</span>
-                {l.comPM && <span className="ml-2 text-xs font-normal text-warn">tem Pedido de Material</span>}
+                {l.comPM && <span className="ml-2 text-xs font-normal text-warn">tem Pedido de Material (se remover o lote, o PM fica sem lote e você o liga a outro)</span>}
               </span>
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
                 className="text-bad"
-                disabled={l.comPM || lotes.length <= 2}
-                title={l.comPM ? "Cancele os Pedidos de Material deste lote antes de remover" : lotes.length <= 2 ? "A divisão precisa de ao menos 2 lotes" : undefined}
+                disabled={lotes.length <= 2}
+                title={lotes.length <= 2 ? "A divisão precisa de ao menos 2 lotes (para voltar a um lote só, use Desfazer a divisão)" : undefined}
                 onClick={() => onChange(lotes.filter((_, n) => n !== i))}
               >
                 Remover lote
@@ -184,9 +184,18 @@ export function EditorLotes({
           type="button"
           size="sm"
           variant="ghost"
-          disabled={lotes.some((l) => l.comPM)}
-          title={lotes.some((l) => l.comPM) ? "Há Pedido de Material em algum lote: não dá para redistribuir" : undefined}
-          onClick={() => onChange(lotesIguais(modelos, lotes.length, suportesBase))}
+          title="Reparte as quantidades igualmente; mantém as datas, o papel e os Pedidos de Material de cada lote"
+          onClick={() =>
+            onChange(
+              lotesIguais(modelos, lotes.length, suportesBase).map((novo, i) => ({
+                ...novo,
+                id: lotes[i]?.id ?? null,
+                comPM: lotes[i]?.comPM ?? false,
+                datas: lotes[i]?.datas ?? novo.datas,
+                suportes: lotes[i]?.suportes ?? novo.suportes,
+              })),
+            )
+          }
         >
           Redistribuir igualmente
         </Button>

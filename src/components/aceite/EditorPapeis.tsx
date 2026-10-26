@@ -60,7 +60,7 @@ export function EditorPapeis({
               <span className="text-sm font-semibold text-foreground">
                 Papel {n + 1}
                 <span className="ml-2 text-xs font-normal text-muted-foreground">{d ? "do orçamento" : "acrescentado por Vendas"}</span>
-                {!d && (
+                {(!d || suportes.length > 1) && (
                   <Button type="button" size="sm" variant="ghost" className="ml-1 h-auto px-1.5 py-0.5 text-xs text-bad" onClick={() => remover(x.id)}>
                     Remover
                   </Button>

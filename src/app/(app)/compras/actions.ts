@@ -291,3 +291,26 @@ export async function registrarRecebimentoSobra(_prev: FormState, formData: Form
   revalidarAceite();
   return { ok: resta > 0 ? `Recebimento parcial da sobra registrado. Ainda no fornecedor: ${fmtQuantidade(resta, pm.unidade)}.` : "Sobra recebida. PM saiu da fila de Sobras." };
 }
+
+// Vendas liga um Pedido de Material a um lote do Aceite dividido (ou muda de lote). O PM de um lote removido
+// fica sem lote até isto; nada é apagado. Pedido do Thiago em 26/10/2026.
+export async function ligarPedidoMaterialAoLote(_prev: FormState, formData: FormData): Promise<FormState> {
+  const pedidoId = String(formData.get("pedidoId") ?? "");
+  const loteId = String(formData.get("loteId") ?? "");
+  const nome = await nomeSePode("ACEITE_VENDAS");
+  if (!nome) return { erro: "Só Vendas liga o Pedido de Material a um lote." };
+  const pm = await prisma.pedidoMaterial.findUniqueOrThrow({ where: { id: pedidoId }, include: { lote: true } });
+  if (!pm.aceiteId) return { erro: "Este Pedido de Material não é de um Aceite." };
+  if (pm.status === "CANCELADO") return { erro: "Este Pedido de Material está cancelado." };
+  const lote = await prisma.loteAceite.findFirst({ where: { id: loteId, aceiteId: pm.aceiteId } });
+  if (!lote) return { erro: "Escolha um lote deste Aceite." };
+  if (["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(lote.etapa)) return { erro: `O lote ${lote.numero} já passou do PCP.` };
+  if (pm.loteId === lote.id) return { ok: "Já estava neste lote." };
+  await prisma.pedidoMaterial.update({
+    where: { id: pedidoId },
+    data: { loteId: lote.id, eventos: { create: { tipo: "LOTE", texto: `Vendas ligou este PM ao lote ${lote.numero}${pm.lote ? ` (antes: lote ${pm.lote.numero})` : ""}.`, porNome: nome } } },
+  });
+  await avancarSePronto(pm.aceiteId);
+  revalidarAceite();
+  return { ok: `PM ligado ao lote ${lote.numero}.` };
+}
