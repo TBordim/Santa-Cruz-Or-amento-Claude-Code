@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { valorSO, valorOrcamento, soEscolhida } from "@/lib/orcamentos/modelos";
 import { diasAguardando } from "@/lib/orcamentos/espera";
+import { itensVigentes } from "@/lib/orcamentos/discrepancia";
 import { lotesDoAceite, type AceiteComLotes } from "@/lib/aceite/lotes";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 
@@ -190,7 +191,7 @@ export async function orcamentosDoPeriodo(p: Periodo): Promise<Orcamentos> {
     pendentesDiretoria: {
       n: pendentes.length,
       valor: soma(pendentes),
-      comDiscrepancia: pendentes.filter((d) => tiersDe(d.precificacao).some((t) => t.discrepancia?.itens?.length)).length,
+      comDiscrepancia: pendentes.filter((d) => tiersDe(d.precificacao).some((t) => itensVigentes(t.discrepancia?.itens).length > 0)).length,
     },
     autoAprovadas,
     reps: [...reps.values()].sort((a, b) => b.valorFechado - a.valorFechado || b.valorOfertado - a.valorOfertado),

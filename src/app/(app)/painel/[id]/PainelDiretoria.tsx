@@ -8,7 +8,7 @@ import { fmtPct as fmtPctHelper, paraCampoBR, avaliarDiscrepanciaLegado, parseQu
 import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/orcamentos/motor";
 import { fmtMoney, fmtDate, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
 import { modelosDoDoc } from "@/lib/orcamentos/modelos";
-import { textoItemDiscrepancia } from "@/lib/orcamentos/discrepancia";
+import { textoItemDiscrepancia, itensVigentes } from "@/lib/orcamentos/discrepancia";
 import { AlertTriangle } from "lucide-react";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
 import { Input } from "@/components/ui/input";
@@ -46,9 +46,9 @@ function ComparacaoAnteriorAtual({
   rastreio?: { id: string; origem: "NOVO" | "LEGADO"; cliente: string | null; data: string; desfecho: string | null; medidas: string };
 }) {
   const discrepancia = avaliarDiscrepanciaLegado([
-    { label: "Custo primário (%)", anterior: anterior.custoPrimarioPct, atual: tier.custoPrimarioPct },
+    { label: "Custo primário (%)", anterior: anterior.custoPrimarioPct, atual: tier.custoPrimarioPct, pontos: true },
     { label: "Quantidade", anterior: parseQuantidade(anterior.quantidade), atual: parseQuantidade(tier.quantidade) },
-    { label: "Margem P2 (%)", anterior: anterior.margemP2Pct, atual: tier.margemP2Pct },
+    { label: "Margem P2 (%)", anterior: anterior.margemP2Pct, atual: tier.margemP2Pct, pontos: true },
     { label: "Preço", anterior: anterior.precoFinal, atual: tier.precoProjetado },
   ]);
 
@@ -116,7 +116,7 @@ function ComparacaoAnteriorAtual({
 // Faixa que a Diretoria enxerga primeiro: discrepância acima de 2,5% frente ao orçamento anterior e o
 // motivo que quem fez o preço informou. Sem motivo (cards de antes desta regra), diz isso em vermelho.
 function FaixaDiscrepancia({ tier, discrepanciaViva }: { tier: PrecificacaoTier; discrepanciaViva: ReturnType<typeof avaliarDiscrepanciaLegado> }) {
-  const itens = tier.discrepancia?.itens?.length ? tier.discrepancia.itens : discrepanciaViva.itens;
+  const itens = tier.discrepancia ? itensVigentes(tier.discrepancia.itens) : discrepanciaViva.itens;
   if (!itens.length) return null;
   const d = tier.discrepancia;
   const motivo = d?.justificativa?.trim();
@@ -191,9 +191,9 @@ function TierCard({
   };
 
   const discrepanciaViva = avaliarDiscrepanciaLegado([
-    { label: "Custo primário (%)", anterior: anterior.custoPrimarioPct, atual: tier.custoPrimarioPct },
+    { label: "Custo primário (%)", anterior: anterior.custoPrimarioPct, atual: tier.custoPrimarioPct, pontos: true },
     { label: "Quantidade", anterior: parseQuantidade(anterior.quantidade), atual: parseQuantidade(tier.quantidade) },
-    { label: "Margem P2 (%)", anterior: anterior.margemP2Pct, atual: tier.margemP2Pct },
+    { label: "Margem P2 (%)", anterior: anterior.margemP2Pct, atual: tier.margemP2Pct, pontos: true },
     { label: "Preço", anterior: anterior.precoFinal, atual: tier.precoProjetado },
   ]);
 

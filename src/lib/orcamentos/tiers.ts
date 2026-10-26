@@ -124,9 +124,9 @@ export function montarPrecificacao(input: MontarPrecificacaoInput): Precificacao
     // registro casado por código interno (orçamento aprovado ou Arquivo legado, ver
     // buscarOrcamentoAnterior em legado.ts).
     const discrepancia = avaliarDiscrepanciaLegado([
-      { label: "Custo Primário (%)", anterior: anterior?.custoPrimarioPct ?? null, atual: f.custoPrimarioPct },
+      { label: "Custo Primário (%)", anterior: anterior?.custoPrimarioPct ?? null, atual: f.custoPrimarioPct, pontos: true },
       { label: "Quantidade", anterior: parseQuantidade(anterior?.quantidade ?? null), atual: parseQuantidade(f.quantidade) },
-      { label: "Margem P2 (%)", anterior: anterior?.margemP2Pct ?? null, atual: f.margemP2Pct },
+      { label: "Margem P2 (%)", anterior: anterior?.margemP2Pct ?? null, atual: f.margemP2Pct, pontos: true },
       { label: "Último preço", anterior: anterior?.precoFinal ?? null, atual: f.precoProjetado },
     ]);
 

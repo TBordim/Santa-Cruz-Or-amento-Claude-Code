@@ -76,7 +76,10 @@ export function parseQuantidade(v: string | number | null | undefined): number |
   return Number.isNaN(n) ? null : n;
 }
 
-type CampoAnterior = { label: string; anterior: number | null; atual: number | null };
+// `pontos`: o campo já é uma porcentagem (custo primário, margem P2) e a diferença é medida em pontos
+// percentuais (0,52% -> 0% = 0,52 ponto), não em variação relativa (que daria -100% e um alarme
+// falso quando o valor anterior é pequeno). Decisão do Thiago em 26/10/2026.
+type CampoAnterior = { label: string; anterior: number | null; atual: number | null; pontos?: boolean };
 
 export type ResultadoDiscrepancia = {
   bloqueia: boolean;
@@ -84,7 +87,7 @@ export type ResultadoDiscrepancia = {
   campos: string[];
   motivo?: string;
   // Cada campo que estourou o limite, com os valores (pra mostrar à Diretoria e pedir a justificativa).
-  itens: { label: string; anterior: number; atual: number; variacao: number }[];
+  itens: { label: string; anterior: number; atual: number; variacao: number; pontos?: boolean }[];
 };
 
 // Critério 2 (adicional e independente do Critério 1): compara custo primário, quantidade,
@@ -93,21 +96,22 @@ export type ResultadoDiscrepancia = {
 // nesta fase). Campo sem dado anterior não conta nem a favor nem contra.
 export function avaliarDiscrepanciaLegado(campos: CampoAnterior[]): ResultadoDiscrepancia {
   let temDados = false;
-  const estourou: { label: string; variacao: number; anterior: number; atual: number }[] = [];
+  const estourou: { label: string; variacao: number; anterior: number; atual: number; pontos?: boolean }[] = [];
 
   for (const c of campos) {
-    if (c.anterior === null || c.anterior === undefined || Number.isNaN(c.anterior) || c.anterior === 0) continue;
+    if (c.anterior === null || c.anterior === undefined || Number.isNaN(c.anterior)) continue;
+    if (!c.pontos && c.anterior === 0) continue;
     if (c.atual === null || c.atual === undefined || Number.isNaN(c.atual)) continue;
     temDados = true;
-    const variacao = (Math.abs(c.atual - c.anterior) / Math.abs(c.anterior)) * 100;
-    if (variacao > LIMITE_DISCREPANCIA_LEGADO) estourou.push({ label: c.label, variacao, anterior: c.anterior, atual: c.atual });
+    const variacao = c.pontos ? Math.abs(c.atual - c.anterior) : (Math.abs(c.atual - c.anterior) / Math.abs(c.anterior)) * 100;
+    if (variacao > LIMITE_DISCREPANCIA_LEGADO) estourou.push({ label: c.label, variacao, anterior: c.anterior, atual: c.atual, pontos: c.pontos });
   }
 
   if (!temDados) return { bloqueia: false, temDados: false, campos: [], itens: [] };
   if (!estourou.length) return { bloqueia: false, temDados: true, campos: [], itens: [] };
 
   const motivo = estourou
-    .map((e) => `Discrepância de ${fmtPct(e.variacao)} em ${e.label} frente ao orçamento anterior (limite: ${String(LIMITE_DISCREPANCIA_LEGADO).replace(".", ",")}%).`)
+    .map((e) => `Discrepância de ${e.pontos ? `${e.variacao.toFixed(2).replace(".", ",")} pontos` : fmtPct(e.variacao)} em ${e.label} frente ao orçamento anterior (limite: ${String(LIMITE_DISCREPANCIA_LEGADO).replace(".", ",")}${e.pontos ? " pontos" : "%"}).`)
     .join(" ");
 
   return {
@@ -115,6 +119,6 @@ export function avaliarDiscrepanciaLegado(campos: CampoAnterior[]): ResultadoDis
     temDados: true,
     campos: estourou.map((e) => e.label),
     motivo,
-    itens: estourou.map((e) => ({ label: e.label, anterior: e.anterior, atual: e.atual, variacao: e.variacao })),
+    itens: estourou.map((e) => ({ label: e.label, anterior: e.anterior, atual: e.atual, variacao: e.variacao, pontos: e.pontos })),
   };
 }
