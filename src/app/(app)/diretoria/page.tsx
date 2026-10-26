@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { fmtMoney, fmtDateTime } from "@/lib/orcamentos/constantes";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { rotuloSO } from "@/lib/orcamentos/modelos";
-import { textoItemDiscrepancia, itensVigentes } from "@/lib/orcamentos/discrepancia";
+import { textoItemDiscrepancia, itensVigentes, explicacaoDoSistema } from "@/lib/orcamentos/discrepancia";
 import { AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -60,7 +60,7 @@ export default async function DiretoriaPage() {
                           Discrepância acima de 2,5%{t.numeroSequencial ? ` · SO ${t.numeroSequencial}` : ""}: {itensVigentes(t.discrepancia!.itens).map(textoItemDiscrepancia).join("; ")}
                         </div>
                         <div className="mt-0.5 font-semibold text-foreground">
-                          {t.discrepancia!.justificativa ? `Motivo: “${t.discrepancia!.justificativa}”${t.discrepancia!.justificadaPor ? ` — ${t.discrepancia!.justificadaPor}` : ""}` : "Nenhum motivo informado."}
+                          {t.discrepancia!.justificativa ? `Motivo: “${t.discrepancia!.justificativa}”${t.discrepancia!.justificadaPor ? ` — ${t.discrepancia!.justificadaPor}` : ""}` : explicacaoDoSistema(t) ? `Explicação do sistema: ${explicacaoDoSistema(t)}` : "Nenhum motivo informado."}
                         </div>
                       </div>
                     ))}

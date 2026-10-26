@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { explicacaoDoSistema, itensVigentes } from "@/lib/orcamentos/discrepancia";
 import { detalheDaQuantidade } from "@/lib/orcamentos/quantidades";
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
 import { salvarOrcamento, enviarParaDiretoria, solicitarCompras, registrarRetornoCompras } from "../actions";
@@ -30,13 +31,14 @@ const num = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 
 // Pergunta o motivo da discrepância (acima de 2,5% frente ao orçamento anterior) de quem fez o
 // preço. Sem `required` do navegador de propósito: "Salvar sem liberar" não deve ser barrado; quem
 // exige o motivo é o envio para a Diretoria (enviarParaDiretoria).
-function CaixaDiscrepancia({ indice, itens, inicial, destaque }: { indice: number; itens: ItemDiscrepancia[]; inicial: string; destaque: boolean }) {
+function CaixaDiscrepancia({ indice, itens, inicial, destaque, explicacao }: { indice: number; itens: ItemDiscrepancia[]; inicial: string; destaque: boolean; explicacao: string | null }) {
   return (
     <div className={`flex flex-col gap-2 rounded-lg border p-3 ${destaque ? "border-bad bg-bad/10" : "border-warn/40 bg-warn-soft"}`}>
       <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
         <AlertTriangle className="h-4 w-4 shrink-0 text-warn" />
-        Discrepância acima de 2,5% frente ao orçamento anterior — explique o motivo
+        {explicacao ? "Discrepância acima de 2,5% frente ao orçamento anterior" : "Discrepância acima de 2,5% frente ao orçamento anterior — explique o motivo"}
       </div>
+      {explicacao && <p className="text-sm text-muted-foreground">O sistema já explica: {explicacao} Só escreva um motivo se quiser acrescentar algo.</p>}
       <ul className="text-sm text-foreground">
         {itens.map((x) => (
           <li key={x.label}>
@@ -45,7 +47,7 @@ function CaixaDiscrepancia({ indice, itens, inicial, destaque }: { indice: numbe
           </li>
         ))}
       </ul>
-      <Field label="Motivo da discrepância (a Diretoria vai ler)" hint="Obrigatório para enviar. Seja direto: por que o preço ou os números mudaram.">
+      <Field label={explicacao ? "Observação para a Diretoria (opcional)" : "Motivo da discrepância (a Diretoria vai ler)"} hint={explicacao ? "Opcional." : "Obrigatório para enviar. Seja direto: por que o preço ou os números mudaram."}>
         <Textarea name={`justificativaDiscrepancia_${indice}`} rows={2} defaultValue={inicial} form="form-orcamento" />
       </Field>
     </div>
@@ -238,9 +240,12 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
                 })}
                 {itens.map(({ cb, i }) => {
                   const pedida = state2?.discrepancias?.find((p) => p.indice === i);
-                  const salva = tierPorChave.get(chaveSO(cb))?.discrepancia;
-                  const dados = pedida?.itens ?? salva?.itens;
-                  return dados ? <CaixaDiscrepancia key={`d-${chaveSO(cb)}`} indice={i} itens={dados} inicial={salva?.justificativa ?? ""} destaque={!!pedida} /> : null;
+                  const tierSalvo = tierPorChave.get(chaveSO(cb));
+                  const salva = tierSalvo?.discrepancia;
+                  const dados = pedida?.itens ?? (tierSalvo ? itensVigentes(salva?.itens) : undefined);
+                  if (!dados?.length) return null;
+                  const explicacao = tierSalvo ? explicacaoDoSistema(tierSalvo) : null;
+                  return <CaixaDiscrepancia key={`d-${chaveSO(cb)}`} indice={i} itens={dados} inicial={salva?.justificativa ?? ""} destaque={!!pedida} explicacao={pedida ? null : explicacao} />;
                 })}
               </FormSection>
             );
