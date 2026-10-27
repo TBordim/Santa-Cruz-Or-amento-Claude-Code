@@ -56,3 +56,22 @@ export async function enviarArteParaVendas(_prev: FormState, fd: FormData): Prom
       : `Arte guardada junto do orçamento (${enviado}). Ela será protocolada quando o cliente confirmar o pedido.`,
   };
 }
+
+// Arquivo anexado como "ordem de compra" no desfecho que na verdade é a arte do cliente: quem recebe o
+// pedido (Atendimento ou Vendas) o manda para a fila de protocolo de Vendas. Anexos de ordem de compra
+// não viram arte sozinhos (podem ser só e-mails), por isso a marcação é manual.
+export async function marcarAnexoComoArte(_prev: FormState, fd: FormData): Promise<FormState> {
+  const nome = await nomeSePode("ATENDIMENTO_CLIENTE", "ACEITE_VENDAS");
+  if (!nome) return { erro: "Sem permissão (Atendimento ou Vendas)." };
+  const anexoId = String(fd.get("anexoId") ?? "");
+  const anexo = await prisma.anexo.findUnique({ where: { id: anexoId }, select: { id: true, nome: true, orcamentoId: true } });
+  if (!anexo) return { erro: "Arquivo não encontrado." };
+  const jaTem = await prisma.arteEnviada.findUnique({ where: { anexoId: anexo.id }, select: { id: true } });
+  if (jaTem) return { ok: "Este arquivo já está na fila de protocolo." };
+  if (!(await prisma.aceite.findUnique({ where: { orcamentoId: anexo.orcamentoId }, select: { id: true } }))) return { erro: "O pedido ainda não foi confirmado." };
+  await registrarArteDeAnexo({ anexoId: anexo.id, orcamentoId: anexo.orcamentoId, rotulo: anexo.nome, origem: "ORDEM_DE_COMPRA", enviadoPor: nome });
+  revalidatePath("/protocolos");
+  revalidatePath("/aceite");
+  revalidatePath("/atendimento");
+  return { ok: "Arte enviada para Vendas protocolar." };
+}

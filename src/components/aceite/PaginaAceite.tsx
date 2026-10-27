@@ -14,6 +14,8 @@ import { lerItensLote, lotesDoAceite, comoAceite, loteGarantido } from "@/lib/ac
 import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
+import { MarcarComoArte } from "./MarcarComoArte";
+import { prisma } from "@/lib/db";
 import { doOrcamento } from "@/lib/aceite/do-orcamento";
 import { gruposDeConjugacao } from "@/lib/orcamentos/conjugacao";
 import { modelosDoDoc, rotuloSO, valorSO } from "@/lib/orcamentos/modelos";
@@ -286,6 +288,8 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
           </div>
         )}
 
+        {(podeVendas || podeAtendimento) && doc.anexos.length > 0 && <ArtesDaOrdemDeCompra anexos={doc.anexos} />}
+
         {/* E-mails e documentos do cliente que comprovam a ordem de compra: anexados no desfecho (Retorno do Cliente), aqui só leitura. */}
         {doc.anexos.length > 0 && (
           <AnexoUpload
@@ -509,4 +513,11 @@ function FichaResumo({ rows }: { rows: { label: string; value: React.ReactNode }
       ))}
     </dl>
   );
+}
+
+// Só os arquivos da ordem de compra que ainda não foram mandados para o protocolo.
+async function ArtesDaOrdemDeCompra({ anexos }: { anexos: { id: string; nome: string }[] }) {
+  const ja = await prisma.arteEnviada.findMany({ where: { anexoId: { in: anexos.map((x) => x.id) } }, select: { anexoId: true } });
+  const feitos = new Set(ja.map((x) => x.anexoId));
+  return <MarcarComoArte anexos={anexos.filter((x) => !feitos.has(x.id)).map((x) => ({ id: x.id, nome: x.nome }))} />;
 }
