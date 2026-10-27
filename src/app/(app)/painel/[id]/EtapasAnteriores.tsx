@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { gruposDeConjugacao } from "@/lib/orcamentos/conjugacao";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, ReqTecnicos, PrecificacaoTier, SuporteTecnico } from "@/lib/orcamentos/types";
 import { ETAPAS, classificacaoLabel, fmtMoney, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
@@ -221,6 +222,23 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
               })),
             ],
           },
+          ...(modelos.length > 1
+            ? [
+                {
+                  titulo: "Conjugação da montagem",
+                  linhas: [
+                    ...modelos.map((m, i) => ({
+                      label: m.descricao || `Modelo ${i + 1}`,
+                      value: m.conjugacao === undefined ? undefined : m.conjugacao === 0 ? "0 — produzido sozinho" : `${m.conjugacao} — produzido junto com o mesmo número`,
+                    })),
+                    {
+                      label: "Montagens conjugadas",
+                      value: gruposDeConjugacao(modelos).map((g) => `${g.numero} (${g.modelos.join(" + ")})`).join(" · ") || undefined,
+                    },
+                  ],
+                },
+              ]
+            : []),
           ...Array.from({ length: nMateriaisEng }, (_, i) => {
             const v = r?.suportes?.[i];
             const mc = materiais[i];

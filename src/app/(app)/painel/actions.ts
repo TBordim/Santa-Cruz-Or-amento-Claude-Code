@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { erroNaConjugacao, lerConjugacao } from "@/lib/orcamentos/conjugacao";
 import { comObservacaoDiretoria } from "@/lib/orcamentos/observacao";
 import { precisaDeMotivo } from "@/lib/orcamentos/discrepancia";
 import { revalidatePath } from "next/cache";
@@ -104,10 +105,16 @@ export async function avancarEngenharia(_prev: FormState, formData: FormData): P
 // Código interno de cada modelo, como a Engenharia deixou (campo "codInterno_" + id do modelo).
 // Campo em branco mantém o código que já existia — mesmo comportamento de antes, com um código só.
 function modelosComCodigosDoForm(doc: Parameters<typeof modelosDoDoc>[0], formData: FormData): Modelo[] {
-  return modelosDoDoc(doc).map((m) => ({
-    ...m,
-    codInterno: normalizarCodigoInterno(String(formData.get(`codInterno_${m.id}`) ?? "")) || m.codInterno,
-  }));
+  const lista = modelosDoDoc(doc);
+  return lista.map((m) => {
+    // Conjugação (só com mais de um modelo): campo em branco ou inválido mantém o que já estava.
+    const conj = lista.length > 1 ? lerConjugacao(formData.get(`conjugacao_${m.id}`), lista.length) : undefined;
+    return {
+      ...m,
+      codInterno: normalizarCodigoInterno(String(formData.get(`codInterno_${m.id}`) ?? "")) || m.codInterno,
+      ...(conj !== undefined ? { conjugacao: conj } : {}),
+    };
+  });
 }
 
 export async function salvarRequisitos(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -145,7 +152,7 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
   // já deveria ter vindo da Solicitação (é por ele que a Diretoria casa com o histórico). Com
   // vários modelos, a regra vale pra cada um.
   const modelos = modelosComCodigosDoForm(doc, formData);
-  const erroModelos = erroNosModelos(modelos);
+  const erroModelos = erroNosModelos(modelos) ?? erroNaConjugacao(modelos);
   if (erroModelos) return { erro: erroModelos };
 
   const reqTecnicos = lerReqTecnicos(formData, doc.reqTecnicos as ReqTecnicos | null);

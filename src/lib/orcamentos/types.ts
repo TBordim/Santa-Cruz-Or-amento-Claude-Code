@@ -51,6 +51,9 @@ export type Modelo = {
   protocoloNumero?: string;
   protocoloRevisao?: number;
   protocoloData?: string;
+  // Conjugação da montagem, definida na Engenharia (27/10/2026): 0 = produzido sozinho; o mesmo número
+  // em dois ou mais modelos = produzidos juntos. Ausente com um modelo só e nos orçamentos de antes.
+  conjugacao?: number;
 };
 
 // Etapa 1 — Solicitação de Orçamento (Em Aberto). Medidas/suportes/acabamento/verniz/

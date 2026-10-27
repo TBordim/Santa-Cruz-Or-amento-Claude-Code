@@ -1,6 +1,7 @@
 "use client";
 
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
+import { gruposDeConjugacao, quantidadesPorItem } from "@/lib/orcamentos/conjugacao";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { salvarRequisitos, avancarOrcamento } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
@@ -21,6 +22,83 @@ import { PreMontagem } from "@/components/orcamento/PreMontagem";
 // aproveitamento. Resposta do Thiago em 30/09/2026. Um bloco por material da Solicitação, na
 // mesma ordem, sem adicionar/remover aqui: o material é decidido na Solicitação. Card de antes
 // dessa mudança tinha esses campos uma vez só pro card: aparecem no primeiro material.
+// Quantidade de cada item (modelo) e, com mais de um, a conjugação da montagem. Pedido do Thiago em
+// 27/10/2026: a Engenharia precisa ver a quantidade por item (como foi separada na Solicitação) e dizer
+// quais modelos são produzidos juntos: 0 = sozinho; o mesmo número em dois modelos = produzidos juntos.
+function BlocoItens({ doc }: { doc: OrcamentoComAnexos }) {
+  const c = doc.reqCliente as ReqCliente | null;
+  const modelos = modelosDoDoc(doc);
+  const opcoes = quantidadesPorItem(c, modelos);
+  const varios = modelos.length > 1;
+  const grupos = gruposDeConjugacao(modelos);
+  const fmt = (v: string | null) => (v === null ? "—" : Number(v.replace(/\D/g, "") || 0).toLocaleString("pt-BR"));
+  return (
+    <FormSection title={varios ? "Itens, quantidades e conjugação" : "Quantidade"}>
+      {opcoes.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhuma quantidade lançada na Solicitação.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-3 py-2">Item</th>
+                {opcoes.map((o, k) => <th key={k} className="px-3 py-2 text-right">{opcoes.length > 1 ? `Qtd. ${k + 1}` : "Quantidade"}</th>)}
+                {varios && <th className="px-3 py-2 text-right">Conjugação</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {modelos.map((m, i) => (
+                <tr key={m.id} className="border-b border-border last:border-0">
+                  <td className="px-3 py-2 font-medium text-foreground">{varios ? `${i + 1}. ` : ""}{m.descricao || `Modelo ${i + 1}`}</td>
+                  {opcoes.map((o, k) => <td key={k} className="px-3 py-2 text-right font-mono">{varios && !o.separada && o.porModelo[i] === null ? "—" : fmt(o.porModelo[i])}</td>)}
+                  {varios && (
+                    <td className="px-3 py-1.5 text-right">
+                      <Input
+                        name={`conjugacao_${m.id}`}
+                        type="number"
+                        min={0}
+                        max={modelos.length}
+                        step={1}
+                        inputMode="numeric"
+                        placeholder="0"
+                        defaultValue={m.conjugacao ?? ""}
+                        form="form-engenharia"
+                        className="ml-auto h-8 w-20 text-right"
+                        aria-label={`Conjugação do modelo ${i + 1}`}
+                      />
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {varios && (
+                <tr className="bg-muted/30 font-semibold">
+                  <td className="px-3 py-2">Total do conjunto</td>
+                  {opcoes.map((o, k) => <td key={k} className="px-3 py-2 text-right font-mono">{fmt(o.total)}</td>)}
+                  <td />
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {varios && (
+        <>
+          <p className="text-xs text-muted-foreground">
+            <strong className="text-foreground">Conjugação:</strong> 0 = o modelo é produzido sozinho, em montagem separada. O mesmo número (1, 2, 3…) em dois ou mais
+            modelos = produzidos juntos na mesma montagem. Ex.: com 4 modelos, o 1 junto com o 4 e o 2 junto com o 3 → marque o 1 e o 4 com “1”, o 2 e o 3 com “2”.
+            Obrigatório para liberar para o Orçamento.
+          </p>
+          {grupos.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Montagens conjugadas: {grupos.map((g) => `${g.numero} (${g.modelos.join(" + ")})`).join(" · ")}.
+            </p>
+          )}
+        </>
+      )}
+    </FormSection>
+  );
+}
+
 function BlocoMaterial({ titulo, uso, v }: { titulo: string; uso: string | null; v: SuporteTecnico }) {
   const campo = (name: string, valor: string | undefined) => <Input name={name} defaultValue={valor ?? ""} form="form-engenharia" />;
   return (
@@ -127,6 +205,8 @@ export function FormEngenharia({ doc }: { doc: OrcamentoComAnexos }) {
             </Field>
           ))}
         </FormSection>
+
+        <BlocoItens doc={doc} />
 
         <FormSection title="Pré-montagem">
           <p className="-mt-2 text-xs text-muted-foreground">
