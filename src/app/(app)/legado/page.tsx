@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { p1DoReqCliente } from "@/lib/orcamentos/margem";
 import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { legadosDoCliente } from "@/lib/orcamentos/legado";
 import { medidasDoReq } from "@/lib/orcamentos/medidas";
@@ -65,6 +66,7 @@ export default async function LegadoPage({ searchParams }: { searchParams: Promi
                     precoAtual: l.precoAtual ? Number(l.precoAtual) : null,
                     custoPrimarioPct: l.custoPrimarioPct ? Number(l.custoPrimarioPct) : null,
                     margemP2Pct: l.margemP2Pct ? Number(l.margemP2Pct) : null,
+                    margemP1Pct: p1DoReqCliente(l.reqCliente),
                     quantidade: l.quantidade ? Number(l.quantidade) : null,
                     dataLegadoTexto: l.dataLegadoTexto,
                     desfecho: l.desfecho,

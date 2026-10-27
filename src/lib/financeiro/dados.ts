@@ -1,4 +1,5 @@
 import "server-only";
+import { margemBruta } from "@/lib/orcamentos/margem";
 import { renegociacoesDe, renegociacaoAberta, valorCedido } from "@/lib/orcamentos/renegociacao";
 import { prisma } from "@/lib/db";
 import { valorSO, valorOrcamento, soEscolhida } from "@/lib/orcamentos/modelos";
@@ -84,6 +85,8 @@ export type Orcamentos = {
   taxaValor: number | null;
   ticketMedio: number | null;
   margemP2: number | null;
+  // Margem bruta (P1 + P2) média, só dos pedidos em que ela é conhecida, e quantos são.
+  margemBruta: { media: number | null; conhecidos: number; total: number };
   custoPrimario: number | null;
   aguardando: { n: number; valor: number; diasMedios: number | null; maisDeSete: { n: number; valor: number }; maisAntigo: number | null };
   funil: { etapa: string; n: number; valor: number }[];
@@ -124,12 +127,21 @@ export async function orcamentosDoPeriodo(p: Periodo): Promise<Orcamentos> {
   // Margem e custo primário ponderados pelo valor, só do que foi fechado.
   let pesoTotal = 0;
   let margem = 0;
+  let brutaSoma = 0;
+  let brutaPeso = 0;
+  let brutaConhecidos = 0;
   let custo = 0;
   for (const d of positivos) {
     const t = soEscolhida(tiersDe(d.precificacao));
     if (!t) continue;
     const v = valorSO(t);
     if (t.margemP2Pct !== null && t.margemP2Pct !== undefined) margem += t.margemP2Pct * v;
+    const mb = margemBruta(t.margemP2Pct, t.margemP1Pct);
+    if (mb.bruta !== null) {
+      brutaSoma += mb.bruta * v;
+      brutaPeso += v;
+      brutaConhecidos += 1;
+    }
     if (t.custoPrimarioPct !== null && t.custoPrimarioPct !== undefined) custo += t.custoPrimarioPct * v;
     pesoTotal += v;
   }
@@ -177,6 +189,7 @@ export async function orcamentosDoPeriodo(p: Periodo): Promise<Orcamentos> {
     taxaValor: vPos + vNeg + vSem > 0 ? Math.round((vPos / (vPos + vNeg + vSem)) * 100) : null,
     ticketMedio: positivos.length ? vPos / positivos.length : null,
     margemP2: pesoTotal > 0 ? margem / pesoTotal : null,
+    margemBruta: { media: brutaPeso > 0 ? brutaSoma / brutaPeso : null, conhecidos: brutaConhecidos, total: positivos.length },
     custoPrimario: pesoTotal > 0 ? custo / pesoTotal : null,
     aguardando: {
       n: aguardandoDocs.length,

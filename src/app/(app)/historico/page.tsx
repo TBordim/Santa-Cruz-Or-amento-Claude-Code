@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { margemBruta, p1DoReqCliente } from "@/lib/orcamentos/margem";
 import Link from "next/link";
 import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
@@ -89,6 +90,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
       else if (tiers.length > 1) linhas.push({ k: "Valor", v: `maior entre ${tiers.length} SOs (nenhuma fechada)` });
       if (t0?.custoPrimarioPct != null) linhas.push({ k: "Custo primário", v: fmtPct(t0.custoPrimarioPct) });
       if (t0?.margemP2Pct != null) linhas.push({ k: "Margem P2", v: fmtPct(t0.margemP2Pct) });
+      if (t0 && (t0.margemP2Pct != null || t0.margemP1Pct != null)) linhas.push({ k: "Margem bruta", v: margemBruta(t0.margemP2Pct, t0.margemP1Pct).texto });
       if (soEscolhida(tiers)?.pedidoCliente) linhas.push({ k: "Pedido do cliente", v: soEscolhida(tiers)!.pedidoCliente! });
       if (t0?.decididoPor) linhas.push({ k: "Decidido por", v: t0.decididoPor + (t0.decididoEm ? ` · ${fmtDateTime(new Date(t0.decididoEm))}` : "") });
       if (t0?.comentarioDiretoria) linhas.push({ k: "Comentário", v: t0.comentarioDiretoria });
@@ -116,6 +118,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
             quantidade: d.quantidade ? Number(d.quantidade) : null,
             custoPrimarioPct: d.custoPrimarioPct ? Number(d.custoPrimarioPct) : null,
             margemP2Pct: d.margemP2Pct ? Number(d.margemP2Pct) : null,
+            margemP1Pct: p1DoReqCliente(d.reqCliente),
             data: d.dataLegadoTexto || fmtDate(d.criadoEm),
             medidas: temMedidasParaComparar(medidasDoReq(d.reqCliente)) ? textoMedidas(medidasDoReq(d.reqCliente)) : "",
             obs: d.obs,

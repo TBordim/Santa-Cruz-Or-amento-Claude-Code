@@ -1,6 +1,7 @@
 "use client";
 
 import { decidirDiretoriaFaixa, salvarRascunhoDiretoria, liberarDiretoriaResolvida, ajustarPrecoFinalDiretoria } from "../actions";
+import { margemBruta } from "@/lib/orcamentos/margem";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import type { OrcamentoAnteriorRef } from "@/lib/orcamentos/tiers";
@@ -43,7 +44,7 @@ function ComparacaoAnteriorAtual({
   rastreio,
 }: {
   tier: PrecificacaoTier;
-  anterior: { precoFinal: number | null; custoPrimarioPct: number | null; margemP2Pct: number | null; quantidade: string | null };
+  anterior: { precoFinal: number | null; custoPrimarioPct: number | null; margemP2Pct: number | null; margemP1Pct: number | null; quantidade: string | null };
   // Só quando o anterior veio por MEDIDAS (card sem código): o que foi achado, pra conferir.
   rastreio?: { id: string; origem: "NOVO" | "LEGADO"; cliente: string | null; data: string; desfecho: string | null; medidas: string };
 }) {
@@ -58,6 +59,8 @@ function ComparacaoAnteriorAtual({
     { label: "Preço", anterior: fmtMoneyOrDash(anterior.precoFinal), atual: fmtMoney(tier.precoProjetado) },
     { label: "Custo primário (%)", anterior: fmtPctHelper(anterior.custoPrimarioPct), atual: fmtPctHelper(tier.custoPrimarioPct) },
     { label: "Margem P2 (%)", anterior: fmtPctHelper(anterior.margemP2Pct), atual: fmtPctHelper(tier.margemP2Pct) },
+    // Margem bruta = P1 (até 15) + P2. Com P2 zerada o P1 pode ser menor que 15 e precisa estar informado.
+    { label: "Margem bruta (P1 + P2)", anterior: anterior.margemP2Pct === null && anterior.margemP1Pct === null ? "—" : margemBruta(anterior.margemP2Pct, anterior.margemP1Pct).texto, atual: margemBruta(tier.margemP2Pct, tier.margemP1Pct).texto },
     { label: "Quantidade", anterior: fmtQtdOrDash(anterior.quantidade), atual: fmtQtdOrDash(tier.quantidade) },
   ];
   return (
@@ -241,6 +244,7 @@ function TierCard({
     precoFinal: primeiro(anteriorAoVivo?.precoFinal, tier.precoAnterior),
     custoPrimarioPct: primeiro(anteriorAoVivo?.custoPrimarioPct, tier.custoPrimarioPctAnterior),
     margemP2Pct: primeiro(anteriorAoVivo?.margemP2Pct, tier.margemP2PctAnterior),
+    margemP1Pct: primeiro(anteriorAoVivo?.margemP1Pct, tier.margemP1PctAnterior),
     quantidade: primeiro(anteriorAoVivo?.quantidade, tier.quantidadeAnterior),
   };
 

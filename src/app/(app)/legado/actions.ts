@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { erroNaMargem, numeroDoCampo, p1Gravado } from "@/lib/orcamentos/margem";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { podeEditar } from "@/lib/permissions";
@@ -51,6 +52,11 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
   const custoPrimarioPct = parseValorBR(String(formData.get("custoPrimarioPct") ?? ""));
   const margemP2Pct = parseValorBR(String(formData.get("margemP2Pct") ?? ""));
   const quantidade = parseValorBR(String(formData.get("quantidade") ?? ""));
+  // Margem P2 zerada: o P1 (de 0 a 15%) é obrigatório. P1 é a margem de contribuição; o que passa de 15% é P2.
+  const p2 = Number.isNaN(margemP2Pct) ? null : margemP2Pct;
+  const p1Informado = numeroDoCampo(formData.get("margemP1Pct"));
+  const erroMargem = erroNaMargem(p2, p1Informado);
+  if (erroMargem) return { erro: erroMargem };
 
   const orcamento = await prisma.orcamento.create({
     data: {
@@ -58,7 +64,7 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
       cliente,
       clienteChave: chave(cliente),
       codInterno: codInterno || null,
-      reqCliente: { medidaF: medidas.valores.F, medidaL: medidas.valores.L, medidaA: medidas.valores.A },
+      reqCliente: { medidaF: medidas.valores.F, medidaL: medidas.valores.L, medidaA: medidas.valores.A, margemP1Pct: p1Gravado(p2, p1Informado) },
       produtoDescricao,
       produtoChave: chave(produtoDescricao),
       desfecho,
@@ -95,6 +101,10 @@ export async function salvarDadosLegado(formData: FormData) {
   const custoPrimarioPct = parseValorBR(String(formData.get("custoPrimarioPct") ?? ""));
   const margemP2Pct = parseValorBR(String(formData.get("margemP2Pct") ?? ""));
   const quantidade = parseValorBR(String(formData.get("quantidade") ?? ""));
+  const p2Edicao = Number.isNaN(margemP2Pct) ? null : margemP2Pct;
+  const p1Edicao = numeroDoCampo(formData.get("margemP1Pct"));
+  const erroMargem = erroNaMargem(p2Edicao, p1Edicao);
+  if (erroMargem) throw new Error(erroMargem);
   const codInternoForm = normalizarCodigoInterno(String(formData.get("codInterno") ?? ""));
   if (codInternoForm && !codigoInternoValido(codInternoForm)) {
     throw new Error("Código interno (Santa Cruz) deve ter o formato 0.000.000 (7 dígitos).");
@@ -119,6 +129,7 @@ export async function salvarDadosLegado(formData: FormData) {
         medidaF: medidas.valores.F,
         medidaL: medidas.valores.L,
         medidaA: medidas.valores.A,
+        margemP1Pct: p1Gravado(p2Edicao, p1Edicao),
       },
     },
   });

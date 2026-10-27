@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { margemBruta } from "@/lib/orcamentos/margem";
 import { Maximize2 } from "lucide-react";
 import { fmtMoney } from "@/lib/orcamentos/constantes";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
@@ -18,6 +19,7 @@ export type LegadoParaVer = {
   quantidade: number | null;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
+  margemP1Pct: number | null;
   data: string;
   medidas: string; // "40 × 25 × 195 mm", ou vazio sem medidas
   obs: string | null;
@@ -51,6 +53,7 @@ export function VerLegado({ legado: l, variante = "ghost" }: { legado: LegadoPar
             { label: "Quantidade", value: l.quantidade != null ? String(l.quantidade) : "—" },
             { label: "Custo primário", value: l.custoPrimarioPct != null ? fmtPct(l.custoPrimarioPct) : "—" },
             { label: "Margem P2", value: l.margemP2Pct != null ? fmtPct(l.margemP2Pct) : "—" },
+            { label: "Margem bruta (P1 + P2)", value: l.margemP2Pct != null || l.margemP1Pct != null ? margemBruta(l.margemP2Pct, l.margemP1Pct).texto : "—" },
             { label: "Data", value: l.data || "—" },
             ...(l.obs ? [{ label: "Observação", value: l.obs }] : []),
           ]}

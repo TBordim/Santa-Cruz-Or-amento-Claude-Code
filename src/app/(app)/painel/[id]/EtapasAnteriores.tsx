@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { margemBruta } from "@/lib/orcamentos/margem";
 import { gruposDeConjugacao } from "@/lib/orcamentos/conjugacao";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, ReqTecnicos, PrecificacaoTier, SuporteTecnico } from "@/lib/orcamentos/types";
@@ -296,6 +297,7 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
               { label: "Preço projetado", value: t.precoProjetado != null && fmtMoney(t.precoProjetado) },
               { label: "Custo primário", value: t.custoPrimarioPct != null && fmtPct(t.custoPrimarioPct) },
               { label: "Margem P2", value: t.margemP2Pct != null && fmtPct(t.margemP2Pct) },
+              { label: "Margem bruta (P1 + P2)", value: (t.margemP2Pct != null || t.margemP1Pct != null) && margemBruta(t.margemP2Pct, t.margemP1Pct).texto },
               { label: "Nº de lotes", value: t.numeroLotes },
               { label: "Nº de setups", value: t.numeroSetups },
             ],

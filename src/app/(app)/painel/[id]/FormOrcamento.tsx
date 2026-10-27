@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { CamposMargem } from "@/components/orcamento/CamposMargem";
 import { observacaoDoOrcamento } from "@/lib/orcamentos/observacao";
 import { explicacaoDoSistema, itensVigentes } from "@/lib/orcamentos/discrepancia";
 import { detalheDaQuantidade } from "@/lib/orcamentos/quantidades";
@@ -218,10 +219,14 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
                         </Field>
                       </Row2>
                       <Row2 compacto>
-                        <Field label="Margem P2 (%)">
-                          <Input name={`margemP2Pct_${i}`} defaultValue={paraCampoBR(t?.margemP2Pct)} form="form-orcamento" />
-                        </Field>
-                        <div />
+                        <CamposMargem
+                          nameP2={`margemP2Pct_${i}`}
+                          nameP1={`margemP1Pct_${i}`}
+                          defaultP2={paraCampoBR(t?.margemP2Pct)}
+                          defaultP1={t?.margemP1Pct != null ? paraCampoBR(t.margemP1Pct) : ""}
+                          form="form-orcamento"
+                          obrigatorioP1={false}
+                        />
                       </Row2>
                       <Row2 compacto>
                         <Field label="Número de lotes"><Input name={`numeroLotes_${i}`} defaultValue={t?.numeroLotes ?? ""} form="form-orcamento" /></Field>

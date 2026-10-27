@@ -100,6 +100,7 @@ export type OfertaGuardada = {
   precoFinal: number | null;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
+  margemP1Pct?: number | null;
   decididoPor?: string;
   decididoEm?: number;
 };
@@ -181,6 +182,8 @@ export type PrecificacaoTier = {
   precoProjetado: number;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
+  // P1 (no máximo 15; com P2 acima de zero é sempre 15). Ver margem.ts. Ausente nas SOs de antes de 28/10/2026.
+  margemP1Pct?: number | null;
   numeroLotes: string;
   numeroSetups: string;
 
@@ -189,6 +192,7 @@ export type PrecificacaoTier = {
   quantidadeAnterior: string | null;
   custoPrimarioPctAnterior: number | null;
   margemP2PctAnterior: number | null;
+  margemP1PctAnterior?: number | null;
   numeroLotesAnterior: string | null;
   numeroSetupsAnterior: string | null;
   acabamentoAnterior: string | null;
