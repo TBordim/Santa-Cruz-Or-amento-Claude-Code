@@ -1,4 +1,7 @@
 import { notFound } from "next/navigation";
+import type { PrecificacaoTier } from "@/lib/orcamentos/types";
+import { renegociacaoAberta, renegociacoesDe } from "@/lib/orcamentos/renegociacao";
+import { BannerRenegociacao } from "@/components/orcamento/BannerRenegociacao";
 import { CornerUpLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { podeEditar } from "@/lib/permissions";
@@ -31,6 +34,22 @@ export async function Drawer({ id }: { id: string }) {
   const artesPendentes = await contarArtesPendentes(doc.id);
   const et = etapaInfo(doc.etapa ?? "");
   const modelos = modelosDoDoc(doc);
+
+  // Renegociação de preço em andamento: a faixa com o pedido do cliente e a oferta anterior aparece nas
+  // etapas por onde o card passa de novo (Orçamento, Diretoria e Envio de oferta).
+  const reneg = renegociacaoAberta(doc.reqTecnicos);
+  const modoReneg = doc.etapa === "ORCAMENTO" ? "orcamento" : doc.etapa === "DIRETORIA" ? "diretoria" : doc.etapa === "ENVIO_OFERTA" ? "envio" : null;
+  const faixaReneg =
+    reneg && modoReneg ? (
+      <BannerRenegociacao
+        reneg={reneg}
+        tiers={(doc.precificacao as unknown as PrecificacaoTier[] | null) ?? []}
+        modo={modoReneg}
+        comissaoEspecial={doc.comissaoEspecial}
+        comissaoObs={doc.comissaoObs}
+        total={renegociacoesDe(doc.reqTecnicos).length}
+      />
+    ) : null;
 
   let corpo: React.ReactNode = null;
   switch (doc.etapa) {
@@ -126,6 +145,8 @@ export async function Drawer({ id }: { id: string }) {
       )}
 
       <EtapasAnteriores doc={doc} />
+
+      {faixaReneg}
 
       {corpo}
     </DrawerSheet>

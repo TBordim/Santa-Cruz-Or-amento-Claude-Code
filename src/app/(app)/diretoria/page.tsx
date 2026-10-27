@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { renegociacaoAberta, compararComOfertaAnterior } from "@/lib/orcamentos/renegociacao";
 import Link from "next/link";
 import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
@@ -54,6 +55,20 @@ export default async function DiretoriaPage() {
                     <div className="text-sm font-semibold text-foreground">
                       {d.cliente} — <span className="font-normal text-muted-foreground">{d.produtoDescricao}</span>
                     </div>
+                    {(() => {
+                      const rg = renegociacaoAberta(d.reqTecnicos);
+                      if (!rg) return null;
+                      const l = compararComOfertaAnterior(tiers, rg, false)[0];
+                      return (
+                        <div className="mt-1.5 rounded-md border-2 border-[#3E7FA6] bg-[#3E7FA6]/10 px-2.5 py-1.5 text-sm">
+                          <div className="font-bold text-[#2c6a91]">
+                            🔁 Renegociação nº {rg.n}
+                            {l?.antes && l.agoraPreco !== null ? `: ${fmtMoney(l.antes.precoFinal ?? l.antes.precoProjetado)} → ${fmtMoney(l.agoraPreco)}${l.variacaoPct !== null ? ` (${l.variacaoPct > 0 ? "+" : "−"}${Math.abs(l.variacaoPct).toFixed(1).replace(".", ",")}%)` : ""}` : ""}
+                          </div>
+                          <div className="mt-0.5 font-semibold text-foreground">Pedido do cliente: “{rg.pedido}”</div>
+                        </div>
+                      );
+                    })()}
                     {observacaoDoOrcamento(d.reqTecnicos) && (
                       <div className="mt-1.5 rounded-md border-2 border-warn bg-warn-soft px-2.5 py-1.5 text-sm">
                         <div className="flex items-center gap-1.5 font-bold text-warn">

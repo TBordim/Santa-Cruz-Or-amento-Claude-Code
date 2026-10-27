@@ -1,4 +1,5 @@
 import "server-only";
+import { renegociacoesDe, renegociacaoAberta, valorCedido } from "@/lib/orcamentos/renegociacao";
 import { prisma } from "@/lib/db";
 import { valorSO, valorOrcamento, soEscolhida } from "@/lib/orcamentos/modelos";
 import { diasAguardando } from "@/lib/orcamentos/espera";
@@ -357,4 +358,28 @@ export async function canceladosNoPeriodo(p: Periodo) {
   const docs = await prisma.aceite.findMany({ where: { etapa: "CANCELADO", canceladoEm: { gte: p.inicio, lte: p.fim } } });
   const valor = docs.reduce((s, a) => s + (a.soEscolhida ? valorSO(a.soEscolhida as PrecificacaoTier) : 0), 0);
   return { n: docs.length, valor };
+}
+
+// Renegociações de preço (o cliente pediu desconto depois da oferta): quantas estão abertas agora, quantas
+// foram pedidas no período e quanto o desconto custou (valor antes - valor depois, nas rodadas já concluídas).
+export async function renegociacoesDoPeriodo(p: Periodo) {
+  const docs = await prisma.orcamento.findMany({ where: { origem: "NOVO" }, select: { reqTecnicos: true, precificacao: true }, take: 5000 });
+  let abertas = 0;
+  let noPeriodo = 0;
+  let cedido = 0;
+  for (const d of docs) {
+    const rs = renegociacoesDe(d.reqTecnicos);
+    if (!rs.length) continue;
+    if (renegociacaoAberta(d.reqTecnicos)) abertas += 1;
+    rs.forEach((r, i) => {
+      if (r.em < p.inicio.getTime() || r.em > p.fim.getTime() || !r.concluidaEm) {
+        if (r.em >= p.inicio.getTime() && r.em <= p.fim.getTime()) noPeriodo += 1;
+        return;
+      }
+      noPeriodo += 1;
+      const depois = rs[i + 1]?.oferta ?? tiersDe(d.precificacao);
+      cedido += valorCedido(depois, r);
+    });
+  }
+  return { abertas, noPeriodo, cedido };
 }
