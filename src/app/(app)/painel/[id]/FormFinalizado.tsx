@@ -93,10 +93,6 @@ export function FormFinalizado({ doc, voltarPara }: { doc: OrcamentoComAnexos; v
           <input type="hidden" name="id" value={doc.id} />
           {voltarPara && <input type="hidden" name="voltarPara" value={voltarPara} />}
           <FormSection title="O cliente pediu ajuste de preço?">
-            <p className="-mt-1 text-xs text-muted-foreground">
-              A oferta que você enviou fica guardada, como está. O card volta para o Orçamento para refazer o valor da faca, a comissão e o preço;
-              a Diretoria reaprova (sempre à mão) e a oferta nova segue ao cliente. Pode ter mais de uma rodada.
-            </p>
             <Field label="O que o cliente pediu">
               <Textarea name="pedido" rows={2} maxLength={1000} required placeholder="Ex.: desconto de 5%, ou R$ 480 o milheiro" />
             </Field>
