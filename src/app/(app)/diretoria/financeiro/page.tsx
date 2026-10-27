@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ETAPAS } from "@/lib/orcamentos/constantes";
+import { duracaoCurta } from "@/lib/orcamentos/historico-etapas";
 import { redirect } from "next/navigation";
 import { sessaoAtual, exigirModulo } from "@/lib/permissions";
 import { fmtMoney } from "@/lib/orcamentos/constantes";
@@ -12,6 +14,7 @@ import {
   realizadoNoPeriodo,
   canceladosNoPeriodo,
   renegociacoesDoPeriodo,
+  tempoPorEtapa,
 } from "@/lib/financeiro/dados";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,7 +88,7 @@ export default async function PainelFinanceiroPage({ searchParams }: { searchPar
   const sp = await searchParams;
   const periodo = lerPeriodoFin(sp);
 
-  const [orc, carteira, cancelados, reneg] = await Promise.all([orcamentosDoPeriodo(periodo), carteiraDeEntregas(), canceladosNoPeriodo(periodo), renegociacoesDoPeriodo(periodo)]);
+  const [orc, carteira, cancelados, reneg, tempos] = await Promise.all([orcamentosDoPeriodo(periodo), carteiraDeEntregas(), canceladosNoPeriodo(periodo), renegociacoesDoPeriodo(periodo), tempoPorEtapa(periodo)]);
   const fat = previsaoDeFaturamento(carteira.entregas);
   const rec = previsaoDeRecebimento(carteira.entregas);
   const realizado = realizadoNoPeriodo(carteira.entregas, periodo);
@@ -246,6 +249,33 @@ export default async function PainelFinanceiroPage({ searchParams }: { searchPar
           <Kpi label="Orçamentos negativos" valor={fmtMoney(orc.negativo.valor)} sub={pl(orc.negativo.n, "orçamento", "orçamentos")} />
           <Kpi label="Sem retorno do cliente" valor={fmtMoney(orc.semRetorno.valor)} sub={pl(orc.semRetorno.n, "orçamento", "orçamentos")} />
         </div>
+      </Bloco>
+
+      <Bloco titulo="Tempo em cada etapa" descricao="Quanto tempo os cards levam em cada etapa do orçamento, das passagens que terminaram no período. Só entram cards com a hora de entrada registrada (a partir de 28/10/2026).">
+        <Card>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Etapa</TableHead>
+                  <TableHead className="text-right">Tempo médio</TableHead>
+                  <TableHead className="text-right">Maior</TableHead>
+                  <TableHead className="text-right">Passagens</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tempos.map((t) => (
+                  <TableRow key={t.etapa}>
+                    <TableCell>{ETAPAS.find((e) => e.key === t.etapa)?.label ?? t.etapa}</TableCell>
+                    <TableCell className="text-right font-mono">{t.media === null ? "—" : duracaoCurta(t.media)}</TableCell>
+                    <TableCell className="text-right font-mono">{t.maior === null ? "—" : duracaoCurta(t.maior)}</TableCell>
+                    <TableCell className="text-right">{t.n}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </Bloco>
 
       <Bloco titulo="Renegociações de preço" descricao="O cliente pediu ajuste de preço depois da oferta. O custo é a diferença entre o que foi ofertado e a oferta nova (rodadas já concluídas).">

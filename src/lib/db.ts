@@ -19,7 +19,49 @@ function createPrismaClient() {
   // Só no banco local: o pool fica com uma conexão e as consultas fazem fila. Neon segue igual.
   const local = bancoLocal(connectionString);
   const adapter = new PrismaPg({ connectionString, ...(local ? { max: 1 } : {}) });
-  return new PrismaClient({ adapter });
+  const base = new PrismaClient({ adapter });
+  // Toda mudança de etapa de um orçamento fica registrada no próprio card (hora, de onde veio, quem
+  // mexeu), num ponto só: assim nenhuma ação nova deixa de registrar. Pedido do Thiago em 28/10/2026,
+  // para medir quanto tempo cada card leva de uma etapa para a outra. Ver registrarEntradaNaEtapa.
+  return base.$extends({
+    query: {
+      orcamento: {
+        async create({ args, query }) {
+          const etapa = typeof args.data.etapa === "string" ? args.data.etapa : null;
+          if (etapa && args.data.origem !== "LEGADO") {
+            const rt = (args.data.reqTecnicos ?? {}) as Record<string, unknown>;
+            args.data.reqTecnicos = (await registrarEntradaNaEtapa(rt, null, etapa)) as never;
+          }
+          return query(args);
+        },
+        async update({ args, query }) {
+          const nova = typeof args.data.etapa === "string" ? args.data.etapa : (args.data.etapa as { set?: string } | undefined)?.set;
+          if (!nova) return query(args);
+          const atual = await base.orcamento.findUnique({ where: args.where, select: { etapa: true, reqTecnicos: true } });
+          if (!atual || atual.etapa === nova) return query(args);
+          // Se a própria ação já está gravando reqTecnicos, parte dele; senão, do que está no banco.
+          const doForm = args.data.reqTecnicos;
+          const parte = doForm && typeof doForm === "object" && !("set" in (doForm as object)) ? doForm : atual.reqTecnicos;
+          args.data.reqTecnicos = (await registrarEntradaNaEtapa((parte ?? {}) as Record<string, unknown>, atual.etapa, nova)) as never;
+          return query(args);
+        },
+      },
+    },
+  });
+}
+
+// Acrescenta ao histórico de etapas do card (reqTecnicos.historicoEtapas) a entrada nesta etapa. Quem
+// mexeu vem da sessão; fora de uma requisição (scripts), fica "Sistema".
+async function registrarEntradaNaEtapa(reqTecnicos: Record<string, unknown>, de: string | null, etapa: string) {
+  let por = "Sistema";
+  try {
+    const { sessaoAtual } = await import("@/lib/permissions");
+    por = (await sessaoAtual())?.nome ?? "Sistema";
+  } catch {
+    // sem requisição (script de teste): fica "Sistema"
+  }
+  const lista = Array.isArray(reqTecnicos.historicoEtapas) ? (reqTecnicos.historicoEtapas as unknown[]) : [];
+  return { ...reqTecnicos, historicoEtapas: [...lista, { etapa, ...(de ? { de } : {}), em: Date.now(), por }] };
 }
 
 function bancoLocal(url: string | undefined): boolean {

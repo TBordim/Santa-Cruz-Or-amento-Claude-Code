@@ -125,6 +125,8 @@ export type ObservacaoDiretoria = { texto: string; por: string; em: number };
 export type ReqTecnicos = {
   suportes: SuporteTecnico[];
   observacaoDiretoria?: ObservacaoDiretoria;
+  // Quando cada etapa recebeu o card (gravado por db.ts a cada mudança de etapa). Ver historico-etapas.ts.
+  historicoEtapas?: { etapa: string; de?: string; em: number; por: string }[];
   renegociacoes?: Renegociacao[];
   // Campos soltos de formato suporte: só em cards de antes de 30/09/2026 (hoje ficam por
   // material, em `suportes`).
