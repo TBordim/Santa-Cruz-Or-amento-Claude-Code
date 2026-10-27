@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { duracaoCurta, linhaDoTempo } from "@/lib/orcamentos/historico-etapas";
 import { renegociacaoAberta } from "@/lib/orcamentos/renegociacao";
 import { prisma } from "@/lib/db";
 import { ETAPAS, fmtMoney, desfechoInfo } from "@/lib/orcamentos/constantes";
@@ -121,6 +122,12 @@ export async function PainelBoard() {
                     {d.etapa === "DIRETORIA" && d.statusDiretoria === "PENDENTE" && discrepanciasDoOrcamento(tiers).length > 0 && (
                       <Badge className="w-fit rounded-full border-0 bg-bad text-[10.5px] font-bold text-white">⚠ Discrepância &gt; 2,5%</Badge>
                     )}
+                    {d.etapa !== "FINALIZADO" && (() => {
+                      const atual = linhaDoTempo(d).at(-1);
+                      return atual && !atual.aproximado ? (
+                        <span className="text-[11px] text-muted-foreground" title="Tempo desde que a etapa recebeu o card">⏱ nesta etapa há {duracaoCurta(atual.duracaoMs)}</span>
+                      ) : null;
+                    })()}
                     {renegociacaoAberta(d.reqTecnicos) && (
                       <Badge className="w-fit rounded-full border-0 bg-[#3E7FA6] text-[10.5px] font-bold text-white">🔁 Renegociação</Badge>
                     )}

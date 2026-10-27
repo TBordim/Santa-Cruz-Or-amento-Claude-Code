@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { HistoricoEtapas } from "@/components/orcamento/HistoricoEtapas";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { renegociacaoAberta, renegociacoesDe } from "@/lib/orcamentos/renegociacao";
 import { BannerRenegociacao } from "@/components/orcamento/BannerRenegociacao";
@@ -143,6 +144,8 @@ export async function Drawer({ id }: { id: string }) {
           O Aceite deste pedido só segue para a Engenharia depois que {artesPendentes === 1 ? "for protocolada" : "forem protocoladas"}.
         </div>
       )}
+
+      <HistoricoEtapas doc={doc} />
 
       <EtapasAnteriores doc={doc} />
 

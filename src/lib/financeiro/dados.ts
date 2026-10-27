@@ -1,4 +1,5 @@
 import "server-only";
+import { linhaDoTempo } from "@/lib/orcamentos/historico-etapas";
 import { margemBruta } from "@/lib/orcamentos/margem";
 import { renegociacoesDe, renegociacaoAberta, valorCedido } from "@/lib/orcamentos/renegociacao";
 import { prisma } from "@/lib/db";
@@ -395,4 +396,32 @@ export async function renegociacoesDoPeriodo(p: Periodo) {
     });
   }
   return { abertas, noPeriodo, cedido };
+}
+
+// Tempo que os cards levam em cada etapa do orçamento (pelo histórico de etapas): média, maior e quantas
+// passagens, das que terminaram dentro do período. Só conta passagem com as duas horas registradas.
+export async function tempoPorEtapa(p: Periodo) {
+  const docs = await prisma.orcamento.findMany({
+    where: { origem: "NOVO" },
+    select: { criadoEm: true, etapa: true, reqTecnicos: true, vistoEngenhariaEm: true, finalizadoEm: true },
+    take: 5000,
+  });
+  const acum = new Map<string, { soma: number; maior: number; n: number }>();
+  for (const d of docs) {
+    const passos = linhaDoTempo(d);
+    passos.forEach((x, i) => {
+      const prox = passos[i + 1];
+      if (!prox || x.aproximado || prox.aproximado) return;
+      if (prox.em < p.inicio.getTime() || prox.em > p.fim.getTime()) return;
+      const a = acum.get(x.etapa) ?? { soma: 0, maior: 0, n: 0 };
+      a.soma += x.duracaoMs;
+      a.maior = Math.max(a.maior, x.duracaoMs);
+      a.n += 1;
+      acum.set(x.etapa, a);
+    });
+  }
+  return ["ABERTO", "ENGENHARIA", "ORCAMENTO", "DIRETORIA", "ENVIO_OFERTA", "FINALIZADO"].map((etapa) => {
+    const a = acum.get(etapa);
+    return { etapa, media: a ? a.soma / a.n : null, maior: a?.maior ?? null, n: a?.n ?? 0 };
+  });
 }
