@@ -119,7 +119,7 @@ export default async function PainelFinanceiroPage({ searchParams }: { searchPar
           <Kpi label="Perdido" valor={fmtMoney(perdidoV)} sub={`${pl(perdidoN, "orçamento", "orçamentos")} (${orc.negativo.n} negativo(s), ${orc.semRetorno.n} sem retorno)`} tom="ruim" />
           <Kpi label="Taxa de fechamento" valor={pct(orc.taxaQtd)} sub={`por valor: ${pct(orc.taxaValor)}`} tom={orc.taxaQtd === null ? undefined : orc.taxaQtd >= 40 ? "bom" : "atencao"} />
           <Kpi label="Ticket médio fechado" valor={orc.ticketMedio === null ? "—" : fmtMoney(orc.ticketMedio)} />
-          <Kpi label="Margem P2 média" valor={pctDec(orc.margemP2)} sub={`custo primário médio ${pctDec(orc.custoPrimario)} (fechados, ponderado por valor)`} />
+          <Kpi label="Margem bruta média" valor={pctDec(orc.margemBruta.media)} sub={`P1 + P2 · conhecida em ${orc.margemBruta.conhecidos} de ${orc.margemBruta.total} fechados · P2 média ${pctDec(orc.margemP2)} · custo primário médio ${pctDec(orc.custoPrimario)} (fechados, ponderado por valor)`} />
         </div>
       </Bloco>
 

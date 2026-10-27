@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { CamposMargem } from "@/components/orcamento/CamposMargem";
 import { criarLegado } from "./actions";
 import { prepararAnexo } from "@/lib/anexos/compressao";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,15 +77,12 @@ export function LegadoForm() {
               <Input id="dataTexto" name="dataTexto" placeholder="Ex.: meados de 2025" />
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="custoPrimarioPct">Custo primário (%)</Label>
               <Input id="custoPrimarioPct" name="custoPrimarioPct" />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="margemP2Pct">Margem P2 (%)</Label>
-              <Input id="margemP2Pct" name="margemP2Pct" />
-            </div>
+            <CamposMargem nameP2="margemP2Pct" nameP1="margemP1Pct" idP2="margemP2Pct" idP1="margemP1Pct" />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="quantidade">Quantidade</Label>

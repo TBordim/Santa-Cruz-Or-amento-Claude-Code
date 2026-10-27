@@ -27,6 +27,7 @@ export function guardarOferta(t: PrecificacaoTier): OfertaGuardada {
     precoFinal: t.precoFinal ?? t.precoFinalSugerido ?? null,
     custoPrimarioPct: t.custoPrimarioPct,
     margemP2Pct: t.margemP2Pct,
+    margemP1Pct: t.margemP1Pct ?? null,
     ...(t.decididoPor ? { decididoPor: t.decididoPor } : {}),
     ...(t.decididoEm ? { decididoEm: t.decididoEm } : {}),
   };
@@ -46,6 +47,7 @@ export type LinhaComparada = {
   agoraPreco: number | null;
   agoraCusto: number | null;
   agoraMargem: number | null;
+  agoraP1: number | null;
   variacaoPct: number | null;
 };
 
@@ -61,6 +63,7 @@ export function compararComOfertaAnterior(tiers: PrecificacaoTier[], reneg: Rene
       agoraPreco: Number.isFinite(agoraPreco) ? agoraPreco : null,
       agoraCusto: t.custoPrimarioPct,
       agoraMargem: t.margemP2Pct,
+      agoraP1: t.margemP1Pct ?? null,
       variacaoPct: base && Number.isFinite(agoraPreco) ? ((agoraPreco - base) / base) * 100 : null,
     };
   });

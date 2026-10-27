@@ -1,4 +1,5 @@
 import { avaliarCriterios, avaliarDiscrepanciaLegado, parseQuantidade } from "./motor";
+import { p1Gravado } from "./margem";
 import type { PrecificacaoTier, StatusDiretoriaTier } from "./types";
 
 // Normaliza pra comparar premissas (mesma função `chave()` do HTML original).
@@ -14,6 +15,7 @@ export type FaixaInput = {
   precoProjetado: number;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
+  margemP1Pct?: number | null;
   numeroLotes: string;
   numeroSetups: string;
 };
@@ -30,6 +32,8 @@ export type OrcamentoAnteriorRef = {
   acabamento: string | null;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
+  // P1 do anterior (0 a 15); null quando não foi informado.
+  margemP1Pct?: number | null;
   // Como o anterior foi encontrado. Ausente = pelo código interno (a regra de sempre). "medidas" =
   // segunda linha de rastreio, quando o card não tem código: mesmo cliente + medidas exatas. Aí
   // `rastreio` diz o que foi achado, pra Diretoria conferir se é mesmo o mesmo produto.
@@ -102,12 +106,14 @@ export function montarPrecificacao(input: MontarPrecificacaoInput): Precificacao
       precoProjetado: f.precoProjetado,
       custoPrimarioPct: f.custoPrimarioPct,
       margemP2Pct: f.margemP2Pct,
+      margemP1Pct: p1Gravado(f.margemP2Pct, f.margemP1Pct ?? null),
       numeroLotes: f.numeroLotes,
       numeroSetups: f.numeroSetups,
       precoAnterior: anterior?.precoFinal ?? null,
       quantidadeAnterior: anterior?.quantidade ?? null,
       custoPrimarioPctAnterior: anterior?.custoPrimarioPct ?? null,
       margemP2PctAnterior: anterior?.margemP2Pct ?? null,
+      margemP1PctAnterior: anterior?.margemP1Pct ?? null,
       numeroLotesAnterior: anterior?.numeroLotes ?? null,
       numeroSetupsAnterior: anterior?.numeroSetups ?? null,
       acabamentoAnterior: anterior?.acabamento ?? null,

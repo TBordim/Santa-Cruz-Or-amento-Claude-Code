@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { CamposMargem } from "@/components/orcamento/CamposMargem";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { salvarDadosLegado, excluirLegado } from "./actions";
 import { fmtMoney, fmtDate, DESFECHOS_LEGADO } from "@/lib/orcamentos/constantes";
@@ -33,6 +34,8 @@ type Legado = {
   precoAtual: number | null;
   custoPrimarioPct: number | null;
   margemP2Pct: number | null;
+  // P1 (0 a 15); null quando não foi informado (registros de antes de 28/10/2026).
+  margemP1Pct: number | null;
   quantidade: number | null;
   dataLegadoTexto: string | null;
   // POSITIVO, NEGATIVO, SEM_RETORNO; null nos registros de antes de 26/10/2026 (a preencher).
@@ -152,15 +155,19 @@ export function LegadoRow({ legado }: { legado: Legado }) {
                     <Input id={`quantidade-${legado.id}`} name="quantidade" defaultValue={paraCampoBR(legado.quantidade)} />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor={`custoPrimarioPct-${legado.id}`}>Custo primário (%)</Label>
                     <Input id={`custoPrimarioPct-${legado.id}`} name="custoPrimarioPct" defaultValue={paraCampoBR(legado.custoPrimarioPct)} />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor={`margemP2Pct-${legado.id}`}>Margem P2 (%)</Label>
-                    <Input id={`margemP2Pct-${legado.id}`} name="margemP2Pct" defaultValue={paraCampoBR(legado.margemP2Pct)} />
-                  </div>
+                  <CamposMargem
+                    nameP2="margemP2Pct"
+                    nameP1="margemP1Pct"
+                    idP2={`margemP2Pct-${legado.id}`}
+                    idP1={`margemP1Pct-${legado.id}`}
+                    defaultP2={paraCampoBR(legado.margemP2Pct)}
+                    defaultP1={legado.margemP1Pct != null ? paraCampoBR(legado.margemP1Pct) : ""}
+                  />
                 </div>
                 <div className="flex flex-col gap-1.5 sm:max-w-[360px]">
                   <Label htmlFor={`desfecho-${legado.id}`}>Desfecho do orçamento (obrigatório)</Label>

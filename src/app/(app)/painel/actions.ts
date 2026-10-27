@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { erroNaMargem, numeroDoCampo, p1Gravado, LIMITE_P1 } from "@/lib/orcamentos/margem";
 import { guardarOferta, renegociacaoAberta, renegociacoesDe } from "@/lib/orcamentos/renegociacao";
 import { erroNaConjugacao, lerConjugacao } from "@/lib/orcamentos/conjugacao";
 import { comObservacaoDiretoria } from "@/lib/orcamentos/observacao";
@@ -205,6 +206,7 @@ function lerFaixas(formData: FormData, combinacoes: CombinacaoSO[]): FaixaInput[
       const v = parseValorBR(String(formData.get(`margemP2Pct_${i}`) ?? ""));
       return Number.isNaN(v) ? null : v;
     })(),
+    margemP1Pct: numeroDoCampo(formData.get(`margemP1Pct_${i}`)),
     numeroLotes: String(formData.get(`numeroLotes_${i}`) ?? "").trim(),
     numeroSetups: String(formData.get(`numeroSetups_${i}`) ?? "").trim(),
   }));
@@ -227,6 +229,10 @@ export async function salvarOrcamento(_prev: FormState, formData: FormData): Pro
   // quantidade ou um papel entrou/saiu da lista, a posição das outras muda.
   const existentes = new Map(((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => [chaveSO(t), t]));
 
+  // P1 vai no máximo até 15%: o que passa disso é P2 (a exigência de informar o P1 com P2 zerada é no envio).
+  const p1Ruim = faixas.find((f) => typeof f.margemP1Pct === "number" && (f.margemP1Pct < 0 || f.margemP1Pct > LIMITE_P1));
+  if (p1Ruim) return { erro: `A margem P1 vai de 0 a ${LIMITE_P1}%: o que passa de ${LIMITE_P1}% é P2.` };
+
   const rascunho = faixas.map((f) => {
     const ex = existentes.get(chaveSO(f));
     if (ex?.ofertada) return ex; // linha já ofertada ao cliente: não muda (ver cotarNovaQuantidade)
@@ -238,6 +244,7 @@ export async function salvarOrcamento(_prev: FormState, formData: FormData): Pro
       precoProjetado: Number.isNaN(f.precoProjetado) ? (ex?.precoProjetado ?? null) : f.precoProjetado,
       custoPrimarioPct: f.custoPrimarioPct ?? ex?.custoPrimarioPct ?? null,
       margemP2Pct: f.margemP2Pct ?? ex?.margemP2Pct ?? null,
+      margemP1Pct: p1Gravado(f.margemP2Pct ?? ex?.margemP2Pct ?? null, f.margemP1Pct ?? ex?.margemP1Pct ?? null),
       numeroLotes: f.numeroLotes || ex?.numeroLotes || "",
       numeroSetups: f.numeroSetups || ex?.numeroSetups || "",
     };
@@ -415,11 +422,17 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
   const faixas = lerFaixas(formData, combinacoes).map((f) => {
     const ex = existentes.get(chaveSO(f));
     return ex?.ofertada
-      ? { ...f, numeroSequencial: ex.numeroSequencial, precoProjetado: ex.precoProjetado, custoPrimarioPct: ex.custoPrimarioPct, margemP2Pct: ex.margemP2Pct, numeroLotes: ex.numeroLotes, numeroSetups: ex.numeroSetups }
+      ? { ...f, numeroSequencial: ex.numeroSequencial, precoProjetado: ex.precoProjetado, custoPrimarioPct: ex.custoPrimarioPct, margemP2Pct: ex.margemP2Pct, margemP1Pct: ex.margemP1Pct ?? null, numeroLotes: ex.numeroLotes, numeroSetups: ex.numeroSetups }
       : f;
   });
   if (faixas.some((f) => Number.isNaN(f.precoProjetado))) {
     return { erro: 'Preencha o "Preço projetado" de todas as SOs.' };
+  }
+  // Margem P2 zerada (ou vazia): é preciso dizer qual é o P1 (de 0 a 15%). Com P2 acima de zero, o P1 é 15.
+  for (const f of faixas) {
+    if (existentes.get(chaveSO(f))?.ofertada) continue;
+    const erroMargem = erroNaMargem(f.margemP2Pct, f.margemP1Pct ?? null);
+    if (erroMargem) return { erro: `${f.numeroSequencial ? `SO ${f.numeroSequencial}` : `Quantidade ${f.quantidade}`}${f.papel ? ` · ${f.papel}` : ""}: ${erroMargem}` };
   }
   // Uma SO ("Orçamento S.O. nº") por combinação quantidade × papel, não uma só pro card. O número
   // da solicitação inteira é o Nº de Pré Cadastro (Engenharia).

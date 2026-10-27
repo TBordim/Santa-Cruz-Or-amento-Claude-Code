@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { p1DoReqCliente } from "./margem";
 import { chave } from "./chave";
 import { formatarCodigoInterno, normalizarCodigoInterno } from "./codigo-interno";
 import { codigosDoConjunto, mesmosCodigos, modelosDoDoc, soEscolhida } from "./modelos";
@@ -72,6 +73,7 @@ async function buscarPorCodigo(modelos: Modelo[], excludeId?: string): Promise<O
           acabamento: fornecimento.acabamento ?? null,
           custoPrimarioPct: t.custoPrimarioPct ?? null,
           margemP2Pct: t.margemP2Pct ?? null,
+          margemP1Pct: t.margemP1Pct ?? null,
         };
       }
     }
@@ -92,6 +94,7 @@ async function buscarPorCodigo(modelos: Modelo[], excludeId?: string): Promise<O
     acabamento: null,
     custoPrimarioPct: legado.custoPrimarioPct ? Number(legado.custoPrimarioPct) : null,
     margemP2Pct: legado.margemP2Pct ? Number(legado.margemP2Pct) : null,
+    margemP1Pct: p1DoReqCliente(legado.reqCliente),
   };
 }
 
@@ -142,6 +145,7 @@ export function escolherPorMedidas(
       acabamento: c.acabamento ?? null,
       custoPrimarioPct: t.custoPrimarioPct ?? null,
       margemP2Pct: t.margemP2Pct ?? null,
+      margemP1Pct: t.margemP1Pct ?? null,
       via: "medidas",
       rastreio: { origem: "NOVO", cliente: c.cliente, data: c.criadoEm.toISOString(), desfecho: c.desfecho, medidas: textoMedidas(medidasDoReq(c.reqCliente)) },
     };
@@ -158,6 +162,7 @@ export function escolherPorMedidas(
     acabamento: null,
     custoPrimarioPct: l.custoPrimarioPct ? Number(l.custoPrimarioPct) : null,
     margemP2Pct: l.margemP2Pct ? Number(l.margemP2Pct) : null,
+    margemP1Pct: p1DoReqCliente(l.reqCliente),
     via: "medidas",
     rastreio: { origem: "LEGADO", cliente: l.cliente, data: l.criadoEm.toISOString(), desfecho: l.desfecho, medidas: textoMedidas(medidasDoReq(l.reqCliente)) },
   };

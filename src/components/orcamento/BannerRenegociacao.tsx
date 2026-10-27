@@ -1,4 +1,5 @@
 import { RefreshCw } from "lucide-react";
+import { margemBruta } from "@/lib/orcamentos/margem";
 import type { PrecificacaoTier, Renegociacao } from "@/lib/orcamentos/types";
 import { compararComOfertaAnterior } from "@/lib/orcamentos/renegociacao";
 import { fmtDateTime, fmtMoney } from "@/lib/orcamentos/constantes";
@@ -59,11 +60,11 @@ export function BannerRenegociacao({
                   <td className="px-3 py-1.5 text-muted-foreground">{l.rotulo}</td>
                   <td className="px-3 py-1.5 text-right font-mono">
                     {l.antes ? fmtMoney(l.antes.precoFinal ?? l.antes.precoProjetado) : "—"}
-                    {l.antes && <div className="text-[11px] text-muted-foreground">custo {fmtPct(l.antes.custoPrimarioPct)} · margem {fmtPct(l.antes.margemP2Pct)}</div>}
+                    {l.antes && <div className="text-[11px] text-muted-foreground">custo {fmtPct(l.antes.custoPrimarioPct)} · margem bruta {margemBruta(l.antes.margemP2Pct, l.antes.margemP1Pct).texto}</div>}
                   </td>
                   <td className="px-3 py-1.5 text-right font-mono font-semibold">
                     {l.agoraPreco !== null ? fmtMoney(l.agoraPreco) : "—"}
-                    <div className="text-[11px] font-normal text-muted-foreground">custo {fmtPct(l.agoraCusto)} · margem {fmtPct(l.agoraMargem)}</div>
+                    <div className="text-[11px] font-normal text-muted-foreground">custo {fmtPct(l.agoraCusto)} · margem bruta {margemBruta(l.agoraMargem, l.agoraP1).texto}</div>
                   </td>
                   <td className={`px-3 py-1.5 text-right font-mono font-semibold ${l.variacaoPct !== null && l.variacaoPct < 0 ? "text-bad" : ""}`}>
                     {l.variacaoPct === null ? "—" : `${l.variacaoPct > 0 ? "+" : "−"}${Math.abs(l.variacaoPct).toFixed(1).replace(".", ",")}%`}
