@@ -15,6 +15,7 @@ import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
 import { doOrcamento } from "@/lib/aceite/do-orcamento";
+import { gruposDeConjugacao } from "@/lib/orcamentos/conjugacao";
 import { modelosDoDoc, rotuloSO, valorSO } from "@/lib/orcamentos/modelos";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
@@ -242,6 +243,20 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
                   label: l.length > 1 ? `Papel especificado ${n + 1}` : "Papel especificado",
                   value: `${textoSuporte(x.doOrcamento!)} · código ${x.doOrcamento!.codigo || "—"}`,
                 })),
+              // Conjugação definida pela Engenharia no orçamento: o que sai junto e o que sai sozinho (só com mais de um modelo).
+              ...(modelos.length > 1
+                ? [
+                    {
+                      label: "Conjugação (Engenharia)",
+                      value: modelos.some((m) => m.conjugacao === undefined || m.conjugacao === null)
+                        ? "não informada neste orçamento"
+                        : [
+                            ...gruposDeConjugacao(modelos).map((g) => `Juntos (${g.numero}): ${g.modelos.join(" + ")}`),
+                            ...modelos.filter((m) => m.conjugacao === 0).map((m) => `Sozinho: ${m.descricao || "modelo"}`),
+                          ].join(" · "),
+                    },
+                  ]
+                : []),
               { label: "Lotes orçados", value: doOrc.lotes ?? "—" },
               { label: "Entregas", value: doOrc.entregas ? `${doOrc.entregas}${doOrc.datasEntrega ? ` · ${doOrc.datasEntrega}` : ""}${doOrc.localEntrega ? ` · ${doOrc.localEntrega}` : ""}` : "—" },
               ...doOrc.materiais.flatMap((m, n) => [
