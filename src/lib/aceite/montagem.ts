@@ -6,7 +6,8 @@
 // em 08/10/2026). A data de entrega continua uma só para o Aceite.
 
 import { parseQuantidade } from "@/lib/orcamentos/motor";
-import type { Modelo, PrecificacaoTier } from "@/lib/orcamentos/types";
+import type { Modelo, PrecificacaoTier, ReqCliente } from "@/lib/orcamentos/types";
+import { montagensDosModelos, quantidadesPorItem } from "@/lib/orcamentos/conjugacao";
 
 export type ItemAceite = {
   modeloId: string;
@@ -23,14 +24,18 @@ export type ItemAceite = {
 
 // Na abertura do Aceite: um item por modelo. Com um modelo só, a quantidade é a da SO fechada; com
 // vários, Vendas reparte conforme o pedido do cliente.
-export function itensIniciais(modelos: Modelo[], so: PrecificacaoTier | null, qtdFolha: number | null): ItemAceite[] {
+export function itensIniciais(modelos: Modelo[], so: PrecificacaoTier | null, qtdFolha: number | null, reqCliente?: ReqCliente | null): ItemAceite[] {
   const qtdSO = so ? parseQuantidade(so.quantidade) : null;
-  return modelos.map((m) => ({
+  // Com vários modelos, a Solicitação já separou a quantidade de cada um e a Engenharia definiu a
+  // conjugação (27/10/2026): o Aceite nasce com isso preenchido, e Vendas só ajusta ao pedido do cliente.
+  const opcao = so && modelos.length > 1 ? quantidadesPorItem(reqCliente, modelos).find((o) => parseQuantidade(o.total) === qtdSO) : undefined;
+  const montagens = montagensDosModelos(modelos);
+  return modelos.map((m, i) => ({
     modeloId: m.id,
     descricao: m.descricao,
     codInterno: m.codInterno,
-    quantidade: modelos.length === 1 ? qtdSO : null,
-    montagem: modelos.length === 1 ? 1 : null,
+    quantidade: modelos.length === 1 ? qtdSO : opcao?.porModelo[i] ? parseQuantidade(opcao.porModelo[i]) : null,
+    montagem: modelos.length === 1 ? 1 : montagens[i],
     posicoes: modelos.length === 1 ? qtdFolha : null,
   }));
 }

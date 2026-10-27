@@ -14,7 +14,7 @@ export async function abrirAceite(orcamentoId: string) {
   const so = soEscolhida((doc.precificacao as PrecificacaoTier[] | null) ?? []);
   const soEscolhidaJson = so ? JSON.parse(JSON.stringify(so)) : undefined;
   const suportes = suportesDoOrcamento(doc.reqCliente as ReqCliente | null, doc.reqTecnicos as ReqTecnicos | null, so);
-  const itens = itensIniciais(modelosDoDoc(doc), so, suportes[0]?.qtdFolha ?? null);
+  const itens = itensIniciais(modelosDoDoc(doc), so, suportes[0]?.qtdFolha ?? null, doc.reqCliente as ReqCliente | null);
   // Folhas do papel principal pela conta do formulário (quantidade ÷ quantidade por folha).
   // Mais as folhas de acerto que o orçamento já previu.
   if (suportes[0]) {
