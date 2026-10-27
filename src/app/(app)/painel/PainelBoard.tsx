@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { renegociacaoAberta } from "@/lib/orcamentos/renegociacao";
 import { prisma } from "@/lib/db";
 import { ETAPAS, fmtMoney, desfechoInfo } from "@/lib/orcamentos/constantes";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
@@ -119,6 +120,9 @@ export async function PainelBoard() {
                     )}
                     {d.etapa === "DIRETORIA" && d.statusDiretoria === "PENDENTE" && discrepanciasDoOrcamento(tiers).length > 0 && (
                       <Badge className="w-fit rounded-full border-0 bg-bad text-[10.5px] font-bold text-white">⚠ Discrepância &gt; 2,5%</Badge>
+                    )}
+                    {renegociacaoAberta(d.reqTecnicos) && (
+                      <Badge className="w-fit rounded-full border-0 bg-[#3E7FA6] text-[10.5px] font-bold text-white">🔁 Renegociação</Badge>
                     )}
                     {d.etapa === "DIRETORIA" && d.statusDiretoria === "PENDENTE" && observacaoDoOrcamento(d.reqTecnicos) && (
                       <Badge className="w-fit rounded-full border-0 bg-warn-soft text-[10.5px] font-bold text-warn">📝 Ponto de atenção</Badge>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
-import { registrarDesfecho, cotarNovaQuantidade } from "../actions";
+import { registrarDesfecho, cotarNovaQuantidade, pedirAjusteDePreco } from "../actions";
 import { ListaDinamica } from "@/components/orcamento/ListaDinamica";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
@@ -12,6 +12,7 @@ import { FormSection, Field, ResumoBox, DiretrizBlock } from "@/components/form-
 import { LinhasSO } from "@/components/orcamento/LinhasSO";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
 export function FormFinalizado({ doc, voltarPara }: { doc: OrcamentoComAnexos; voltarPara?: string }) {
   const [state, onSubmit, pending] = useFormActionSemReset(registrarDesfecho, undefined);
   const [estadoCotar, onCotar, cotando] = useFormActionSemReset(cotarNovaQuantidade, undefined);
+  const [estadoAjuste, onAjuste, ajustando] = useFormActionSemReset(pedirAjusteDePreco, undefined);
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
   const modelos = modelosDoDoc(doc);
   const semCadastro = modelos.filter((m) => !m.codInterno).length;
@@ -79,6 +81,28 @@ export function FormFinalizado({ doc, voltarPara }: { doc: OrcamentoComAnexos; v
             {estadoCotar?.erro && <div className="anexo-erro">{estadoCotar.erro}</div>}
             <div>
               <Button type="submit" variant="outline" disabled={cotando}>{cotando ? "Enviando…" : "Cotar nova quantidade"}</Button>
+            </div>
+          </FormSection>
+        </form>
+      )}
+
+      {/* O cliente pediu desconto/ajuste de preço depois da oferta: guarda a oferta anterior e devolve o card
+          ao Orçamento para refazer as condições e a Diretoria reaprovar (ver pedirAjusteDePreco). */}
+      {(!doc.desfecho || doc.desfecho === "AGUARDANDO") && (
+        <form onSubmit={onAjuste} className="mt-4">
+          <input type="hidden" name="id" value={doc.id} />
+          {voltarPara && <input type="hidden" name="voltarPara" value={voltarPara} />}
+          <FormSection title="O cliente pediu ajuste de preço?">
+            <p className="-mt-1 text-xs text-muted-foreground">
+              A oferta que você enviou fica guardada, como está. O card volta para o Orçamento para refazer o valor da faca, a comissão e o preço;
+              a Diretoria reaprova (sempre à mão) e a oferta nova segue ao cliente. Pode ter mais de uma rodada.
+            </p>
+            <Field label="O que o cliente pediu">
+              <Textarea name="pedido" rows={2} maxLength={1000} required placeholder="Ex.: desconto de 5%, ou R$ 480 o milheiro" />
+            </Field>
+            {estadoAjuste?.erro && <div className="anexo-erro">{estadoAjuste.erro}</div>}
+            <div>
+              <Button type="submit" variant="outline" disabled={ajustando}>{ajustando ? "Enviando…" : "Pedir ajuste de preço (voltar ao Orçamento)"}</Button>
             </div>
           </FormSection>
         </form>

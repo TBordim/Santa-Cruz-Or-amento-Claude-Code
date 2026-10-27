@@ -90,11 +90,41 @@ export type ReqCliente = {
 // {...anterior, ...novo} ao salvar nunca os apaga.
 // Observação opcional de quem fez o orçamento para a Diretoria (algo que percebeu no processo). Quando
 // existe, aparece como ponto de atenção no card, na lista e no quadro. Pedido do Thiago em 26/10/2026.
+// Oferta que já tinha sido enviada ao cliente, guardada quando ele pede ajuste de preço (28/10/2026).
+export type OfertaGuardada = {
+  quantidade: string;
+  papelIdx?: number;
+  papel?: string;
+  numeroSequencial: string;
+  precoProjetado: number;
+  precoFinal: number | null;
+  custoPrimarioPct: number | null;
+  margemP2Pct: number | null;
+  decididoPor?: string;
+  decididoEm?: number;
+};
+
+// Uma rodada de renegociação de preço: o pedido do cliente e a oferta anterior, que nunca é apagada.
+// A renegociação fica aberta até a oferta nova ser marcada como enviada (`concluidaEm`).
+export type Renegociacao = {
+  n: number;
+  em: number; // epoch ms
+  por: string;
+  pedido: string;
+  ofertaEnviadaEm: string | null; // ISO da oferta anterior
+  oferta: OfertaGuardada[];
+  comissaoEspecial: boolean;
+  comissaoObs: string;
+  acabamento: string;
+  concluidaEm?: number;
+};
+
 export type ObservacaoDiretoria = { texto: string; por: string; em: number };
 
 export type ReqTecnicos = {
   suportes: SuporteTecnico[];
   observacaoDiretoria?: ObservacaoDiretoria;
+  renegociacoes?: Renegociacao[];
   // Campos soltos de formato suporte: só em cards de antes de 30/09/2026 (hoje ficam por
   // material, em `suportes`).
   qtdFolha?: string;

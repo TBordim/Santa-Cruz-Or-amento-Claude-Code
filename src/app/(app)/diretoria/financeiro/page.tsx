@@ -11,6 +11,7 @@ import {
   previsaoDeRecebimento,
   realizadoNoPeriodo,
   canceladosNoPeriodo,
+  renegociacoesDoPeriodo,
 } from "@/lib/financeiro/dados";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,7 +85,7 @@ export default async function PainelFinanceiroPage({ searchParams }: { searchPar
   const sp = await searchParams;
   const periodo = lerPeriodoFin(sp);
 
-  const [orc, carteira, cancelados] = await Promise.all([orcamentosDoPeriodo(periodo), carteiraDeEntregas(), canceladosNoPeriodo(periodo)]);
+  const [orc, carteira, cancelados, reneg] = await Promise.all([orcamentosDoPeriodo(periodo), carteiraDeEntregas(), canceladosNoPeriodo(periodo), renegociacoesDoPeriodo(periodo)]);
   const fat = previsaoDeFaturamento(carteira.entregas);
   const rec = previsaoDeRecebimento(carteira.entregas);
   const realizado = realizadoNoPeriodo(carteira.entregas, periodo);
@@ -244,6 +245,14 @@ export default async function PainelFinanceiroPage({ searchParams }: { searchPar
           <Kpi label="Pedidos cancelados" valor={fmtMoney(cancelados.valor)} sub={pl(cancelados.n, "pedido", "pedidos")} tom={cancelados.n ? "ruim" : undefined} />
           <Kpi label="Orçamentos negativos" valor={fmtMoney(orc.negativo.valor)} sub={pl(orc.negativo.n, "orçamento", "orçamentos")} />
           <Kpi label="Sem retorno do cliente" valor={fmtMoney(orc.semRetorno.valor)} sub={pl(orc.semRetorno.n, "orçamento", "orçamentos")} />
+        </div>
+      </Bloco>
+
+      <Bloco titulo="Renegociações de preço" descricao="O cliente pediu ajuste de preço depois da oferta. O custo é a diferença entre o que foi ofertado e a oferta nova (rodadas já concluídas).">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <Kpi label="Em renegociação agora" valor={String(reneg.abertas)} sub="voltaram ao Orçamento" tom={reneg.abertas ? "atencao" : undefined} />
+          <Kpi label="Pedidas no período" valor={String(reneg.noPeriodo)} sub={pl(reneg.noPeriodo, "renegociação", "renegociações")} />
+          <Kpi label="Desconto concedido" valor={fmtMoney(reneg.cedido)} sub="diferença entre a oferta anterior e a nova" tom={reneg.cedido > 0 ? "ruim" : undefined} />
         </div>
       </Bloco>
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { guardarOferta, renegociacaoAberta, renegociacoesDe } from "@/lib/orcamentos/renegociacao";
 import { erroNaConjugacao, lerConjugacao } from "@/lib/orcamentos/conjugacao";
 import { comObservacaoDiretoria } from "@/lib/orcamentos/observacao";
 import { precisaDeMotivo } from "@/lib/orcamentos/discrepancia";
@@ -473,6 +474,17 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
       discrepancias: pedidas,
     };
   }
+  // Renegociação de preço pedida pelo cliente: a Diretoria reaprova sempre à mão, sem aprovação automática.
+  if (renegociacaoAberta(doc.reqTecnicos)) {
+    for (const t of calculadas) {
+      if (t.statusDiretoria !== "auto_aprovado") continue;
+      t.statusDiretoria = "pendente";
+      delete t.precoFinal;
+      delete t.decididoPor;
+      delete t.decididoEm;
+      t.motivoPendencia = "Renegociação pedida pelo cliente: a Diretoria precisa reaprovar.";
+    }
+  }
   // As linhas ofertadas mantêm o objeto gravado (inclusive a decisão da Diretoria); só as novas
   // usam o cálculo.
   const precificacao = calculadas.map((t, i) => {
@@ -629,6 +641,12 @@ export async function marcarFinalizado(formData: FormData) {
     delete limpa.ofertada;
     return limpa;
   });
+  // Oferta nova de uma renegociação enviada: a rodada deixa de estar aberta (a oferta anterior continua guardada).
+  const rt = (doc.reqTecnicos as ReqTecnicos | null) ?? null;
+  const renegs = renegociacoesDe(rt);
+  const fechada = renegociacaoAberta(rt)
+    ? { reqTecnicos: { ...rt, renegociacoes: renegs.map((r, i) => (i === renegs.length - 1 ? { ...r, concluidaEm: Date.now() } : r)) } as object }
+    : {};
   await prisma.orcamento.update({
     where: { id },
     data: {
@@ -637,6 +655,7 @@ export async function marcarFinalizado(formData: FormData) {
       desfecho: "AGUARDANDO",
       finalizadoEm: new Date(),
       ...(numeroOrcamento ? { numeroOrcamento } : {}),
+      ...fechada,
     },
   });
   redirect("/painel");
@@ -831,4 +850,47 @@ export async function excluirCard(formData: FormData) {
   await removerAceite(id); // PMs do Aceite saem junto (senão ficam órfãos em Compras)
   await prisma.orcamento.delete({ where: { id } });
   redirect("/painel");
+}
+
+// O cliente pediu ajuste de preço (desconto) depois de receber a oferta (pedido do Thiago em 28/10/2026).
+// Guarda a oferta anterior como está, registra o que o cliente pediu e devolve o card ao Orçamento, onde
+// se refazem valor da faca, comissão e preço. A Diretoria reaprova sempre à mão (ver enviarParaDiretoria)
+// e a oferta nova segue pelo Envio de oferta. Pode haver várias rodadas: cada uma é guardada.
+export async function pedirAjusteDePreco(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  const { nomeAtor } = await exigirEdicao(id);
+  if (doc.etapa !== "FINALIZADO" || (doc.desfecho && doc.desfecho !== "AGUARDANDO")) {
+    return { erro: "O ajuste de preço só pode ser pedido enquanto o card aguarda o retorno do cliente." };
+  }
+  const pedido = String(formData.get("pedido") ?? "").trim().slice(0, 1000);
+  if (pedido.length < 5) return { erro: "Descreva o que o cliente pediu (por exemplo: desconto de 5%, ou R$ 480 o milheiro)." };
+  const rt = (doc.reqTecnicos as ReqTecnicos | null) ?? null;
+  if (renegociacaoAberta(rt)) return { erro: "Já há uma renegociação em andamento para este orçamento." };
+
+  const tiers = (doc.precificacao as PrecificacaoTier[] | null) ?? [];
+  const renegs = renegociacoesDe(rt);
+  const nova = {
+    n: renegs.length + 1,
+    em: Date.now(),
+    por: nomeAtor,
+    pedido,
+    ofertaEnviadaEm: doc.finalizadoEm ? doc.finalizadoEm.toISOString() : null,
+    oferta: tiers.map(guardarOferta),
+    comissaoEspecial: doc.comissaoEspecial,
+    comissaoObs: doc.comissaoObs ?? "",
+    acabamento: doc.acabamento ?? "",
+  };
+  const base = rt ?? ({ suportes: [], anexos: [] } as unknown as ReqTecnicos);
+  await prisma.orcamento.update({
+    where: { id },
+    data: {
+      etapa: "ORCAMENTO",
+      // Sem decisão da Diretoria valendo: a anterior fica guardada na renegociação e o card não deve aparecer como "Aprovado".
+      statusDiretoria: null,
+      reqTecnicos: { ...base, renegociacoes: [...renegs, nova] } as object,
+    },
+  });
+  const voltar = String(formData.get("voltarPara") ?? "");
+  redirect(voltar.startsWith("/") ? voltar : "/painel");
 }
