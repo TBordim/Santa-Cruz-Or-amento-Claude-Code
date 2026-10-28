@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { COM_QUEM_CONTATO, ESTILO_PRAZO, prazoDoOrcamento, rotuloContato, textoPrazo, PRAZO_VALIDADE_DIAS } from "@/lib/orcamentos/prazo";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
-import { registrarDesfecho, cotarNovaQuantidade, pedirAjusteDePreco } from "../actions";
+import { registrarDesfecho, cotarNovaQuantidade, pedirAjusteDePreco, registrarContatoRetorno, cancelarPorVencimento } from "../actions";
 import { ListaDinamica } from "@/components/orcamento/ListaDinamica";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
-import type { PrecificacaoTier } from "@/lib/orcamentos/types";
+import type { PrecificacaoTier, ReqTecnicos } from "@/lib/orcamentos/types";
 import { fmtMoney, fmtDateTime, DESFECHOS } from "@/lib/orcamentos/constantes";
 import { modelosDoDoc, soEscolhida, valorSO } from "@/lib/orcamentos/modelos";
 import { FormSection, Field, ResumoBox, DiretrizBlock } from "@/components/form-section";
@@ -26,6 +27,11 @@ export function FormFinalizado({ doc, voltarPara }: { doc: OrcamentoComAnexos; v
   const [state, onSubmit, pending] = useFormActionSemReset(registrarDesfecho, undefined);
   const [estadoCotar, onCotar, cotando] = useFormActionSemReset(cotarNovaQuantidade, undefined);
   const [estadoAjuste, onAjuste, ajustando] = useFormActionSemReset(pedirAjusteDePreco, undefined);
+  const [estadoContato, onContato, registrandoContato] = useFormActionSemReset(registrarContatoRetorno, undefined);
+  const [estadoCancelar, onCancelar, cancelando] = useFormActionSemReset(cancelarPorVencimento, undefined);
+  const aguardando = !doc.desfecho || doc.desfecho === "AGUARDANDO";
+  const prazo = aguardando ? prazoDoOrcamento(doc.finalizadoEm) : null;
+  const contatos = ((doc.reqTecnicos as ReqTecnicos | null)?.contatosRetorno ?? []).slice().reverse();
   const tiers = (doc.precificacao as unknown as PrecificacaoTier[] | null) ?? [];
   const modelos = modelosDoDoc(doc);
   const semCadastro = modelos.filter((m) => !m.codInterno).length;
@@ -49,6 +55,67 @@ export function FormFinalizado({ doc, voltarPara }: { doc: OrcamentoComAnexos; v
             : "Registre o retorno do cliente. Com o desfecho registrado, o card vai para o Histórico."}
         </DiretrizBlock>
       </div>
+
+      {/* Validade do orçamento: 15 dias a partir do envio da oferta. Vencido e sem definição, cancela por
+          vencimento do prazo de retorno; antes disso o responsável do setor registra o contato. */}
+      {prazo && (
+        <div className={`mt-4 overflow-hidden rounded-lg border-2 ${prazo.vencido ? "border-bad bg-bad/10" : prazo.situacao === "ok" ? "border-border bg-muted/30" : "border-warn bg-warn-soft"}`}>
+          <div className={`flex flex-wrap items-center gap-2 px-3 py-2 text-sm font-bold ${prazo.vencido ? "bg-bad text-white" : "text-foreground"}`}>
+            <span className={`rounded-full px-2 py-0.5 text-xs ${prazo.vencido ? "bg-white/20" : ESTILO_PRAZO[prazo.situacao]}`}>{textoPrazo(prazo)}</span>
+            <span className="font-normal">
+              Validade do orçamento: {PRAZO_VALIDADE_DIAS} dias · oferta enviada em {fmtDateTime(doc.finalizadoEm)} · vence em {prazo.venceEm}
+            </span>
+          </div>
+          <div className="flex flex-col gap-3 px-3 py-3 text-sm">
+            {prazo.vencido ? (
+              <p className="font-medium text-foreground">
+                O prazo venceu. Entre em contato com o representante, o cliente ou o responsável para obter uma definição. Sem definição, cancele o orçamento por vencimento do prazo de retorno.
+              </p>
+            ) : prazo.situacao !== "ok" ? (
+              <p className="font-medium text-foreground">O prazo está acabando: entre em contato com o representante, o cliente ou o responsável e registre abaixo.</p>
+            ) : null}
+
+            {contatos.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Contatos registrados</div>
+                {contatos.map((c, i) => (
+                  <div key={i} className="rounded-md bg-card px-3 py-1.5">
+                    <span className="font-mono text-xs text-muted-foreground">{fmtDateTime(new Date(c.em))}</span>{" "}
+                    <strong>{c.por}</strong> falou com <strong>{rotuloContato(c.com)}</strong>: {c.resultado}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <form onSubmit={onContato} className="flex flex-col gap-2 rounded-md bg-card p-3">
+              <input type="hidden" name="id" value={doc.id} />
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Registrar contato</div>
+              <div className="flex flex-wrap gap-2">
+                <select name="com" required defaultValue="" className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-base md:h-8 md:text-sm">
+                  <option value="" disabled>Com quem falou…</option>
+                  {COM_QUEM_CONTATO.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+                <Input name="resultado" required maxLength={500} placeholder="O que foi respondido ou combinado" className="min-w-[220px] flex-1" />
+                <Button type="submit" variant="outline" disabled={registrandoContato}>{registrandoContato ? "Salvando…" : "Registrar contato"}</Button>
+              </div>
+              {estadoContato?.erro && <div className="anexo-erro">{estadoContato.erro}</div>}
+            </form>
+
+            {prazo.vencido && (
+              <form onSubmit={onCancelar} className="flex flex-col gap-2 rounded-md bg-card p-3">
+                <input type="hidden" name="id" value={doc.id} />
+                {voltarPara && <input type="hidden" name="voltarPara" value={voltarPara} />}
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sem definição</div>
+                <div className="flex flex-wrap gap-2">
+                  <Input name="motivo" maxLength={500} placeholder="Observação (opcional)" className="min-w-[220px] flex-1" />
+                  <Button type="submit" variant="destructive" disabled={cancelando}>{cancelando ? "Cancelando…" : "Cancelar por vencimento do prazo de retorno"}</Button>
+                </div>
+                {estadoCancelar?.erro && <div className="anexo-erro">{estadoCancelar.erro}</div>}
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4">
         <FormSection title={tiers.length > 1 ? "SOs ofertadas" : "Preço"}>

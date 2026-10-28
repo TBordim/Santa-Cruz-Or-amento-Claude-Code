@@ -25,7 +25,7 @@ export const DESFECHOS = [
   { key: "AGUARDANDO", label: "Aguardando retorno do cliente", pill: "neutral" },
   { key: "POSITIVO", label: "Positivo — virou pedido", pill: "good" },
   { key: "NEGATIVO", label: "Negativo — orçamento perdido", pill: "bad" },
-  { key: "SEM_RETORNO", label: "Sem retorno do cliente", pill: "neutral" },
+  { key: "SEM_RETORNO", label: "Cancelado por vencimento do prazo de retorno", pill: "bad" },
 ] as const;
 
 // Desfecho de um registro do Arquivo legado (pedido em 26/10/2026): quem digitaliza a folha informa como

@@ -231,6 +231,12 @@ export default async function PainelFinanceiroPage({ searchParams }: { searchPar
               sub={`${pl(orc.aguardando.maisDeSete.n, "oferta", "ofertas")} · a mais antiga: ${orc.aguardando.maisAntigo ?? "—"} dias`}
               tom={orc.aguardando.maisDeSete.n ? "ruim" : undefined}
             />
+            <Kpi
+              label="Prazo de 15 dias vencido"
+              valor={fmtMoney(orc.aguardando.prazoVencido.valor)}
+              sub={`${pl(orc.aguardando.prazoVencido.n, "orçamento", "orçamentos")} a cancelar · ${orc.aguardando.prazoVencendo} vencendo em até 3 dias`}
+              tom={orc.aguardando.prazoVencido.n ? "ruim" : orc.aguardando.prazoVencendo ? "atencao" : undefined}
+            />
             <Kpi label="Esperando a Diretoria" valor={fmtMoney(orc.pendentesDiretoria.valor)} sub={pl(orc.pendentesDiretoria.n, "orçamento", "orçamentos")} tom={orc.pendentesDiretoria.n ? "atencao" : undefined} />
             <Kpi
               label="Com discrepância > 2,5%"
@@ -247,7 +253,7 @@ export default async function PainelFinanceiroPage({ searchParams }: { searchPar
           <Kpi label="Entregue no período" valor={fmtMoney(realizado.valor)} sub={`${pl(realizado.n, "entrega confirmada", "entregas confirmadas")} pelo PCP`} tom="bom" />
           <Kpi label="Pedidos cancelados" valor={fmtMoney(cancelados.valor)} sub={pl(cancelados.n, "pedido", "pedidos")} tom={cancelados.n ? "ruim" : undefined} />
           <Kpi label="Orçamentos negativos" valor={fmtMoney(orc.negativo.valor)} sub={pl(orc.negativo.n, "orçamento", "orçamentos")} />
-          <Kpi label="Sem retorno do cliente" valor={fmtMoney(orc.semRetorno.valor)} sub={pl(orc.semRetorno.n, "orçamento", "orçamentos")} />
+          <Kpi label="Cancelados por vencimento do prazo" valor={fmtMoney(orc.semRetorno.valor)} sub={pl(orc.semRetorno.n, "orçamento", "orçamentos")} />
         </div>
       </Bloco>
 

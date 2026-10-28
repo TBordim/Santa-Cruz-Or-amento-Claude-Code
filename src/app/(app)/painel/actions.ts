@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { prazoDoOrcamento, COM_QUEM_CONTATO, PRAZO_VALIDADE_DIAS } from "@/lib/orcamentos/prazo";
 import { erroNaMargem, numeroDoCampo, p1Gravado, LIMITE_P1 } from "@/lib/orcamentos/margem";
 import { guardarOferta, renegociacaoAberta, renegociacoesDe } from "@/lib/orcamentos/renegociacao";
 import { erroNaConjugacao, lerConjugacao } from "@/lib/orcamentos/conjugacao";
@@ -682,6 +683,13 @@ export async function registrarDesfecho(_prev: FormState, formData: FormData): P
   const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
   const sessao = await sessaoAtual();
   const desfecho = String(formData.get("desfecho") ?? "AGUARDANDO") as "AGUARDANDO" | "POSITIVO" | "NEGATIVO" | "SEM_RETORNO";
+  // "Cancelado por vencimento do prazo de retorno" só depois dos 15 dias de validade do orçamento.
+  if (desfecho === "SEM_RETORNO" && doc.desfecho !== "SEM_RETORNO") {
+    const prazo = prazoDoOrcamento(doc.finalizadoEm);
+    if (prazo && !prazo.vencido) {
+      return { erro: `O orçamento vale ${PRAZO_VALIDADE_DIAS} dias e só vence em ${prazo.venceEm}. Antes disso, registre o contato; o cancelamento por vencimento só é possível depois.` };
+    }
+  }
 
   // As SOs são alternativas — o cliente fecha UMA (resposta do Thiago em 30/09/2026). No
   // positivo, registra qual; em qualquer outro desfecho, nenhuma fica marcada.
@@ -906,4 +914,59 @@ export async function pedirAjusteDePreco(_prev: FormState, formData: FormData): 
   });
   const voltar = String(formData.get("voltarPara") ?? "");
   redirect(voltar.startsWith("/") ? voltar : "/painel");
+}
+
+// Contato do responsável do setor com o representante, o cliente ou o responsável, para obter uma
+// definição enquanto o orçamento aguarda (e principalmente quando o prazo de 15 dias está acabando ou
+// venceu). Fica registrado no card (pedido do Thiago em 28/10/2026).
+export async function registrarContatoRetorno(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  const { nomeAtor } = await exigirEdicao(id);
+  if (doc.etapa !== "FINALIZADO" || (doc.desfecho && doc.desfecho !== "AGUARDANDO")) {
+    return { erro: "O contato só pode ser registrado enquanto o card aguarda o retorno do cliente." };
+  }
+  const com = String(formData.get("com") ?? "");
+  if (!COM_QUEM_CONTATO.some((c) => c.key === com)) return { erro: "Escolha com quem foi o contato." };
+  const resultado = String(formData.get("resultado") ?? "").trim().slice(0, 500);
+  if (resultado.length < 3) return { erro: "Escreva o que ficou combinado ou o que foi respondido." };
+  const rt = (doc.reqTecnicos as ReqTecnicos | null) ?? ({ suportes: [], anexos: [] } as unknown as ReqTecnicos);
+  const contatos = [...(rt.contatosRetorno ?? []), { em: Date.now(), por: nomeAtor, com, resultado }];
+  await prisma.orcamento.update({ where: { id }, data: { reqTecnicos: { ...rt, contatosRetorno: contatos } as object } });
+  revalidatePath(`/painel/${id}`);
+  revalidatePath("/atendimento", "layout");
+  return undefined;
+}
+
+// Prazo de retorno vencido e sem definição: o orçamento é cancelado por vencimento do prazo. Só vale
+// depois dos 15 dias de validade; antes disso o responsável registra contato (registrarContatoRetorno).
+export async function cancelarPorVencimento(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id } });
+  const { nomeAtor } = await exigirEdicao(id);
+  if (doc.etapa !== "FINALIZADO" || (doc.desfecho && doc.desfecho !== "AGUARDANDO")) {
+    return { erro: "Só dá para cancelar por vencimento enquanto o card aguarda o retorno do cliente." };
+  }
+  const prazo = prazoDoOrcamento(doc.finalizadoEm);
+  if (!prazo || !prazo.vencido) return { erro: `O orçamento vale ${PRAZO_VALIDADE_DIAS} dias${prazo ? ` e só vence em ${prazo.venceEm}` : ""}.` };
+  const extra = String(formData.get("motivo") ?? "").trim().slice(0, 500);
+  const precificacao = ((doc.precificacao as PrecificacaoTier[] | null) ?? []).map((t) => {
+    const resto: PrecificacaoTier = { ...t, escolhidaPeloCliente: false };
+    delete resto.pedidoCliente;
+    return resto;
+  });
+  await prisma.orcamento.update({
+    where: { id },
+    data: {
+      desfecho: "SEM_RETORNO",
+      precificacao,
+      desfechoMotivo: `Cancelado por vencimento do prazo de retorno (${PRAZO_VALIDADE_DIAS} dias, venceu em ${prazo.venceEm}).${extra ? ` ${extra}` : ""}`,
+      desfechoPor: nomeAtor,
+      desfechoEm: new Date(),
+    },
+  });
+  revalidatePath("/historico");
+  revalidatePath("/atendimento", "layout");
+  const voltar = String(formData.get("voltarPara") ?? "");
+  redirect(voltar.startsWith("/atendimento") ? voltar : "/painel");
 }

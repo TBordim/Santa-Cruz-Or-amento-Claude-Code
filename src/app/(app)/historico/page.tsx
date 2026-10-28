@@ -31,7 +31,7 @@ const DESFECHO_CURTO: Record<string, string> = {
   AGUARDANDO: "Aguardando",
   POSITIVO: "Positivo",
   NEGATIVO: "Negativo",
-  SEM_RETORNO: "Sem retorno",
+  SEM_RETORNO: "Prazo vencido",
 };
 
 const PILL_STYLE: Record<string, string> = {

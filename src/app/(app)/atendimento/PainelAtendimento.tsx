@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { prazoDoOrcamento, textoPrazo } from "@/lib/orcamentos/prazo";
 import { diasAguardando, textoDiasAguardando } from "@/lib/orcamentos/espera";
 import { prisma } from "@/lib/db";
 import { podeEditar } from "@/lib/permissions";
@@ -99,7 +100,13 @@ export async function PainelAtendimento({ filtro: f, q: qBruto }: { filtro?: str
           key: `ret-${o.id}`,
           titulo: o.cliente ?? "Orçamento",
           contexto: `Oferta enviada em ${fmtDateTime(o.finalizadoEm)}${o.numeroOrcamento ? ` · Orçamento ${o.numeroOrcamento}` : ""} · ${o.produtoDescricao ?? ""}`,
-          selo: { texto: textoDiasAguardando(diasAguardando(o.finalizadoEm) ?? 0), tom: "pend" as const },
+          selo: (() => {
+            const prazo = prazoDoOrcamento(o.finalizadoEm);
+            return {
+              texto: `${textoDiasAguardando(diasAguardando(o.finalizadoEm) ?? 0)}${prazo ? ` · ${textoPrazo(prazo).toLowerCase()}` : ""}`,
+              tom: prazo?.vencido ? ("bad" as const) : ("pend" as const),
+            };
+          })(),
           acao: { texto: "Registrar retorno", href: `/atendimento/retorno/${o.id}`, primaria: false },
         }))
       : []),

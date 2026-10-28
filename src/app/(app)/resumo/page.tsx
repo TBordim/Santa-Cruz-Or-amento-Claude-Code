@@ -105,7 +105,7 @@ export default async function ResumoPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <Kpi label="Ganhos" valor={ganhos} cor="var(--color-good)" />
         <Kpi label="Perdidos" valor={perdidos} cor="var(--color-bad)" />
-        <Kpi label="Sem retorno" valor={semRetorno} />
+        <Kpi label="Cancelados por vencimento" valor={semRetorno} />
         <Kpi label="Aguardando" valor={aguardando} />
         <Kpi label="Taxa de conversão" valor={taxaConversao !== null ? `${taxaConversao}%` : "—"} cor="var(--primary)" />
       </div>
