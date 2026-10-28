@@ -602,3 +602,25 @@ export async function darCienteCancelamento(formData: FormData) {
   await prisma.avisoCancelamento.update({ where: { id: avisoId }, data: { vistoEm: new Date(), vistoPor: nome } });
   revalidarAceite();
 }
+
+// Código do cliente por modelo: não é obrigatório na solicitação, e o cliente pode mandá-lo (ou trocá-lo) depois do
+// desfecho positivo. Vendas inclui ou altera aqui até o pedido ser concluído; a Engenharia vê no Aceite (pedido do
+// Thiago em 28/10/2026). Grava nos modelos do orçamento e no resumo, para o card e as buscas acompanharem.
+export async function salvarCodigoCliente(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const nome = await nomeSePode("ACEITE_VENDAS");
+  if (!nome) return { erro: "Sem permissão (área Vendas)." };
+  const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, include: { orcamento: true } });
+  if (a.etapa === "CONCLUIDO" || a.etapa === "CANCELADO") return { erro: "Este Aceite já está encerrado." };
+  const modelos = modelosDoDoc(a.orcamento).map((m) => {
+    const v = formData.get(`codigoCliente_${m.id}`);
+    return v === null ? m : { ...m, codigoCliente: String(v).trim().slice(0, 60) };
+  });
+  await prisma.orcamento.update({
+    where: { id: a.orcamentoId },
+    data: { modelos: JSON.parse(JSON.stringify(modelos)), codigoCliente: resumoDosModelos(modelos).codigoCliente },
+  });
+  revalidarAceite();
+  revalidatePath("/painel");
+  return { ok: "Código do cliente salvo." };
+}
