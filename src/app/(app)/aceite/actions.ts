@@ -118,8 +118,10 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
   // Situação geral do papel: do conjunto de papéis do Aceite, ou de todos os papéis de todos os lotes.
   const situacao = situacaoGeral(lotesEfetivos.length ? lotesEfetivos.flatMap((l) => l.suportes) : suportes);
   const gravarLotes = lotesEnviados === undefined ? [] : operacoesDosLotes(id, nome, a, lotesEnviados);
+  const gravarCodigos = await operacaoCodigosCliente(a.orcamentoId, formData);
 
   await prisma.$transaction([
+    ...gravarCodigos,
     prisma.aceite.update({
     where: { id },
     data: {
@@ -604,22 +606,31 @@ export async function darCienteCancelamento(formData: FormData) {
 }
 
 // Código do cliente por modelo: não é obrigatório na solicitação, e o cliente pode mandá-lo (ou trocá-lo) depois do
-// desfecho positivo. Vendas inclui ou altera aqui até o pedido ser concluído; a Engenharia vê no Aceite (pedido do
-// Thiago em 28/10/2026). Grava nos modelos do orçamento e no resumo, para o card e as buscas acompanharem.
+// desfecho positivo. Fica na linha do produto, junto da descrição e do Nº de Cadastro; Vendas inclui ou altera até o
+// pedido ser concluído, e a Engenharia vê no Aceite (pedido do Thiago em 28/10/2026). Grava nos modelos do orçamento e
+// no resumo, para o card e as buscas acompanharem. Campos ausentes no formulário não mexem no modelo.
+async function operacaoCodigosCliente(orcamentoId: string, formData: FormData) {
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id: orcamentoId } });
+  let mudou = false;
+  const modelos = modelosDoDoc(doc).map((m) => {
+    const v = formData.get(`codigoCliente_${m.id}`);
+    if (v === null) return m;
+    const novo = String(v).trim().slice(0, 60);
+    if (novo === (m.codigoCliente ?? "")) return m;
+    mudou = true;
+    return { ...m, codigoCliente: novo };
+  });
+  if (!mudou) return [];
+  return [prisma.orcamento.update({ where: { id: orcamentoId }, data: { modelos: JSON.parse(JSON.stringify(modelos)), codigoCliente: resumoDosModelos(modelos).codigoCliente } })];
+}
+
 export async function salvarCodigoCliente(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
   const nome = await nomeSePode("ACEITE_VENDAS");
   if (!nome) return { erro: "Sem permissão (área Vendas)." };
-  const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, include: { orcamento: true } });
+  const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, select: { etapa: true, orcamentoId: true } });
   if (a.etapa === "CONCLUIDO" || a.etapa === "CANCELADO") return { erro: "Este Aceite já está encerrado." };
-  const modelos = modelosDoDoc(a.orcamento).map((m) => {
-    const v = formData.get(`codigoCliente_${m.id}`);
-    return v === null ? m : { ...m, codigoCliente: String(v).trim().slice(0, 60) };
-  });
-  await prisma.orcamento.update({
-    where: { id: a.orcamentoId },
-    data: { modelos: JSON.parse(JSON.stringify(modelos)), codigoCliente: resumoDosModelos(modelos).codigoCliente },
-  });
+  await prisma.$transaction(await operacaoCodigosCliente(a.orcamentoId, formData));
   revalidarAceite();
   revalidatePath("/painel");
   return { ok: "Código do cliente salvo." };
