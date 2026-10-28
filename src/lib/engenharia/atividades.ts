@@ -62,6 +62,7 @@ export async function listarAtividadesEngenharia(origens: { aceite: boolean; orc
             cadastroSituacao: true,
             facaNova: true,
             clicheNovo: true,
+            codigosCliche: true,
             codigoFaca: true,
             numeroOF: true,
             numeroPedido: true,
@@ -103,7 +104,7 @@ export async function listarAtividadesEngenharia(origens: { aceite: boolean; orc
         `Aceite ${a.numero ?? "sem nº"} conferido`,
         a.cadastroSituacao === "CRIADO" ? `produto novo cadastrado${a.orcamento.codInterno ? ` (${formatarCodigoInterno(a.orcamento.codInterno)})` : ""}` : null,
         a.facaNova ? `faca nova${a.codigoFaca ? ` ${a.codigoFaca}` : ""}` : null,
-        a.clicheNovo ? "clichê novo" : null,
+        a.clicheNovo ? `clichê novo${a.codigosCliche.length ? ` ${a.codigosCliche.join(", ")}` : ""}` : null,
       ]
         .filter(Boolean)
         .join(" · ");

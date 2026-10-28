@@ -800,6 +800,8 @@ model Aceite {
   // Marcações "Faca" e "Clichê" do formulário: o pedido precisa de faca / clichê novo.
   facaNova         Boolean          @default(false)
   clicheNovo       Boolean          @default(false)
+  // Códigos dos clichês novos (um pedido pode precisar de mais de um); a Karen os usa para formar a OF para a pré-impressão.
+  codigosCliche    String[]         @default([])
   // Código da faca (ex.: 6.001.516), informado pela Engenharia; vazio quando não tem faca.
   codigoFaca       String?
   engenhariaEm     DateTime?

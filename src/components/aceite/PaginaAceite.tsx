@@ -388,7 +388,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
               rows={[
                 { label: "Cadastro", value: a.cadastroSituacao === "CRIADO" ? "Produto novo: cadastro e código criados" : "Produto já cadastrado" },
                 { label: "Faca", value: a.codigoFaca ? `${a.codigoFaca}${a.facaNova ? " (nova)" : ""}` : a.facaNova ? "Faca nova, código a definir" : "Sem faca" },
-                { label: "Clichê", value: a.clicheNovo ? "Clichê novo" : "Sem clichê novo" },
+                { label: "Clichê", value: a.clicheNovo ? `Clichê novo${a.codigosCliche.length ? ` · ${a.codigosCliche.join(", ")}` : " · código a definir"}` : "Sem clichê novo" },
                 ...modelos
                   .filter((m) => m.codInterno)
                   .map((m) => ({ label: `Nº de Cadastro${modelos.length > 1 ? ` — ${m.descricao}` : ""}`, value: formatarCodigoInterno(m.codInterno) })),

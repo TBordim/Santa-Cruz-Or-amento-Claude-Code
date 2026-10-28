@@ -258,6 +258,11 @@ export async function confirmarEngenharia(_prev: FormState, formData: FormData):
         facaNova: formData.get("facaNova") === "on",
         codigoFaca: String(formData.get("codigoFaca") ?? "").trim() || null,
         clicheNovo: formData.get("clicheNovo") === "on",
+        // Códigos dos clichês novos (campo repetido "codigoCliche"); só valem com "clichê novo" marcado.
+        codigosCliche:
+          formData.get("clicheNovo") === "on"
+            ? [...new Set(formData.getAll("codigoCliche").map((v) => String(v).trim().slice(0, 40)).filter(Boolean))].slice(0, 12)
+            : [],
         engenhariaEm: agora,
         engenhariaPor: nome,
         engenhariaObs: String(formData.get("engenhariaObs") ?? "").trim() || null,
