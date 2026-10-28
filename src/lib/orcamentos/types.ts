@@ -126,8 +126,12 @@ export type ContatoRetorno = { em: number; por: string; com: string; resultado: 
 
 export type ObservacaoDiretoria = { texto: string; por: string; em: number };
 
+// Mudança da comissão do representante feita no Orçamento (ver comissao.ts).
+export type AlteracaoComissao = { de: string | null; para: string | null; por: string; em: number };
+
 export type ReqTecnicos = {
   suportes: SuporteTecnico[];
+  alteracoesComissao?: AlteracaoComissao[];
   observacaoDiretoria?: ObservacaoDiretoria;
   contatosRetorno?: ContatoRetorno[];
   // Quando cada etapa recebeu o card (gravado por db.ts a cada mudança de etapa). Ver historico-etapas.ts.

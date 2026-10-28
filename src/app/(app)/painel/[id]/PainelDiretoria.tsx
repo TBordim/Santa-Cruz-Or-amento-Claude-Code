@@ -11,6 +11,7 @@ import { LIMITE_CUSTO, LIMITE_MARGEM, LIMITE_DISCREPANCIA_LEGADO } from "@/lib/o
 import { fmtMoney, fmtDate, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
 import { modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { observacaoDoOrcamento } from "@/lib/orcamentos/observacao";
+import { alteracoesDeComissao } from "@/lib/orcamentos/comissao";
 import { textoItemDiscrepancia, itensVigentes, explicacaoDoSistema } from "@/lib/orcamentos/discrepancia";
 import { AlertTriangle } from "lucide-react";
 import { FormSection, Field, Row2, ResumoBox } from "@/components/form-section";
@@ -362,6 +363,21 @@ export function PainelDiretoria({
               {obs.por} · {fmtDateTime(new Date(obs.em))}
             </div>
           </div>
+        </div>
+      )}
+      {alteracoesDeComissao(doc.reqTecnicos).length > 0 && (
+        <div className="mb-4 rounded-lg border border-warn/30 bg-warn-soft p-3 text-sm">
+          <div className="font-semibold text-warn">Comissão do representante alterada no Orçamento</div>
+          <ul className="mt-1 space-y-0.5 text-foreground">
+            {alteracoesDeComissao(doc.reqTecnicos).map((a) => (
+              <li key={a.em}>
+                {a.de ?? "sem comissão"} → <strong>{a.para ?? "sem comissão"}</strong>{" "}
+                <span className="text-xs text-muted-foreground">
+                  · {a.por} · {fmtDateTime(new Date(a.em))}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {doc.comissaoEspecial && (
