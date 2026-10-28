@@ -14,6 +14,7 @@ import { lerItensLote, lotesDoAceite, comoAceite, loteGarantido } from "@/lib/ac
 import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
+import { CodigoClienteAceite } from "./CodigoClienteAceite";
 import { ProtocolosDoAceite } from "./ProtocolosDoAceite";
 import { MarcarComoArte } from "./MarcarComoArte";
 import { prisma } from "@/lib/db";
@@ -259,6 +260,11 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
                     },
                   ]
                 : []),
+              // Código do cliente de cada modelo (pode chegar depois do desfecho); a Engenharia consulta aqui.
+              ...modelos.map((m, i) => ({
+                label: modelos.length > 1 ? `Código do cliente · ${m.descricao || `modelo ${i + 1}`}` : "Código do cliente",
+                value: m.codigoCliente || "não informado",
+              })),
               { label: "Lotes orçados", value: doOrc.lotes ?? "—" },
               { label: "Entregas", value: doOrc.entregas ? `${doOrc.entregas}${doOrc.datasEntrega ? ` · ${doOrc.datasEntrega}` : ""}${doOrc.localEntrega ? ` · ${doOrc.localEntrega}` : ""}` : "—" },
               ...doOrc.materiais.flatMap((m, n) => [
@@ -289,6 +295,9 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         )}
 
         <ProtocolosDoAceite orcamentoId={doc.id} />
+        {podeVendas && !["CONCLUIDO", "CANCELADO"].includes(base.etapa) && !a.lote && (
+          <CodigoClienteAceite aceiteId={a.id} modelos={modelos.map((m) => ({ id: m.id, descricao: m.descricao, codigoCliente: m.codigoCliente ?? "" }))} />
+        )}
         {(podeVendas || podeAtendimento) && doc.anexos.length > 0 && <ArtesDaOrdemDeCompra anexos={doc.anexos} />}
 
         {/* E-mails e documentos do cliente que comprovam a ordem de compra: anexados no desfecho (Retorno do Cliente), aqui só leitura. */}
