@@ -94,12 +94,39 @@ export function calcularMontagens(itens: ItemAceite[]): Montagem[] {
     });
 }
 
-// Regras pra Engenharia confirmar a montagem. `capacidade` = quantas cabem na folha (orçamento).
+// Montagem e posições na folha são definidas pela Engenharia NO ORÇAMENTO (conjugação e pré-montagem); o Aceite só as
+// recebe (pedido do Thiago em 28/10/2026). Quando o orçamento não trouxe as posições de um modelo (conjugação de vários
+// modelos na mesma folha), elas saem da capacidade da folha repartida na proporção do que cada modelo produz, com ao
+// menos 1; modelo sem número de montagem forma uma montagem própria. Nunca sobrescreve o que já veio preenchido.
+export function completarPosicoes(itens: ItemAceite[], capacidade: number | null): ItemAceite[] {
+  let proximo = Math.max(0, ...itens.map((i) => i.montagem ?? 0)) + 1;
+  const comGrupo = itens.map((i) => ({ ...i, montagem: i.montagem ?? proximo++ }));
+  if (!capacidade) return comGrupo;
+  const grupos = new Map<number, ItemAceite[]>();
+  for (const i of comGrupo) grupos.set(i.montagem as number, [...(grupos.get(i.montagem as number) ?? []), i]);
+  const posicoes = new Map<string, number>();
+  for (const lista of grupos.values()) {
+    const faltam = lista.filter((i) => !i.posicoes);
+    if (!faltam.length) continue;
+    const usadas = lista.reduce((s, i) => s + (i.posicoes ?? 0), 0);
+    const livres = Math.max(faltam.length, capacidade - usadas);
+    const pesos = faltam.map((i) => Math.max(1, aProduzir(i)));
+    const soma = pesos.reduce((a, b) => a + b, 0);
+    const parte = pesos.map((p) => Math.max(1, Math.floor((livres * p) / soma)));
+    // O que sobrou da divisão vai para o modelo que mais produz.
+    const resto = livres - parte.reduce((a, b) => a + b, 0);
+    const maior = pesos.indexOf(Math.max(...pesos));
+    if (resto > 0) parte[maior] += resto;
+    faltam.forEach((i, k) => posicoes.set(i.modeloId, parte[k]));
+  }
+  return comGrupo.map((i) => ({ ...i, posicoes: i.posicoes ?? posicoes.get(i.modeloId) ?? null }));
+}
+
+// Regras pra Engenharia confirmar o Aceite. `capacidade` = quantas cabem na folha (orçamento). Montagem e posições
+// vêm do orçamento: aqui só se confere a quantidade e se as posições não passam da folha.
 export function erroNaMontagem(itens: ItemAceite[], capacidade: number | null): string | null {
   for (const i of itens) {
     if (!i.quantidade) return `Falta a quantidade de ${i.descricao || "um modelo"} (Vendas).`;
-    if (!i.montagem) return `Informe a montagem de ${i.descricao || "um modelo"}.`;
-    if (!i.posicoes) return `Informe quantas posições ${i.descricao || "um modelo"} ocupa na folha.`;
   }
   if (capacidade) {
     for (const m of calcularMontagens(itens)) {
