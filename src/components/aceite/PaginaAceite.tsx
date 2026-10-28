@@ -24,7 +24,7 @@ import type { PrecificacaoTier } from "@/lib/orcamentos/types";
 import { ResumoBox, FormSection } from "@/components/form-section";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { voltarEtapaAceite, voltarEtapaLote, marcarAlertasVistos } from "@/app/(app)/aceite/actions";
+import { voltarEtapaAceite, voltarEtapaLote, voltarAceiteParaOrcamento, marcarAlertasVistos } from "@/app/(app)/aceite/actions";
 import { Andamento } from "./Andamento";
 import { FormVendas } from "./FormVendas";
 import { AdminAceite } from "./AdminAceite";
@@ -152,12 +152,12 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
   const alerta = temAlertaPendente(pms);
   // Em um lote só voltam as etapas do cadastro do pedido em diante; o resto é pelo Aceite.
   const podeVoltar = a.lote
-    ? (podeVendas && ["PEDIDO", "ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
+    ? (podeVendas && ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa)) ||
       (podeAtendimento && ["ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
       (podePcp && ["PEDIDO", "CONCLUIDO"].includes(a.etapa))
-    : (podeVendas && ["ENGENHARIA_MATERIAL", "EM_LOTES", "PEDIDO", "ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
+    : (podeVendas && (a.etapa !== "VENDAS" || pms.length === 0) && ["VENDAS", "ENGENHARIA_MATERIAL", "EM_LOTES", "PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa)) ||
       (podeAtendimento && ["ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
-      (podeEngenharia && (a.etapa === "ENGENHARIA_MATERIAL" || a.etapa === "EM_LOTES")) ||
+      (podeEngenharia && ["ENGENHARIA_MATERIAL", "EM_LOTES", "PCP"].includes(a.etapa)) ||
       (podePcp && ["PCP", "PEDIDO", "CONCLUIDO"].includes(a.etapa));
   // Saldo a entregar: pedido do cliente menos as entregas já confirmadas (desconhecido sem quantidade).
   const totalPedido = quantidadeTotal(itens) || null;
@@ -190,12 +190,12 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
           podeVoltar || admin ? (
             <div className="flex flex-wrap items-center gap-2">
               {podeVoltar && (
-                <form action={a.lote ? voltarEtapaLote : voltarEtapaAceite}>
+                <form action={a.lote ? voltarEtapaLote : a.etapa === "VENDAS" ? voltarAceiteParaOrcamento : voltarEtapaAceite}>
                   <input type="hidden" name="id" value={a.id} />
                   {a.lote && <input type="hidden" name="loteId" value={a.lote.id} />}
                   <input type="hidden" name="voltarPara" value={voltarLista} />
                   <Button type="submit" variant="outline" size="sm" className="gap-1.5">
-                    <CornerUpLeft className="h-3.5 w-3.5" /> Voltar etapa{a.lote ? " do lote" : ""}
+                    <CornerUpLeft className="h-3.5 w-3.5" /> {!a.lote && a.etapa === "VENDAS" ? "Voltar ao orçamento" : `Voltar etapa${a.lote ? " do lote" : ""}`}
                   </Button>
                 </form>
               )}

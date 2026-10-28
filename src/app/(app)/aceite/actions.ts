@@ -329,12 +329,13 @@ export async function salvarNumeroOF(_prev: FormState, formData: FormData): Prom
 const QUEM_VOLTA: Record<EtapaAceiteKey, AreaKey[]> = {
   VENDAS: [],
   ENGENHARIA_MATERIAL: ["ACEITE_VENDAS", "ACEITE_ENGENHARIA"],
-  PCP: ["PCP_ENTREGA"],
+  // Do PCP de volta à Engenharia: quem a refaz ou quem liberou (Vendas) também pode voltar.
+  PCP: ["PCP_ENTREGA", "ACEITE_VENDAS", "ACEITE_ENGENHARIA"],
   PEDIDO: ["ACEITE_VENDAS", "PCP_ENTREGA"],
   ATENDIMENTO: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS"],
   ENTREGA: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS"],
-  // Desfazer a confirmação da entrega é com o PCP, que confirmou.
-  CONCLUIDO: ["PCP_ENTREGA"],
+  // Desfazer a confirmação da entrega é com o PCP, que confirmou (Vendas também, para corrigir).
+  CONCLUIDO: ["PCP_ENTREGA", "ACEITE_VENDAS"],
 };
 
 export async function voltarEtapaAceite(formData: FormData) {
@@ -396,13 +397,42 @@ export async function voltarEtapaAceite(formData: FormData) {
   redirect(destino);
 }
 
+// Primeira etapa do Aceite (Vendas): voltar leva o card ao Retorno do Cliente, no módulo Orçamento, e
+// desfaz o desfecho positivo (o mesmo que "Voltar etapa" do orçamento faz). O Aceite some junto, por isso
+// só é possível enquanto ninguém lançou Pedido de Material nele; com PM, é o administrador (que cancela o
+// Aceite) ou os PMs precisam ser cancelados antes.
+export async function voltarAceiteParaOrcamento(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  await exigirArea("ACEITE_VENDAS");
+  const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, select: { id: true, etapa: true, orcamentoId: true, _count: { select: { pedidosMaterial: true } } } });
+  if (a.etapa !== "VENDAS") throw new Error("Só o Aceite em Vendas volta para o orçamento.");
+  if (a._count.pedidosMaterial > 0) throw new Error("Este Aceite já tem Pedido de Material: peça ao administrador para desfazer o pedido.");
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id: a.orcamentoId } });
+  await prisma.aceite.delete({ where: { id: a.id } });
+  await prisma.orcamento.update({
+    where: { id: doc.id },
+    data: {
+      etapa: "FINALIZADO",
+      desfecho: "AGUARDANDO",
+      desfechoMotivo: "",
+      desfechoPor: "",
+      desfechoEm: null,
+      precificacao: limparEscolhaDoDesfecho(doc.precificacao as PrecificacaoTier[] | null) as unknown as Prisma.InputJsonValue,
+    },
+  });
+  revalidarAceite();
+  revalidatePath("/painel");
+  revalidatePath("/historico");
+  redirect("/aceite");
+}
+
 // Voltar etapa DE UM LOTE (Aceite dividido): do cadastro do pedido em diante, um passo por vez. Do PCP
 // para trás é pelo Aceite ("Voltar o Aceite"), porque a Engenharia e a divisão são do Aceite todo.
 const QUEM_VOLTA_LOTE: Record<string, AreaKey[]> = {
   PEDIDO: ["ACEITE_VENDAS", "PCP_ENTREGA"],
   ATENDIMENTO: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS"],
   ENTREGA: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS"],
-  CONCLUIDO: ["PCP_ENTREGA"],
+  CONCLUIDO: ["PCP_ENTREGA", "ACEITE_VENDAS"],
 };
 const ETAPA_ANTERIOR_LOTE: Record<string, "PCP" | "PEDIDO" | "ATENDIMENTO" | "ENTREGA"> = {
   PEDIDO: "PCP",
