@@ -14,6 +14,7 @@ import { lerItensLote, lotesDoAceite, comoAceite, loteGarantido } from "@/lib/ac
 import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
+import { ProtocolosDoAceite } from "./ProtocolosDoAceite";
 import { MarcarComoArte } from "./MarcarComoArte";
 import { prisma } from "@/lib/db";
 import { doOrcamento } from "@/lib/aceite/do-orcamento";
@@ -287,6 +288,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
           </div>
         )}
 
+        <ProtocolosDoAceite orcamentoId={doc.id} />
         {(podeVendas || podeAtendimento) && doc.anexos.length > 0 && <ArtesDaOrdemDeCompra anexos={doc.anexos} />}
 
         {/* E-mails e documentos do cliente que comprovam a ordem de compra: anexados no desfecho (Retorno do Cliente), aqui só leitura. */}
