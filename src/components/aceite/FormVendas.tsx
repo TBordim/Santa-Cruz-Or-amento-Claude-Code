@@ -40,8 +40,10 @@ export function FormVendas({
   papeisSemPM,
   papeisSemPMPorLote = {},
   qtdSO,
+  codigosCliente = {},
 }: {
   aceite: AceiteVendas;
+  codigosCliente?: Record<string, string>;
   papeisSemPM: string[];
   papeisSemPMPorLote?: Record<string, string[]>;
   qtdSO: number | null;
@@ -120,10 +122,14 @@ export function FormVendas({
           </div>
           <div className={`grid grid-cols-1 gap-1.5 ${aceite.itens.length > 1 ? "md:grid-cols-2" : ""}`}>
             {aceite.itens.map((i) => (
-              <label key={i.modeloId} className="grid grid-cols-[1fr_7.5rem] items-center gap-3 rounded-md border border-border px-3 py-1.5">
+              <div key={i.modeloId} className="grid grid-cols-[1fr_7.5rem] items-center gap-3 rounded-md border border-border px-3 py-1.5">
                 <span className="min-w-0 text-sm leading-tight">
                   <span className="block truncate text-foreground">{i.descricao || "Modelo sem descrição"}</span>
                   <span className="font-mono text-[11px] text-muted-foreground">{i.codInterno ? formatarCodigoInterno(i.codInterno) : "produto novo"}</span>
+                  <span className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    Cód. cliente
+                    <Input name={`codigoCliente_${i.modeloId}`} defaultValue={codigosCliente[i.modeloId] ?? ""} aria-label={`Código do cliente de ${i.descricao}`} className="h-6 w-36 px-1.5 text-xs" />
+                  </span>
                 </span>
                 <Input
                   name={`qtd_${i.modeloId}`}
@@ -132,7 +138,7 @@ export function FormVendas({
                   value={qtds[i.modeloId] ?? ""}
                   onChange={(e) => setQtds((q) => ({ ...q, [i.modeloId]: e.target.value }))}
                 />
-              </label>
+              </div>
             ))}
           </div>
         </div>

@@ -14,7 +14,6 @@ import { lerItensLote, lotesDoAceite, comoAceite, loteGarantido } from "@/lib/ac
 import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
-import { CodigoClienteAceite } from "./CodigoClienteAceite";
 import { ProtocolosDoAceite } from "./ProtocolosDoAceite";
 import { MarcarComoArte } from "./MarcarComoArte";
 import { prisma } from "@/lib/db";
@@ -150,6 +149,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
     suportes: Array.isArray(l.suportes) ? (l.suportes as SuporteAceite[]) : [],
     comPM: pms.some((p) => p.loteId === l.id && p.status !== "CANCELADO"),
   }));
+  const codigosCliente = Object.fromEntries(modelos.map((m) => [m.id, m.codigoCliente ?? ""]));
   const doOrc = doOrcamento(doc, doc.reqCliente as ReqCliente | null, doc.reqTecnicos as unknown as ReqTecnicos | null, so);
   const alerta = temAlertaPendente(pms);
   // Em um lote só voltam as etapas do cadastro do pedido em diante; o resto é pelo Aceite.
@@ -260,11 +260,6 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
                     },
                   ]
                 : []),
-              // Código do cliente de cada modelo (pode chegar depois do desfecho); a Engenharia consulta aqui.
-              ...modelos.map((m, i) => ({
-                label: modelos.length > 1 ? `Código do cliente · ${m.descricao || `modelo ${i + 1}`}` : "Código do cliente",
-                value: m.codigoCliente || "não informado",
-              })),
               { label: "Lotes orçados", value: doOrc.lotes ?? "—" },
               { label: "Entregas", value: doOrc.entregas ? `${doOrc.entregas}${doOrc.datasEntrega ? ` · ${doOrc.datasEntrega}` : ""}${doOrc.localEntrega ? ` · ${doOrc.localEntrega}` : ""}` : "—" },
               ...doOrc.materiais.flatMap((m, n) => [
@@ -295,9 +290,6 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         )}
 
         <ProtocolosDoAceite orcamentoId={doc.id} />
-        {podeVendas && !["CONCLUIDO", "CANCELADO"].includes(base.etapa) && !a.lote && (
-          <CodigoClienteAceite aceiteId={a.id} modelos={modelos.map((m) => ({ id: m.id, descricao: m.descricao, codigoCliente: m.codigoCliente ?? "" }))} />
-        )}
         {(podeVendas || podeAtendimento) && doc.anexos.length > 0 && <ArtesDaOrdemDeCompra anexos={doc.anexos} />}
 
         {/* E-mails e documentos do cliente que comprovam a ordem de compra: anexados no desfecho (Retorno do Cliente), aqui só leitura. */}
@@ -316,6 +308,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         {a.etapa === "VENDAS" ? (
           podeVendas ? (
             <FormVendas
+              codigosCliente={codigosCliente}
               aceite={{ ...a, itens, suportes, lotes: lotesForm }}
               papeisSemPM={suportesSemPM(suportes, pms).map((x) => x.id)}
               papeisSemPMPorLote={Object.fromEntries(a.lotes.map((l) => [l.id, suportesSemPM(Array.isArray(l.suportes) ? (l.suportes as SuporteAceite[]) : [], pms.filter((p) => p.loteId === l.id)).map((x) => x.id)]))}
@@ -356,7 +349,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         )}
         {a.etapa !== "VENDAS" && (
           <FormSection title={a.engenhariaEm ? "Itens e montagem" : "Itens do pedido"}>
-            <ResumoItens itens={itens} capacidade={capacidade} />
+            <ResumoItens itens={itens} capacidade={capacidade} codigosCliente={codigosCliente} aceiteIdEdicao={podeVendas && !a.lote && !["CONCLUIDO", "CANCELADO"].includes(base.etapa) ? a.id : undefined} />
           </FormSection>
         )}
         {/* Aceite dividido: a Engenharia analisa uma vez só e enxerga aqui como o pedido foi dividido. */}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
 import { confirmarEngenharia } from "@/app/(app)/aceite/actions";
+import { CodigoClienteInline } from "./CodigoClienteInline";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { calcularMontagens, aProduzir, type ItemAceite } from "@/lib/aceite/montagem";
 import { fmtQuantidade } from "@/lib/aceite/constantes";
@@ -86,6 +87,7 @@ export function FormEngenharia({
                   <td className="px-3 py-2">
                     <span className="block text-foreground">{i.descricao || "Modelo sem descrição"}</span>
                     {i.codInterno && <span className="font-mono text-xs text-muted-foreground">{formatarCodigoInterno(i.codInterno)}</span>}
+                    <CodigoClienteInline modeloId={i.modeloId} codigo={modelos.find((m) => m.id === i.modeloId)?.codigoCliente ?? ""} />
                   </td>
                   <td className="px-3 py-2 text-right font-mono">{fmtQuantidade(i.quantidade)}</td>
                   <td className="px-3 py-2 text-right font-mono" title={i.emEstoque ? `${fmtQuantidade(i.emEstoque)} saem do estoque de produto acabado` : undefined}>
