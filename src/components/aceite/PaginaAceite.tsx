@@ -17,7 +17,7 @@ import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
 import { MarcarComoArte } from "./MarcarComoArte";
 import { prisma } from "@/lib/db";
 import { doOrcamento } from "@/lib/aceite/do-orcamento";
-import { gruposDeConjugacao } from "@/lib/orcamentos/conjugacao";
+import { montagensDoPedido } from "@/lib/orcamentos/conjugacao";
 import { modelosDoDoc, rotuloSO, valorSO } from "@/lib/orcamentos/modelos";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
@@ -252,10 +252,9 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
                       label: "Conjugação (Engenharia)",
                       value: modelos.some((m) => m.conjugacao === undefined || m.conjugacao === null)
                         ? "não informada neste orçamento"
-                        : [
-                            ...gruposDeConjugacao(modelos).map((g) => `Juntos (${g.numero}): ${g.modelos.join(" + ")}`),
-                            ...modelos.filter((m) => m.conjugacao === 0).map((m) => `Sozinho: ${m.descricao || "modelo"}`),
-                          ].join(" · "),
+                        : modelos.every((m) => m.conjugacao === 0)
+                          ? "Sem conjugação (cada modelo é uma montagem)"
+                          : (montagensDoPedido(modelos) ?? []).map((g) => `Montagem ${g.numero}: ${g.modelos.join(" + ")}`).join(" · "),
                     },
                   ]
                 : []),
