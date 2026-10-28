@@ -13,7 +13,7 @@ import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/c
 import { erroNosModelos } from "@/lib/orcamentos/validacao-modelos";
 import { ETAPAS_ACEITE, lerQuantidade, type EtapaAceiteKey } from "@/lib/aceite/constantes";
 import { lerSuportes, situacaoGeral, suportesSemPM, textoSuporte, type SuporteAceite, type SituacaoSuporte } from "@/lib/aceite/suportes";
-import { lerItens, erroNaMontagem, type ItemAceite } from "@/lib/aceite/montagem";
+import { lerItens, erroNaMontagem, completarPosicoes, type ItemAceite } from "@/lib/aceite/montagem";
 import { erroNaDivisao, lerItensLote, pmsDoLote } from "@/lib/aceite/lotes";
 import type { DataCliente } from "@/lib/aceite/datas-cliente";
 import { exigirArea, nomeSePode, revalidarAceite, avancarSePronto, type FormState } from "@/lib/aceite/servidor";
@@ -226,19 +226,14 @@ export async function confirmarEngenharia(_prev: FormState, formData: FormData):
   }
   if (formData.get("ctpSalvo") !== "on") return { erro: "Confirme que a cópia do Cadastro Técnico foi salva na pasta CTP." };
 
-  // Montagem: grupo ("montagem_" + id) e posições na folha ("posicoes_" + id) de cada modelo. O
-  // código do item acompanha o que a Engenharia acabou de lançar.
-  const itens: ItemAceite[] = lerItens(a.itens).map((i) => {
-    const grupo = lerQuantidade(formData.get(`montagem_${i.modeloId}`));
-    const posicoes = lerQuantidade(formData.get(`posicoes_${i.modeloId}`));
-    return {
-      ...i,
-      codInterno: modelos.find((m) => m.id === i.modeloId)?.codInterno ?? i.codInterno,
-      montagem: grupo ? Math.round(grupo) : null,
-      posicoes: posicoes ? Math.round(posicoes) : null,
-    };
-  });
-  const erroMontagem = erroNaMontagem(itens, lerSuportes(a)[0]?.qtdFolha ?? null);
+  // Montagem e posições vêm do orçamento (conjugação e pré-montagem da Engenharia); aqui só se completa o que faltar
+  // e se acompanha o código do item com o que a Engenharia acabou de lançar.
+  const capacidadeFolha = lerSuportes(a)[0]?.qtdFolha ?? null;
+  const itens: ItemAceite[] = completarPosicoes(
+    lerItens(a.itens).map((i) => ({ ...i, codInterno: modelos.find((m) => m.id === i.modeloId)?.codInterno ?? i.codInterno })),
+    capacidadeFolha,
+  );
+  const erroMontagem = erroNaMontagem(itens, capacidadeFolha);
   if (erroMontagem) return { erro: erroMontagem };
 
   const agora = new Date();
