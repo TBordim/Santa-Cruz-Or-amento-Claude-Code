@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { margemBruta } from "@/lib/orcamentos/margem";
-import { gruposDeConjugacao } from "@/lib/orcamentos/conjugacao";
+import { montagensDoPedido } from "@/lib/orcamentos/conjugacao";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, ReqTecnicos, PrecificacaoTier, SuporteTecnico } from "@/lib/orcamentos/types";
 import { ETAPAS, classificacaoLabel, fmtMoney, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
@@ -230,11 +230,11 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
                   linhas: [
                     ...modelos.map((m, i) => ({
                       label: m.descricao || `Modelo ${i + 1}`,
-                      value: m.conjugacao === undefined ? undefined : m.conjugacao === 0 ? "0 — produzido sozinho" : `${m.conjugacao} — produzido junto com o mesmo número`,
+                      value: m.conjugacao === undefined ? undefined : m.conjugacao === 0 ? "0 — sem conjugação" : `montagem ${m.conjugacao}`,
                     })),
                     {
-                      label: "Montagens conjugadas",
-                      value: gruposDeConjugacao(modelos).map((g) => `${g.numero} (${g.modelos.join(" + ")})`).join(" · ") || undefined,
+                      label: "Montagens (ordem de produção)",
+                      value: (montagensDoPedido(modelos) ?? []).map((g) => `${g.numero} (${g.modelos.join(" + ")})`).join(" · ") || undefined,
                     },
                   ],
                 },

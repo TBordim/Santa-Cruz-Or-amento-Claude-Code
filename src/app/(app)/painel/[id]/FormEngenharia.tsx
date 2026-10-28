@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
-import { gruposDeConjugacao, quantidadesPorItem } from "@/lib/orcamentos/conjugacao";
+import { montagensDoPedido, quantidadesPorItem } from "@/lib/orcamentos/conjugacao";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { salvarRequisitos, avancarOrcamento } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
@@ -30,7 +30,7 @@ function BlocoItens({ doc }: { doc: OrcamentoComAnexos }) {
   const modelos = modelosDoDoc(doc);
   const opcoes = quantidadesPorItem(c, modelos);
   const varios = modelos.length > 1;
-  const grupos = gruposDeConjugacao(modelos);
+  const grupos = montagensDoPedido(modelos) ?? [];
   const fmt = (v: string | null) => (v === null ? "—" : Number(v.replace(/\D/g, "") || 0).toLocaleString("pt-BR"));
   return (
     <FormSection title={varios ? "Itens, quantidades e conjugação" : "Quantidade"}>
@@ -84,13 +84,13 @@ function BlocoItens({ doc }: { doc: OrcamentoComAnexos }) {
       {varios && (
         <>
           <p className="text-xs text-muted-foreground">
-            <strong className="text-foreground">Conjugação:</strong> 0 = o modelo é produzido sozinho, em montagem separada. O mesmo número (1, 2, 3…) em dois ou mais
-            modelos = produzidos juntos na mesma montagem. Ex.: com 4 modelos, o 1 junto com o 4 e o 2 junto com o 3 → marque o 1 e o 4 com “1”, o 2 e o 3 com “2”.
-            Obrigatório para liberar para o Orçamento.
+            <strong className="text-foreground">Conjugação:</strong> 0 em todos os itens = sem conjugação. Havendo conjugação, nenhum item fica com 0: cada montagem leva um
+            número, em sequência (1, 2, 3…), e é essa a ordem em que a produção monta. Itens conjugados repetem o número; o item que não conjuga leva o próprio número.
+            Ex.: 5 itens, o 1 com o 2 → “1”, o 3 com o 4 → “2”, o 5 sozinho → “3”. Obrigatório para liberar para o Orçamento.
           </p>
           {grupos.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Montagens conjugadas: {grupos.map((g) => `${g.numero} (${g.modelos.join(" + ")})`).join(" · ")}.
+              Montagens: {(montagensDoPedido(modelos) ?? []).map((g) => `${g.numero} (${g.modelos.join(" + ")})`).join(" · ")}.
             </p>
           )}
         </>

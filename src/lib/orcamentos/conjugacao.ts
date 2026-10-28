@@ -46,17 +46,25 @@ export function lerConjugacao(bruto: unknown, max: number): number | undefined {
 }
 
 // Mensagem de erro, ou null se a conjugação está completa e coerente. Só vale com mais de um modelo.
+// Regra (esclarecida pelo Thiago em 28/10/2026): todos 0 = sem conjugação. Se há conjugação, NENHUM item fica
+// com 0: cada montagem leva um número, em sequência (1, 2, 3...) sem pular; o item que não conjuga com ninguém
+// leva o próprio número. O número é a ordem em que a produção monta. Ex.: 5 itens, 1+2 → 1, 3+4 → 2, o 5 → 3.
 export function erroNaConjugacao(modelos: Modelo[]): string | null {
   if (modelos.length < 2) return null;
   const sem = modelos.map((m, i) => ({ m, i })).filter(({ m }) => m.conjugacao === undefined || m.conjugacao === null);
   if (sem.length) {
     const nomes = sem.map(({ m, i }) => m.descricao || `Modelo ${i + 1}`).join(", ");
-    return `Informe a conjugação de cada modelo (0 = produzido sozinho; o mesmo número em dois modelos = produzidos juntos). Falta: ${nomes}.`;
+    return `Informe a conjugação de cada modelo (0 em todos = sem conjugação; havendo conjugação, numere todas as montagens em sequência). Falta: ${nomes}.`;
   }
-  const grupos = new Map<number, number>();
-  for (const m of modelos) if (m.conjugacao! > 0) grupos.set(m.conjugacao!, (grupos.get(m.conjugacao!) ?? 0) + 1);
-  const sozinho = [...grupos].find(([, n]) => n === 1);
-  if (sozinho) return `O número de conjugação ${sozinho[0]} só foi usado em um modelo. Para produzir sozinho use 0; para produzir junto, repita o número em outro modelo.`;
+  if (modelos.every((m) => m.conjugacao === 0)) return null;
+  const zerados = modelos.map((m, i) => ({ m, i })).filter(({ m }) => m.conjugacao === 0);
+  if (zerados.length) {
+    const nomes = zerados.map(({ m, i }) => m.descricao || `Modelo ${i + 1}`).join(", ");
+    return `Como há conjugação, todos os itens precisam de número de montagem em sequência (o item que não conjuga leva o próprio número, não 0). Falta número em: ${nomes}.`;
+  }
+  const usados = [...new Set(modelos.map((m) => m.conjugacao!))].sort((a, b) => a - b);
+  const falta = usados.findIndex((n, k) => n !== k + 1);
+  if (falta >= 0) return `Os números de montagem precisam ser sequenciais, sem pular (1, 2, 3...). Hoje: ${usados.join(", ")}.`;
   return null;
 }
 
@@ -77,4 +85,15 @@ export function montagensDosModelos(modelos: Modelo[]): (number | null)[] {
   if (modelos.length < 2 || modelos.some((m) => m.conjugacao === undefined || m.conjugacao === null)) return modelos.map(() => null);
   let prox = Math.max(0, ...modelos.map((m) => m.conjugacao ?? 0)) + 1;
   return modelos.map((m) => (m.conjugacao! > 0 ? m.conjugacao! : prox++));
+}
+
+// Montagens do pedido na ordem de produção, com os itens de cada uma. Sem conjugação (todos 0) cada item é uma
+// montagem própria, em sequência. null quando a conjugação não foi informada.
+export function montagensDoPedido(modelos: Modelo[]): { numero: number; modelos: string[] }[] | null {
+  if (modelos.length < 2) return null;
+  const numeros = montagensDosModelos(modelos);
+  if (numeros.some((n) => n === null)) return null;
+  const mapa = new Map<number, string[]>();
+  modelos.forEach((m, i) => mapa.set(numeros[i]!, [...(mapa.get(numeros[i]!) ?? []), m.descricao || `Modelo ${i + 1}`]));
+  return [...mapa].sort((a, b) => a[0] - b[0]).map(([numero, nomes]) => ({ numero, modelos: nomes }));
 }
