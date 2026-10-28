@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ESTILO_PRAZO, prazoDoOrcamento, textoPrazo } from "@/lib/orcamentos/prazo";
 import { duracaoCurta, linhaDoTempo } from "@/lib/orcamentos/historico-etapas";
 import { renegociacaoAberta } from "@/lib/orcamentos/renegociacao";
 import { prisma } from "@/lib/db";
@@ -111,6 +112,12 @@ export async function PainelBoard() {
                             ⏱ {textoDiasCurto(dias)}
                           </Badge>
                         </div>
+                        {(() => {
+                          const prazo = prazoDoOrcamento(d.finalizadoEm ?? d.atualizadoEm);
+                          return prazo ? (
+                            <Badge className={`w-fit rounded-full border-0 text-[11px] font-bold ${ESTILO_PRAZO[prazo.situacao]}`}>{textoPrazo(prazo)}</Badge>
+                          ) : null;
+                        })()}
                         {d.representante && <div className="truncate text-[11.5px] text-muted-foreground">Rep.: {d.representante}</div>}
                       </>
                     )}

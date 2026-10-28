@@ -120,11 +120,16 @@ export type Renegociacao = {
   concluidaEm?: number;
 };
 
+// Contato feito pelo responsável do setor depois que o prazo do orçamento está acabando ou venceu: com
+// quem falou e o que ficou combinado. Fica no card, para a cobrança ter registro (28/10/2026).
+export type ContatoRetorno = { em: number; por: string; com: string; resultado: string };
+
 export type ObservacaoDiretoria = { texto: string; por: string; em: number };
 
 export type ReqTecnicos = {
   suportes: SuporteTecnico[];
   observacaoDiretoria?: ObservacaoDiretoria;
+  contatosRetorno?: ContatoRetorno[];
   // Quando cada etapa recebeu o card (gravado por db.ts a cada mudança de etapa). Ver historico-etapas.ts.
   historicoEtapas?: { etapa: string; de?: string; em: number; por: string }[];
   renegociacoes?: Renegociacao[];

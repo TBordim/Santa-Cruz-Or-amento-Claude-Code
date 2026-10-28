@@ -53,7 +53,7 @@ function situacao(o: {
   if (o.aceite) return { texto: `Virou pedido${o.aceite.numero ? ` (Aceite ${o.aceite.numero})` : ""}`, ruim: false };
   const d = o.desfecho ?? "AGUARDANDO";
   if (d === "NEGATIVO") return { texto: "Perdido (negativo)", ruim: true };
-  if (d === "SEM_RETORNO") return { texto: "Sem retorno do cliente", ruim: true };
+  if (d === "SEM_RETORNO") return { texto: "Cancelado por vencimento do prazo", ruim: true };
   if (d === "POSITIVO") return { texto: desfechoInfo(d).label, ruim: false };
   return { texto: o.etapa ? `Em andamento — ${etapaInfo(o.etapa)?.label ?? o.etapa}` : "Em andamento", ruim: false };
 }

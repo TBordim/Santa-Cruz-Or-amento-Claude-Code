@@ -1,6 +1,7 @@
 import "server-only";
 import { linhaDoTempo } from "@/lib/orcamentos/historico-etapas";
 import { margemBruta } from "@/lib/orcamentos/margem";
+import { prazoDoOrcamento } from "@/lib/orcamentos/prazo";
 import { renegociacoesDe, renegociacaoAberta, valorCedido } from "@/lib/orcamentos/renegociacao";
 import { prisma } from "@/lib/db";
 import { valorSO, valorOrcamento, soEscolhida } from "@/lib/orcamentos/modelos";
@@ -89,7 +90,7 @@ export type Orcamentos = {
   // Margem bruta (P1 + P2) média, só dos pedidos em que ela é conhecida, e quantos são.
   margemBruta: { media: number | null; conhecidos: number; total: number };
   custoPrimario: number | null;
-  aguardando: { n: number; valor: number; diasMedios: number | null; maisDeSete: { n: number; valor: number }; maisAntigo: number | null };
+  aguardando: { n: number; valor: number; diasMedios: number | null; maisDeSete: { n: number; valor: number }; maisAntigo: number | null; prazoVencido: { n: number; valor: number }; prazoVencendo: number };
   funil: { etapa: string; n: number; valor: number }[];
   pendentesDiretoria: { n: number; valor: number; comDiscrepancia: number };
   autoAprovadas: number;
@@ -149,6 +150,8 @@ export async function orcamentosDoPeriodo(p: Periodo): Promise<Orcamentos> {
 
   const diasAg = aguardandoDocs.map((d) => diasAguardando(d.finalizadoEm ?? d.atualizadoEm) ?? 0);
   const velhos = aguardandoDocs.filter((_, i) => diasAg[i] >= 7);
+  const prazos = aguardandoDocs.map((d) => prazoDoOrcamento(d.finalizadoEm ?? d.atualizadoEm));
+  const vencidosDocs = aguardandoDocs.filter((_, i) => prazos[i]?.vencido);
 
   // Ranking de representantes: ofertas enviadas e desfechos no período.
   const reps = new Map<string, LinhaRep>();
@@ -198,6 +201,8 @@ export async function orcamentosDoPeriodo(p: Periodo): Promise<Orcamentos> {
       diasMedios: diasAg.length ? Math.round(diasAg.reduce((a, b) => a + b, 0) / diasAg.length) : null,
       maisDeSete: { n: velhos.length, valor: soma(velhos) },
       maisAntigo: diasAg.length ? Math.max(...diasAg) : null,
+      prazoVencido: { n: vencidosDocs.length, valor: soma(vencidosDocs) },
+      prazoVencendo: prazos.filter((p) => p && (p.situacao === "atencao" || p.situacao === "hoje")).length,
     },
     funil: ETAPAS_FUNIL.map((e) => {
       const docs = emAndamento.filter((d) => d.etapa === e.key);

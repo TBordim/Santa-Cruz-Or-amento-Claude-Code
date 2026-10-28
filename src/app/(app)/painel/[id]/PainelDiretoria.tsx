@@ -163,7 +163,7 @@ function FaixaDiscrepancia({ tier, discrepanciaViva }: { tier: PrecificacaoTier;
 const DESFECHO_HIST: Record<string, { texto: string; classe: string }> = {
   POSITIVO: { texto: "Positivo — virou pedido", classe: "bg-good-soft text-good" },
   NEGATIVO: { texto: "Negativo — perdido", classe: "bg-bad text-white" },
-  SEM_RETORNO: { texto: "Sem retorno do cliente", classe: "bg-bad-soft text-bad" },
+  SEM_RETORNO: { texto: "Cancelado por vencimento do prazo", classe: "bg-bad-soft text-bad" },
   AGUARDANDO: { texto: "Aguardando retorno do cliente", classe: "bg-warn-soft text-warn" },
 };
 
