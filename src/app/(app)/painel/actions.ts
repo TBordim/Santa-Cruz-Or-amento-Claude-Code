@@ -6,6 +6,7 @@ import { erroNaMargem, numeroDoCampo, p1Gravado, LIMITE_P1 } from "@/lib/orcamen
 import { guardarOferta, renegociacaoAberta, renegociacoesDe } from "@/lib/orcamentos/renegociacao";
 import { erroNaConjugacao, lerConjugacao } from "@/lib/orcamentos/conjugacao";
 import { comObservacaoDiretoria } from "@/lib/orcamentos/observacao";
+import { comAlteracaoDeComissao, comissaoDoForm } from "@/lib/orcamentos/comissao";
 import { precisaDeMotivo } from "@/lib/orcamentos/discrepancia";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
@@ -251,6 +252,7 @@ export async function salvarOrcamento(_prev: FormState, formData: FormData): Pro
     };
   });
 
+  const comissaoNova = comissaoDoForm(formData.get("comissaoCev"));
   await prisma.orcamento.update({
     where: { id },
     data: {
@@ -258,8 +260,14 @@ export async function salvarOrcamento(_prev: FormState, formData: FormData): Pro
       numeroSequencial: resumoSopp(rascunho),
       comissaoEspecial: formData.get("comissaoEspecial") === "on",
       comissaoObs: String(formData.get("comissaoObs") ?? "").trim(),
+      comissaoCev: comissaoNova,
       acabamento: String(formData.get("acabamento") ?? "").trim(),
-      reqTecnicos: comObservacaoDiretoria(doc.reqTecnicos as ReqTecnicos | null, String(formData.get("observacaoDiretoria") ?? ""), nomeAtor) as object,
+      reqTecnicos: comAlteracaoDeComissao(
+        comObservacaoDiretoria(doc.reqTecnicos as ReqTecnicos | null, String(formData.get("observacaoDiretoria") ?? ""), nomeAtor),
+        doc.comissaoCev,
+        comissaoNova,
+        nomeAtor,
+      ) as object,
     },
   });
   revalidatePath(`/painel/${id}`);
@@ -455,6 +463,7 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
 
   const acabamento = String(formData.get("acabamento") ?? "").trim();
   const comissaoEspecial = formData.get("comissaoEspecial") === "on";
+  const comissaoNova = comissaoDoForm(formData.get("comissaoCev"));
   // Basta um modelo novo pra tratar o conjunto inteiro como novo (decisão do Thiago em 30/09/2026).
   const modelos = modelosDoDoc(doc);
   const produtoNovoClassificacao = modelos.some((m) => m.classificacao === "NOVO" || m.classificacao === "REPETICAO_NOVO");
@@ -521,7 +530,13 @@ export async function enviarParaDiretoria(_prev: FormState, formData: FormData):
       precoAnterior: anterior?.precoFinal ?? null,
       comissaoEspecial,
       comissaoObs: String(formData.get("comissaoObs") ?? "").trim(),
-      reqTecnicos: comObservacaoDiretoria(doc.reqTecnicos as ReqTecnicos | null, String(formData.get("observacaoDiretoria") ?? ""), nomeAtor) as object,
+      comissaoCev: comissaoNova,
+      reqTecnicos: comAlteracaoDeComissao(
+        comObservacaoDiretoria(doc.reqTecnicos as ReqTecnicos | null, String(formData.get("observacaoDiretoria") ?? ""), nomeAtor),
+        doc.comissaoCev,
+        comissaoNova,
+        nomeAtor,
+      ) as object,
       acabamento,
       produtoNovo: t0.produtoNovo,
       conflitoClassificacao: doc.classificacao === "REPETICAO_SEM_ALTERACAO" && t0.premissasDivergentes.length > 0,

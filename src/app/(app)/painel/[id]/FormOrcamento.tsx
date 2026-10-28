@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { CamposMargem } from "@/components/orcamento/CamposMargem";
 import { observacaoDoOrcamento } from "@/lib/orcamentos/observacao";
+import { alteracoesDeComissao, MAX_COMISSAO } from "@/lib/orcamentos/comissao";
 import { explicacaoDoSistema, itensVigentes } from "@/lib/orcamentos/discrepancia";
 import { detalheDaQuantidade } from "@/lib/orcamentos/quantidades";
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
@@ -106,6 +107,7 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
   const erro = state?.erro ?? state2?.erro;
   useSalvoToast(salvando, state?.erro, "Precificação salva.");
 
+  const alteracoesComissao = alteracoesDeComissao(doc.reqTecnicos);
   const c = doc.reqCliente as ReqCliente | null;
   const r = doc.reqTecnicos as ReqTecnicos | null;
   // Cada combinação quantidade × opção de papel tem o próprio preço (ver combinacoesSO em
@@ -265,6 +267,16 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
               inteiro. Pedido do Thiago em 25/09/2026. */}
           <Field label="Acabamento" hint="Sugerido a partir da Solicitação — ajuste se precisar.">
             <Input name="acabamento" defaultValue={doc.acabamento || resumoAcabamento(c)} form="form-orcamento" />
+          </Field>
+          <Field
+            label="Comissão do representante"
+            hint={
+              alteracoesComissao.length
+                ? `Mudou na negociação: ${alteracoesComissao.map((a) => `${a.de ?? "—"} → ${a.para ?? "—"}`).join("; ")}.`
+                : "Veio da Solicitação. Se a comissão for renegociada, altere aqui: a mudança fica registrada e a Diretoria é avisada."
+            }
+          >
+            <Input name="comissaoCev" maxLength={MAX_COMISSAO} defaultValue={doc.comissaoCev ?? ""} form="form-orcamento" />
           </Field>
           <label className="flex min-h-9 items-center gap-2 text-sm md:min-h-0">
             <Checkbox name="comissaoEspecial" defaultChecked={doc.comissaoEspecial} form="form-orcamento" />
