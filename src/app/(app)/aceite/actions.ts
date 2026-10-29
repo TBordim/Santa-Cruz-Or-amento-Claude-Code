@@ -13,7 +13,7 @@ import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/c
 import { erroNosModelos } from "@/lib/orcamentos/validacao-modelos";
 import { ETAPAS_ACEITE, lerQuantidade, type EtapaAceiteKey } from "@/lib/aceite/constantes";
 import { lerSuportes, situacaoGeral, suportesSemPM, textoSuporte, type SuporteAceite, type SituacaoSuporte } from "@/lib/aceite/suportes";
-import { lerItens, erroNaMontagem, type ItemAceite } from "@/lib/aceite/montagem";
+import { lerItens, erroNaMontagem, completarPosicoes, type ItemAceite } from "@/lib/aceite/montagem";
 import { erroNaDivisao, lerItensLote, pmsDoLote } from "@/lib/aceite/lotes";
 import type { DataCliente } from "@/lib/aceite/datas-cliente";
 import { exigirArea, nomeSePode, revalidarAceite, avancarSePronto, type FormState } from "@/lib/aceite/servidor";
@@ -118,8 +118,10 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
   // Situação geral do papel: do conjunto de papéis do Aceite, ou de todos os papéis de todos os lotes.
   const situacao = situacaoGeral(lotesEfetivos.length ? lotesEfetivos.flatMap((l) => l.suportes) : suportes);
   const gravarLotes = lotesEnviados === undefined ? [] : operacoesDosLotes(id, nome, a, lotesEnviados);
+  const gravarCodigos = await operacaoCodigosCliente(a.orcamentoId, formData);
 
   await prisma.$transaction([
+    ...gravarCodigos,
     prisma.aceite.update({
     where: { id },
     data: {
@@ -224,19 +226,14 @@ export async function confirmarEngenharia(_prev: FormState, formData: FormData):
   }
   if (formData.get("ctpSalvo") !== "on") return { erro: "Confirme que a cópia do Cadastro Técnico foi salva na pasta CTP." };
 
-  // Montagem: grupo ("montagem_" + id) e posições na folha ("posicoes_" + id) de cada modelo. O
-  // código do item acompanha o que a Engenharia acabou de lançar.
-  const itens: ItemAceite[] = lerItens(a.itens).map((i) => {
-    const grupo = lerQuantidade(formData.get(`montagem_${i.modeloId}`));
-    const posicoes = lerQuantidade(formData.get(`posicoes_${i.modeloId}`));
-    return {
-      ...i,
-      codInterno: modelos.find((m) => m.id === i.modeloId)?.codInterno ?? i.codInterno,
-      montagem: grupo ? Math.round(grupo) : null,
-      posicoes: posicoes ? Math.round(posicoes) : null,
-    };
-  });
-  const erroMontagem = erroNaMontagem(itens, lerSuportes(a)[0]?.qtdFolha ?? null);
+  // Montagem e posições vêm do orçamento (conjugação e pré-montagem da Engenharia); aqui só se completa o que faltar
+  // e se acompanha o código do item com o que a Engenharia acabou de lançar.
+  const capacidadeFolha = lerSuportes(a)[0]?.qtdFolha ?? null;
+  const itens: ItemAceite[] = completarPosicoes(
+    lerItens(a.itens).map((i) => ({ ...i, codInterno: modelos.find((m) => m.id === i.modeloId)?.codInterno ?? i.codInterno })),
+    capacidadeFolha,
+  );
+  const erroMontagem = erroNaMontagem(itens, capacidadeFolha);
   if (erroMontagem) return { erro: erroMontagem };
 
   const agora = new Date();
@@ -601,4 +598,35 @@ export async function darCienteCancelamento(formData: FormData) {
   const nome = await exigirArea(SETOR_AVISO[aviso.setor as SetorAviso].area);
   await prisma.avisoCancelamento.update({ where: { id: avisoId }, data: { vistoEm: new Date(), vistoPor: nome } });
   revalidarAceite();
+}
+
+// Código do cliente por modelo: não é obrigatório na solicitação, e o cliente pode mandá-lo (ou trocá-lo) depois do
+// desfecho positivo. Fica na linha do produto, junto da descrição e do Nº de Cadastro; Vendas inclui ou altera até o
+// pedido ser concluído, e a Engenharia vê no Aceite (pedido do Thiago em 28/10/2026). Grava nos modelos do orçamento e
+// no resumo, para o card e as buscas acompanharem. Campos ausentes no formulário não mexem no modelo.
+async function operacaoCodigosCliente(orcamentoId: string, formData: FormData) {
+  const doc = await prisma.orcamento.findUniqueOrThrow({ where: { id: orcamentoId } });
+  let mudou = false;
+  const modelos = modelosDoDoc(doc).map((m) => {
+    const v = formData.get(`codigoCliente_${m.id}`);
+    if (v === null) return m;
+    const novo = String(v).trim().slice(0, 60);
+    if (novo === (m.codigoCliente ?? "")) return m;
+    mudou = true;
+    return { ...m, codigoCliente: novo };
+  });
+  if (!mudou) return [];
+  return [prisma.orcamento.update({ where: { id: orcamentoId }, data: { modelos: JSON.parse(JSON.stringify(modelos)), codigoCliente: resumoDosModelos(modelos).codigoCliente } })];
+}
+
+export async function salvarCodigoCliente(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const nome = await nomeSePode("ACEITE_VENDAS");
+  if (!nome) return { erro: "Sem permissão (área Vendas)." };
+  const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, select: { etapa: true, orcamentoId: true } });
+  if (a.etapa === "CONCLUIDO" || a.etapa === "CANCELADO") return { erro: "Este Aceite já está encerrado." };
+  await prisma.$transaction(await operacaoCodigosCliente(a.orcamentoId, formData));
+  revalidarAceite();
+  revalidatePath("/painel");
+  return { ok: "Código do cliente salvo." };
 }

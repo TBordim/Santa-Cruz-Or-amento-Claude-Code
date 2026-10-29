@@ -1,10 +1,11 @@
+import { CodigoClienteInline } from "./CodigoClienteInline";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { calcularMontagens, aProduzir, type ItemAceite } from "@/lib/aceite/montagem";
 import { fmtQuantidade } from "@/lib/aceite/constantes";
 
 // Itens do Aceite em leitura: quantidade pedida por modelo e, depois da Engenharia, a montagem
 // (como os números (1), (2)... do formulário de papel) com as folhas de cada uma.
-export function ResumoItens({ itens, capacidade }: { itens: ItemAceite[]; capacidade: number | null }) {
+export function ResumoItens({ itens, capacidade, codigosCliente = {}, aceiteIdEdicao }: { itens: ItemAceite[]; capacidade: number | null; codigosCliente?: Record<string, string>; aceiteIdEdicao?: string }) {
   if (!itens.length) return null;
   const montagens = calcularMontagens(itens);
   const comMontagem = montagens.length > 0;
@@ -33,6 +34,7 @@ export function ResumoItens({ itens, capacidade }: { itens: ItemAceite[]; capaci
                   <td className="px-3 py-2">
                     <span className="block text-foreground">{i.descricao || "Modelo sem descrição"}</span>
                     {i.codInterno && <span className="font-mono text-xs text-muted-foreground">{formatarCodigoInterno(i.codInterno)}</span>}
+                    <CodigoClienteInline modeloId={i.modeloId} codigo={codigosCliente[i.modeloId] ?? ""} aceiteId={aceiteIdEdicao} />
                   </td>
                   <td className="px-3 py-2 text-right font-mono">{fmtQuantidade(i.quantidade)}</td>
                   {comEstoque && <td className="px-3 py-2 text-right font-mono">{fmtQuantidade(i.emEstoque ?? 0)}</td>}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
 import { confirmarEngenharia } from "@/app/(app)/aceite/actions";
+import { CodigoClienteInline } from "./CodigoClienteInline";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
-import { calcularMontagens, aProduzir, type ItemAceite } from "@/lib/aceite/montagem";
+import { calcularMontagens, completarPosicoes, aProduzir, type ItemAceite } from "@/lib/aceite/montagem";
 import { fmtQuantidade } from "@/lib/aceite/constantes";
 import type { Modelo } from "@/lib/orcamentos/types";
 import { FormSection, Field, DiretrizBlock, AcoesBar } from "@/components/form-section";
@@ -28,19 +28,10 @@ export function FormEngenharia({
 }) {
   const [state, onSubmit, pending] = useFormActionSemReset(confirmarEngenharia, undefined);
   const novos = modelos.filter((m) => !m.codInterno);
-  const [montagem, setMontagem] = useState<Record<string, { grupo: string; posicoes: string }>>(
-    Object.fromEntries(itens.map((i) => [i.modeloId, { grupo: i.montagem ? String(i.montagem) : "", posicoes: i.posicoes ? String(i.posicoes) : "" }])),
-  );
-  const atual: ItemAceite[] = itens.map((i) => ({
-    ...i,
-    montagem: parseInt(montagem[i.modeloId]?.grupo || "", 10) || null,
-    posicoes: parseInt(montagem[i.modeloId]?.posicoes || "", 10) || null,
-  }));
+  // Montagem e posições vêm do orçamento; aqui só se mostram (e se completam as posições, como no servidor).
+  const atual: ItemAceite[] = completarPosicoes(itens, capacidade);
   const montagens = calcularMontagens(atual);
   const totalFolhas = montagens.reduce((s, m) => s + m.folhas, 0);
-  const muda = (id: string, campo: "grupo" | "posicoes", v: string) =>
-    setMontagem((m) => ({ ...m, [id]: { ...m[id], [campo]: v.replace(/\D/g, "") } }));
-
   return (
     <form id="form-aceite-engenharia" onSubmit={onSubmit} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={aceiteId} />
@@ -48,7 +39,7 @@ export function FormEngenharia({
         <DiretrizBlock>
           {novos.length
             ? `Produto novo: crie o cadastro e informe o Nº de Cadastro de Produto${novos.length > 1 ? ` de cada um dos ${novos.length} modelos` : ""}. O número também libera a etapa 7 do Orçamento.`
-            : "Os modelos já têm cadastro. Confira o Cadastro Técnico, defina a montagem, salve a cópia na pasta CTP e confirme o Aceite."}
+            : "Os modelos já têm cadastro. Confira o Cadastro Técnico, salve a cópia na pasta CTP e confirme o Aceite."}
         </DiretrizBlock>
         {modelos.map((m, i) => {
           const rotulo = modelos.length > 1 ? `Nº de Cadastro — ${m.descricao || `Modelo ${i + 1}`}` : "Nº de Cadastro de Produto";
@@ -66,8 +57,8 @@ export function FormEngenharia({
 
       <FormSection title="Montagem">
         <p className="text-sm text-muted-foreground">
-          Modelos com o mesmo número de montagem saem juntos na mesma folha.
-          {capacidade ? ` Cabem ${capacidade} por folha (orçamento).` : " A quantidade por folha não veio do orçamento."}
+          Definida pela Engenharia no orçamento (conjugação): modelos com o mesmo número de montagem saem juntos na mesma folha, e o número é a ordem de produção.
+          {capacidade ? ` Cabem ${capacidade} por folha.` : ""}
         </p>
         <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full text-sm">
@@ -76,8 +67,7 @@ export function FormEngenharia({
                 <th className="px-3 py-2 text-left font-medium">Modelo</th>
                 <th className="px-3 py-2 text-right font-medium">Pedido</th>
                 <th className="px-3 py-2 text-right font-medium">Produzir</th>
-                <th className="w-24 px-3 py-2 text-left font-medium">Montagem</th>
-                <th className="w-24 px-3 py-2 text-left font-medium">Posições</th>
+                <th className="w-24 px-3 py-2 text-center font-medium">Montagem</th>
               </tr>
             </thead>
             <tbody>
@@ -86,29 +76,13 @@ export function FormEngenharia({
                   <td className="px-3 py-2">
                     <span className="block text-foreground">{i.descricao || "Modelo sem descrição"}</span>
                     {i.codInterno && <span className="font-mono text-xs text-muted-foreground">{formatarCodigoInterno(i.codInterno)}</span>}
+                    <CodigoClienteInline modeloId={i.modeloId} codigo={modelos.find((m) => m.id === i.modeloId)?.codigoCliente ?? ""} />
                   </td>
                   <td className="px-3 py-2 text-right font-mono">{fmtQuantidade(i.quantidade)}</td>
                   <td className="px-3 py-2 text-right font-mono" title={i.emEstoque ? `${fmtQuantidade(i.emEstoque)} saem do estoque de produto acabado` : undefined}>
                     {fmtQuantidade(aProduzir(i))}
                   </td>
-                  <td className="px-3 py-2">
-                    <Input
-                      name={`montagem_${i.modeloId}`}
-                      inputMode="numeric"
-                      aria-label={`Montagem de ${i.descricao}`}
-                      value={montagem[i.modeloId]?.grupo ?? ""}
-                      onChange={(e) => muda(i.modeloId, "grupo", e.target.value)}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <Input
-                      name={`posicoes_${i.modeloId}`}
-                      inputMode="numeric"
-                      aria-label={`Posições de ${i.descricao} na folha`}
-                      value={montagem[i.modeloId]?.posicoes ?? ""}
-                      onChange={(e) => muda(i.modeloId, "posicoes", e.target.value)}
-                    />
-                  </td>
+                  <td className="px-3 py-2 text-center font-mono">{atual.find((x) => x.modeloId === i.modeloId)?.montagem ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
