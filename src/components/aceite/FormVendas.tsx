@@ -212,6 +212,7 @@ export function FormVendas({
         </FormSection>
       )}
 
+      <div id="papel-utilizado" className="scroll-mt-4" />
       {dividido ? (
         <FormSection title={`Divisão em ${lotes.length} lotes`} denso>
           <p className="text-xs text-muted-foreground">
