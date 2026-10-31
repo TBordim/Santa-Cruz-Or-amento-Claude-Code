@@ -42,7 +42,7 @@ export function FormEntrega({ aceiteId, loteId, dataEntrega, saldo }: { aceiteId
         />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Data da entrega">
-            <Input type="date" name="entregueEm" defaultValue={hoje} max={hoje} required />
+            <Input type="date" name="entregueEm" defaultValue={hoje} min={`${new Date().getFullYear() - 1}-01-01`} max={hoje} required />
           </Field>
           {modo !== "total" && (
             <Field label={modo === "cancelar" ? "Entregue agora (opcional)" : "Quantidade entregue"}>
@@ -52,7 +52,7 @@ export function FormEntrega({ aceiteId, loteId, dataEntrega, saldo }: { aceiteId
           {modo === "parcial" && (
             <>
               <Field label="Previsão do saldo">
-                <Input type="date" name="dataSaldo" required />
+                <Input type="date" name="dataSaldo" required min={hoje} />
               </Field>
               {resta !== null && (
                 <div className="self-end rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">

@@ -109,7 +109,7 @@ function AbrirNegociacao({ aceiteId, loteId }: { aceiteId: string; loteId?: stri
       <input type="hidden" name="loteId" value={loteId ?? ""} />
       <Row2 compacto>
         <Field label="Data que o cliente quer">
-          <Input type="date" name="dataPedida" />
+          <Input type="date" name="dataPedida" min={new Date().toLocaleDateString("en-CA")} />
         </Field>
         <Field label="O que o cliente disse">
           <Input name="motivo" placeholder="Ex.: precisa para a campanha do dia 15" />
@@ -143,7 +143,7 @@ function ResponderPcp({ negociacaoId, temDataPedida }: { negociacaoId: string; t
       />
       {resultado === "OUTRA_DATA" && (
         <Field label="Data possível">
-          <Input type="date" name="dataProposta" className="max-w-48" />
+          <Input type="date" name="dataProposta" className="max-w-48" min={new Date().toLocaleDateString("en-CA")} />
         </Field>
       )}
       <Field label={resultado === "MANTIDA" ? "Por que não dá para mudar (vai para o cliente)" : "Observação (opcional)"}>

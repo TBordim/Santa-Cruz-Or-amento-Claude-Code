@@ -5,6 +5,7 @@ import { STATUS_PM, TIPOS_MATERIAL, fmtDia, fmtQuantidade, lerData, lerQuantidad
 import { exigirArea, nomeSePode, revalidarAceite, avancarSePronto, type FormState } from "@/lib/aceite/servidor";
 import { pesoKg as calcularPeso, sobraDoMinimo, quantidadeComprada } from "@/lib/aceite/papel-calculo";
 import { hojeBrasil } from "@/lib/aceite/agenda";
+import { erroDataPrevista, erroDataRegistrada } from "@/lib/aceite/datas-validas";
 
 // Ações do módulo Compras: os Pedidos de Material (PM). Qualquer módulo pede material criando um
 // PM com a própria origem; hoje só o Aceite (Vendas) pede. Compras responde com fornecedor, prazo,
@@ -124,6 +125,11 @@ export async function atualizarPedidoMaterial(_prev: FormState, formData: FormDa
   if ((status === "PRAZO_CONFIRMADO" || status === "RECEBIDO") && !prazo) {
     return { erro: "Informe o prazo de entrega do fornecedor para confirmar." };
   }
+  // Prazo novo não pode ser retroativo (o que já estava gravado, mesmo vencido, pode ser mantido).
+  if (prazo && prazo.getTime() !== (pm.prazoPrevisto?.getTime() ?? null)) {
+    const erroPrazo = erroDataPrevista(prazo, "previsão de chegada", hojeBrasil(new Date()));
+    if (erroPrazo) return { erro: erroPrazo };
+  }
   if (quantidade === null || quantidade <= 0) return { erro: "Informe a quantidade do pedido." };
   if (status === "RECEBIDO" && pm.status !== "RECEBIDO") return { erro: "Para dar o PM como recebido, use \"Confirmar recebimento\" no cartão." };
   const jaRecebido = Number(pm.quantidadeRecebida ?? 0);
@@ -208,6 +214,8 @@ export async function registrarRecebimento(_prev: FormState, formData: FormData)
   if (parcial && chegou >= saldo) return { erro: `Chegou o saldo todo (${fmtQuantidade(saldo, pm.unidade)}): escolha "Recebi tudo".` };
   const novoPrazo = parcial ? lerData(formData.get("prazoSaldo")) : null;
   if (parcial && !novoPrazo) return { erro: "Informe a previsão de chegada do saldo." };
+  const erroRecebimento = erroDataRegistrada(data, "data do recebimento", new Date(hojeBrasil(new Date()).getTime() - 365 * 86400000), hojeBrasil(new Date())) ?? (parcial ? erroDataPrevista(novoPrazo, "previsão de chegada do saldo", hojeBrasil(new Date())) : null);
+  if (erroRecebimento) return { erro: erroRecebimento };
 
   const recebido = jaRecebido + chegou;
   const resta = Math.max(0, pedido - recebido);
@@ -266,6 +274,8 @@ export async function registrarRecebimentoSobra(_prev: FormState, formData: Form
   const parcial = formData.get("modo") === "parcial";
   const data = lerData(formData.get("dataRecebimento")) ?? hojeBrasil(new Date());
   const obs = String(formData.get("obs") ?? "").trim();
+  const erroDataSobra = erroDataRegistrada(data, "data do recebimento", new Date(hojeBrasil(new Date()).getTime() - 365 * 86400000), hojeBrasil(new Date()));
+  if (erroDataSobra) return { erro: erroDataSobra };
   const chegou = parcial ? lerQuantidade(formData.get("quantidadeRecebida")) : saldo;
   if (chegou === null || chegou <= 0) return { erro: "Informe quanto chegou." };
   if (parcial && chegou >= saldo) return { erro: `Chegou a sobra toda (${fmtQuantidade(saldo, pm.unidade)}): escolha "Recebi tudo".` };

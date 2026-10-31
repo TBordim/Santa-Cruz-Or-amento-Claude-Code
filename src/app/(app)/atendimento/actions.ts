@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { lerData, fmtDia } from "@/lib/aceite/constantes";
+import { hojeBrasil } from "@/lib/aceite/agenda";
+import { erroDataPrevista } from "@/lib/aceite/datas-validas";
 import { nomeSePode, revalidarAceite, type FormState } from "@/lib/aceite/servidor";
 import { carregarAlvo, gravarAlvo } from "@/lib/aceite/alvo";
 
@@ -59,6 +61,8 @@ export async function abrirNegociacao(_prev: FormState, formData: FormData): Pro
   const dataPedida = lerData(formData.get("dataPedida"));
   const motivo = String(formData.get("motivo") ?? "").trim();
   if (!dataPedida && !motivo) return { erro: "Informe a data que o cliente quer ou o que ele pediu." };
+  const erroPedida = erroDataPrevista(dataPedida, "data que o cliente quer", hojeBrasil(new Date()));
+  if (erroPedida) return { erro: erroPedida };
   await prisma.negociacaoData.create({
     data: { aceiteId: id, loteId: lote?.id ?? null, dataAtual: a.dataEntrega, dataPedida, motivo: motivo || null, abertaPor: nome },
   });

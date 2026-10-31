@@ -156,11 +156,11 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
   const podeVoltar = a.lote
     ? (podeVendas && ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa)) ||
       (podeAtendimento && ["ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
-      (podePcp && ["PEDIDO", "CONCLUIDO"].includes(a.etapa))
+      (podePcp && ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa))
     : (podeVendas && (a.etapa !== "VENDAS" || pms.length === 0) && ["VENDAS", "ENGENHARIA_MATERIAL", "EM_LOTES", "PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa)) ||
       (podeAtendimento && ["ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
       (podeEngenharia && ["ENGENHARIA_MATERIAL", "EM_LOTES", "PCP"].includes(a.etapa)) ||
-      (podePcp && ["PCP", "PEDIDO", "CONCLUIDO"].includes(a.etapa));
+      (podePcp && ["PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa));
   // Saldo a entregar: pedido do cliente menos as entregas já confirmadas (desconhecido sem quantidade).
   const totalPedido = quantidadeTotal(itens) || null;
   const jaEntregue = a.entregas.reduce((s, e) => s + Number(e.quantidade ?? 0), 0);
