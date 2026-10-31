@@ -298,7 +298,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
           </div>
         )}
 
-        <ProtocolosDoAceite orcamentoId={doc.id} />
+        <ProtocolosDoAceite orcamentoId={doc.id} podeDecidir={podeVendas} />
         {(podeVendas || podeAtendimento) && doc.anexos.length > 0 && <ArtesDaOrdemDeCompra anexos={doc.anexos} />}
 
         {/* E-mails e documentos do cliente que comprovam a ordem de compra: anexados no desfecho (Retorno do Cliente), aqui só leitura. */}
