@@ -36,7 +36,7 @@ export function EditorDatasCliente({
       {datas.map((d, i) => (
         <div key={i} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2 sm:grid-cols-[7rem_10rem_8rem_1fr_auto]">
           <span className="text-xs font-medium text-muted-foreground">{i + 1}ª data</span>
-          <Input type="date" value={d.data} onChange={(e) => muda(i, "data", e.target.value)} aria-label={`${i + 1}ª data do cliente`} />
+          <Input type="date" min={d.data && d.data < new Date().toLocaleDateString("en-CA") ? d.data : new Date().toLocaleDateString("en-CA")} value={d.data} onChange={(e) => muda(i, "data", e.target.value)} aria-label={`${i + 1}ª data do cliente`} />
           <Input value={d.quantidade} inputMode="numeric" placeholder="Qtd. até lá" onChange={(e) => muda(i, "quantidade", e.target.value)} aria-label={`Quantidade da ${i + 1}ª data`} />
           <Input className="hidden sm:block" value={d.obs} placeholder="Observação (opcional)" onChange={(e) => muda(i, "obs", e.target.value)} aria-label={`Observação da ${i + 1}ª data`} />
           {i > 0 ? (

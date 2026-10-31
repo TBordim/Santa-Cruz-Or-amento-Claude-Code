@@ -156,11 +156,11 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
   const podeVoltar = a.lote
     ? (podeVendas && ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa)) ||
       (podeAtendimento && ["ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
-      (podePcp && ["PEDIDO", "CONCLUIDO"].includes(a.etapa))
+      (podePcp && ["PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa))
     : (podeVendas && (a.etapa !== "VENDAS" || pms.length === 0) && ["VENDAS", "ENGENHARIA_MATERIAL", "EM_LOTES", "PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa)) ||
       (podeAtendimento && ["ATENDIMENTO", "ENTREGA"].includes(a.etapa)) ||
       (podeEngenharia && ["ENGENHARIA_MATERIAL", "EM_LOTES", "PCP"].includes(a.etapa)) ||
-      (podePcp && ["PCP", "PEDIDO", "CONCLUIDO"].includes(a.etapa));
+      (podePcp && ["PCP", "PEDIDO", "ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa));
   // Saldo a entregar: pedido do cliente menos as entregas já confirmadas (desconhecido sem quantidade).
   const totalPedido = quantidadeTotal(itens) || null;
   const jaEntregue = a.entregas.reduce((s, e) => s + Number(e.quantidade ?? 0), 0);
@@ -388,7 +388,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
               rows={[
                 { label: "Cadastro", value: a.cadastroSituacao === "CRIADO" ? "Produto novo: cadastro e código criados" : "Produto já cadastrado" },
                 { label: "Faca", value: a.codigoFaca ? `${a.codigoFaca}${a.facaNova ? " (nova)" : ""}` : a.facaNova ? "Faca nova, código a definir" : "Sem faca" },
-                { label: "Clichê", value: a.clicheNovo ? "Clichê novo" : "Sem clichê novo" },
+                { label: "Clichê", value: a.clicheNovo ? `Clichê novo${a.codigosCliche.length ? ` · ${a.codigosCliche.join(", ")}` : " · código a definir"}` : "Sem clichê novo" },
                 ...modelos
                   .filter((m) => m.codInterno)
                   .map((m) => ({ label: `Nº de Cadastro${modelos.length > 1 ? ` — ${m.descricao}` : ""}`, value: formatarCodigoInterno(m.codInterno) })),

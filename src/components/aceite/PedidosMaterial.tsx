@@ -275,7 +275,7 @@ function ReceberPM({ pm, saldo, sobra = false, onFeito }: { pm: PMTela; saldo: n
             </Field>
             {!sobra && (
               <Field label="Previsão de chegada do saldo">
-                <Input type="date" name="prazoSaldo" required defaultValue={paraInputData(pm.prazoPrevisto)} />
+                <Input type="date" name="prazoSaldo" required min={new Date().toLocaleDateString("en-CA")} defaultValue={paraInputData(pm.prazoPrevisto)} />
               </Field>
             )}
             <div className="self-end rounded-lg border border-border bg-card px-3 py-2 text-sm">
@@ -328,7 +328,7 @@ function AtualizarPM({ pm, onFeito }: { pm: PMTela; onFeito: () => void }) {
       />
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <Field label="Prazo do fornecedor">
-          <Input type="date" name="prazoPrevisto" defaultValue={paraInputData(pm.prazoPrevisto)} />
+          <Input type="date" name="prazoPrevisto" min={pm.prazoPrevisto && paraInputData(pm.prazoPrevisto) < new Date().toLocaleDateString("en-CA") ? paraInputData(pm.prazoPrevisto) : new Date().toLocaleDateString("en-CA")} defaultValue={paraInputData(pm.prazoPrevisto)} />
         </Field>
         <Field label="Fornecedor">
           <Input name="fornecedor" defaultValue={pm.fornecedor ?? ""} />

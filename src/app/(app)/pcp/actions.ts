@@ -7,6 +7,7 @@ import { lerItens, quantidadeTotal } from "@/lib/aceite/montagem";
 import { nomeSePode, revalidarAceite, type FormState } from "@/lib/aceite/servidor";
 import { carregarAlvo, gravarAlvo, fecharAceiteSeLotesConcluidos } from "@/lib/aceite/alvo";
 import { hojeBrasil } from "@/lib/aceite/agenda";
+import { erroDataPrevista, erroDataRegistrada } from "@/lib/aceite/datas-validas";
 
 // Ações do módulo PCP: a data de entrega dos Aceites, a negociação de data e a confirmação da entrega.
 
@@ -24,6 +25,8 @@ export async function salvarPcp(_prev: FormState, formData: FormData): Promise<F
   if (a.etapa !== "PCP") return { erro: lote ? "Este lote não está no PCP." : "O Aceite não está no PCP." };
   const data = lerData(formData.get("dataEntrega"));
   if (!data) return { erro: "Informe a data de entrega." };
+  const erroData = erroDataPrevista(data, "data de entrega", hojeBrasil(new Date()));
+  if (erroData) return { erro: erroData };
   const chegada = chegadaDoPapel(a.pedidosMaterial);
   if (chegada && data < chegada) return { erro: `A data de entrega não pode ser antes da chegada do papel (${fmtDia(chegada)}).` };
 
@@ -61,6 +64,8 @@ export async function responderNegociacao(_prev: FormState, formData: FormData):
   } else if (resultado === "OUTRA_DATA") {
     novaData = lerData(formData.get("dataProposta"));
     if (!novaData) return { erro: "Informe a data possível." };
+    const erroProposta = erroDataPrevista(novaData, "data possível", hojeBrasil(new Date()));
+    if (erroProposta) return { erro: erroProposta };
   } else if (!obs) {
     return { erro: "Explique por que a data não pode mudar: o Atendimento vai repassar ao cliente." };
   }
@@ -98,7 +103,8 @@ export async function confirmarEntrega(_prev: FormState, formData: FormData): Pr
   if (!["total", "parcial", "cancelar"].includes(modo)) return { erro: "Escolha como foi a entrega." };
   const entregueEm = lerData(formData.get("entregueEm"));
   if (!entregueEm) return { erro: "Informe a data da entrega." };
-  if (entregueEm > hojeBrasil(new Date())) return { erro: "A data da entrega não pode ser depois de hoje." };
+  const erroEntregue = erroDataRegistrada(entregueEm, "data da entrega", a.criadoEm, hojeBrasil(new Date()));
+  if (erroEntregue) return { erro: erroEntregue };
   const obs = String(formData.get("entregaObs") ?? "").trim() || null;
 
   // Saldo = pedido do cliente (soma dos itens) menos o que já foi entregue; sem quantidade no Aceite, fica desconhecido.
@@ -121,6 +127,8 @@ export async function confirmarEntrega(_prev: FormState, formData: FormData): Pr
   if (modo === "cancelar" && !motivo) return { erro: "Informe o motivo de cancelar o saldo." };
   const novaData = lerData(formData.get("dataSaldo"));
   if (modo === "parcial" && !novaData) return { erro: "Informe a previsão de entrega do saldo." };
+  const erroSaldo = modo === "parcial" ? erroDataPrevista(novaData, "previsão de entrega do saldo", hojeBrasil(new Date())) : null;
+  if (erroSaldo) return { erro: erroSaldo };
 
   const restante = saldo === null || qtdAgora === null ? saldo : Math.max(0, saldo - qtdAgora);
   agora = new Date();

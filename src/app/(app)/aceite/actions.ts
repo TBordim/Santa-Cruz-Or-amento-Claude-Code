@@ -16,6 +16,9 @@ import { lerSuportes, situacaoGeral, suportesSemPM, textoSuporte, type SuporteAc
 import { lerItens, erroNaMontagem, completarPosicoes, type ItemAceite } from "@/lib/aceite/montagem";
 import { erroNaDivisao, lerItensLote, pmsDoLote } from "@/lib/aceite/lotes";
 import type { DataCliente } from "@/lib/aceite/datas-cliente";
+import { hojeBrasil } from "@/lib/aceite/agenda";
+import { erroDataPrevista } from "@/lib/aceite/datas-validas";
+import { lerDatasCliente } from "@/lib/aceite/datas-cliente";
 import { exigirArea, nomeSePode, revalidarAceite, avancarSePronto, type FormState } from "@/lib/aceite/servidor";
 import { carregarAlvo, gravarAlvo } from "@/lib/aceite/alvo";
 import { SETOR_AVISO, type SetorAviso } from "@/lib/aceite/cancelamento";
@@ -64,6 +67,22 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
   // lista vazia desfaz a divisão; com lotes confere a soma por modelo contra o pedido digitado agora.
   const lotesEnviados = lerLotesDoForm(formData.get("lotes"), [...lerSuportes(a), ...a.lotes.flatMap((l) => (Array.isArray(l.suportes) ? (l.suportes as SuporteAceite[]) : []))]);
   if (lotesEnviados === null) return { erro: "Não consegui ler os lotes. Recarregue a página e tente de novo." };
+  // Datas do cliente: nenhuma data NOVA pode ser retroativa (as que já estavam gravadas podem ser mantidas).
+  {
+    const jaGravadas = new Set([...lerDatasCliente(a), ...a.lotes.flatMap((l) => lerDatasCliente(l))].map((d) => d.data));
+    let doAceite: { data: string }[] = [];
+    try {
+      doAceite = datasValidas(JSON.parse(String(formData.get("datasCliente") ?? "[]")));
+    } catch {
+      doAceite = [];
+    }
+    const hoje = hojeBrasil(new Date());
+    for (const d of [...doAceite, ...(lotesEnviados ?? []).flatMap((l) => l.datas)]) {
+      if (jaGravadas.has(d.data)) continue;
+      const erroCliente = erroDataPrevista(new Date(d.data + "T00:00:00.000Z"), "data do cliente", hoje);
+      if (erroCliente) return { erro: erroCliente };
+    }
+  }
   // Os lotes enviados são reconhecidos pelo id (a posição pode mudar ao remover um lote). Pedido de Material
   // NÃO trava mais a divisão: o PM de um lote removido fica sem lote (nunca é apagado) e Vendas o liga a outro
   // lote; ao desfazer a divisão, ele passa a ser PM do Aceite todo.
@@ -258,6 +277,11 @@ export async function confirmarEngenharia(_prev: FormState, formData: FormData):
         facaNova: formData.get("facaNova") === "on",
         codigoFaca: String(formData.get("codigoFaca") ?? "").trim() || null,
         clicheNovo: formData.get("clicheNovo") === "on",
+        // Códigos dos clichês novos (campo repetido "codigoCliche"); só valem com "clichê novo" marcado.
+        codigosCliche:
+          formData.get("clicheNovo") === "on"
+            ? [...new Set(formData.getAll("codigoCliche").map((v) => String(v).trim().slice(0, 40)).filter(Boolean))].slice(0, 12)
+            : [],
         engenhariaEm: agora,
         engenhariaPor: nome,
         engenhariaObs: String(formData.get("engenhariaObs") ?? "").trim() || null,
@@ -329,8 +353,10 @@ const QUEM_VOLTA: Record<EtapaAceiteKey, AreaKey[]> = {
   // Do PCP de volta à Engenharia: quem a refaz ou quem liberou (Vendas) também pode voltar.
   PCP: ["PCP_ENTREGA", "ACEITE_VENDAS", "ACEITE_ENGENHARIA"],
   PEDIDO: ["ACEITE_VENDAS", "PCP_ENTREGA"],
-  ATENDIMENTO: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS"],
-  ENTREGA: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS"],
+  // O PCP também volta Atendimento e Entrega: é dele a data de entrega, e corrigir um lançamento errado não pode
+  // depender de outro setor (pedido do PCP em 31/10/2026).
+  ATENDIMENTO: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS", "PCP_ENTREGA"],
+  ENTREGA: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS", "PCP_ENTREGA"],
   // Desfazer a confirmação da entrega é com o PCP, que confirmou (Vendas também, para corrigir).
   CONCLUIDO: ["PCP_ENTREGA", "ACEITE_VENDAS"],
 };
@@ -427,8 +453,8 @@ export async function voltarAceiteParaOrcamento(formData: FormData) {
 // para trás é pelo Aceite ("Voltar o Aceite"), porque a Engenharia e a divisão são do Aceite todo.
 const QUEM_VOLTA_LOTE: Record<string, AreaKey[]> = {
   PEDIDO: ["ACEITE_VENDAS", "PCP_ENTREGA"],
-  ATENDIMENTO: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS"],
-  ENTREGA: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS"],
+  ATENDIMENTO: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS", "PCP_ENTREGA"],
+  ENTREGA: ["ATENDIMENTO_CLIENTE", "ACEITE_VENDAS", "PCP_ENTREGA"],
   CONCLUIDO: ["PCP_ENTREGA", "ACEITE_VENDAS"],
 };
 const ETAPA_ANTERIOR_LOTE: Record<string, "PCP" | "PEDIDO" | "ATENDIMENTO" | "ENTREGA"> = {

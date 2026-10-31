@@ -60,7 +60,7 @@ export function FormPcp({
           </div>
         )}
         <Field label="Data de entrega acordada">
-          <Input type="date" name="dataEntrega" required min={chegadaPapel ?? undefined} value={data} onChange={(e) => setData(e.target.value)} />
+          <Input type="date" name="dataEntrega" required min={chegadaPapel && chegadaPapel > new Date().toLocaleDateString("en-CA") ? chegadaPapel : new Date().toLocaleDateString("en-CA")} value={data} onChange={(e) => setData(e.target.value)} />
         </Field>
         <Field label="Observação (opcional)">
           <Input name="pcpObs" />

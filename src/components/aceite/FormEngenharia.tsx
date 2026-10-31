@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
 import { confirmarEngenharia } from "@/app/(app)/aceite/actions";
 import { CodigoClienteInline } from "./CodigoClienteInline";
@@ -117,7 +118,7 @@ export function FormEngenharia({
           <Input name="codigoFaca" className="max-w-48" />
         </Field>
         <Marcar name="facaNova" texto="Precisa de faca nova" />
-        <Marcar name="clicheNovo" texto="Precisa de clichê novo" />
+        <ClichesNovos />
         {novos.length > 0 && <Marcar name="arquivoDigital" texto="Recebi o arquivo digital do produto novo (obrigatório, Nota 1)" />}
         <Marcar name="ctpSalvo" texto="Salvei a cópia do Cadastro Técnico na pasta CTP da rede" />
         <Field label="Observação (opcional)">
@@ -139,5 +140,46 @@ function Marcar({ name, texto }: { name: string; texto: string }) {
       <input type="checkbox" name={name} className="h-4 w-4 accent-primary" />
       {texto}
     </label>
+  );
+}
+
+// "Precisa de clichê novo" e os códigos dos clichês (um ou mais): a Karen forma a OF com eles para a pré-impressão.
+function ClichesNovos() {
+  const [novo, setNovo] = useState(false);
+  const [codigos, setCodigos] = useState<string[]>([""]);
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-md border border-border px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-muted/50">
+        <input type="checkbox" name="clicheNovo" className="h-4 w-4 accent-primary" checked={novo} onChange={(e) => setNovo(e.target.checked)} />
+        Precisa de clichê novo
+      </label>
+      {novo && (
+        <div className="flex flex-col gap-1.5 pl-1">
+          <span className="text-xs text-muted-foreground">Código de cada clichê novo (pode ser mais de um). Vai para a OF da pré-impressão.</span>
+          {codigos.map((c, n) => (
+            <div key={n} className="flex items-center gap-2">
+              <Input
+                name="codigoCliche"
+                value={c}
+                placeholder={`Código do clichê ${n + 1}`}
+                aria-label={`Código do clichê ${n + 1}`}
+                className="max-w-56"
+                onChange={(e) => setCodigos((l) => l.map((x, k) => (k === n ? e.target.value : x)))}
+              />
+              {codigos.length > 1 && (
+                <button type="button" className="text-xs text-bad underline" onClick={() => setCodigos((l) => l.filter((_, k) => k !== n))}>
+                  remover
+                </button>
+              )}
+            </div>
+          ))}
+          {codigos.length < 12 && (
+            <button type="button" className="self-start text-xs underline" onClick={() => setCodigos((l) => [...l, ""])}>
+              + Adicionar outro clichê
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
