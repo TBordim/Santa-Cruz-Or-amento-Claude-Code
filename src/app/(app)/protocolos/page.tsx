@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, FileText } from "lucide-react";
 import { DecisaoArte } from "./DecisaoArte";
+import { DispensarArte } from "@/components/aceite/DecisaoSemProtocolo";
 
 export const dynamic = "force-dynamic";
 
@@ -85,14 +86,17 @@ export default async function ArtesAProtocolarPage() {
               </div>
 
               {pode ? (
-                <DecisaoArte
-                  arteId={a.id}
-                  sugestoes={sugestoes}
-                  modelos={modelos.map((m) => ({ id: m.id, descricao: m.descricao }))}
-                  modeloFixo={a.modeloId ?? (modelos.length === 1 ? modelos[0].id : null)}
-                  descricaoInicial={modelo?.descricao ?? a.orcamento?.produtoDescricao ?? ""}
-                  codInternoInicial={modelo?.codInterno ?? ""}
-                />
+                <>
+                  <DecisaoArte
+                    arteId={a.id}
+                    sugestoes={sugestoes}
+                    modelos={modelos.map((m) => ({ id: m.id, descricao: m.descricao }))}
+                    modeloFixo={a.modeloId ?? (modelos.length === 1 ? modelos[0].id : null)}
+                    descricaoInicial={modelo?.descricao ?? a.orcamento?.produtoDescricao ?? ""}
+                    codInternoInicial={modelo?.codInterno ?? ""}
+                  />
+                  <DispensarArte arteId={a.id} />
+                </>
               ) : (
                 <p className="text-xs text-muted-foreground">Só Vendas (área Protocolos) pode protocolar. Você pode acompanhar por aqui.</p>
               )}

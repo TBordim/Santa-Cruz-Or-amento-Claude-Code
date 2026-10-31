@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { FormSection } from "@/components/form-section";
 import { modelosDoDoc } from "@/lib/orcamentos/modelos";
 import { fmtDataProtocolo } from "@/lib/protocolos/comum";
+import { motivoDaDispensa } from "@/lib/protocolos/decidir";
+import { DispensarArte, ReabrirArte } from "./DecisaoSemProtocolo";
 
 function Abrir({ href, texto }: { href: string; texto: string }) {
   return (
@@ -15,7 +17,7 @@ function Abrir({ href, texto }: { href: string; texto: string }) {
 // Protocolos da arte deste pedido, para todos os setores do Aceite (a Engenharia precisa saber qual protocolo vale e abrir
 // o arquivo protocolado). Mostra cada arte recebida: protocolada (número, data, arquivo e cópia carimbada), já existente
 // (descartada, aponta o protocolo em uso) ou aguardando Vendas. Pedido do Thiago em 28/10/2026.
-export async function ProtocolosDoAceite({ orcamentoId }: { orcamentoId: string }) {
+export async function ProtocolosDoAceite({ orcamentoId, podeDecidir = false }: { orcamentoId: string; podeDecidir?: boolean }) {
   const [orc, artes] = await Promise.all([
     prisma.orcamento.findUnique({ where: { id: orcamentoId } }),
     prisma.arteEnviada.findMany({
@@ -36,6 +38,7 @@ export async function ProtocolosDoAceite({ orcamentoId }: { orcamentoId: string 
           const modelo = modelos.find((m) => m.id === a.modeloId) ?? (modelos.length === 1 ? modelos[0] : null);
           const rev = a.estado === "PROTOCOLADA" ? a.revisao : a.estado === "DESCARTADA" ? (a.protocoloExistente?.revisoes[0] ?? null) : null;
           const protocolo = a.estado === "PROTOCOLADA" ? a.revisao?.protocolo : a.protocoloExistente;
+          const dispensa = a.estado === "DESCARTADA" && !a.protocoloExistenteId ? motivoDaDispensa(a.rotulo) : null;
           return (
             <div key={a.id} className="flex flex-col gap-1 rounded-lg border border-border bg-muted/20 p-3">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
@@ -44,13 +47,18 @@ export async function ProtocolosDoAceite({ orcamentoId }: { orcamentoId: string 
                     Protocolo {protocolo.numero}
                     {rev ? ` · ${fmtDataProtocolo(rev.dataProtocolo)}` : ""}
                   </span>
+                ) : dispensa ? (
+                  <span className="font-semibold text-foreground">Sem protocolo (dispensado por {a.decididaPor ?? "Vendas"})</span>
                 ) : (
                   <span className="font-semibold text-warn">Aguardando protocolo de Vendas</span>
                 )}
                 {modelo?.descricao && <span className="text-xs text-muted-foreground">{modelo.descricao}</span>}
-                <span className="text-xs text-muted-foreground">arte recebida: {a.rotulo}</span>
+                <span className="text-xs text-muted-foreground">arte recebida: {dispensa?.rotulo ?? a.rotulo}</span>
               </div>
-              {a.estado === "DESCARTADA" && <p className="text-xs text-muted-foreground">Esta arte é a mesma já protocolada; vale o protocolo acima.</p>}
+              {a.estado === "DESCARTADA" && !dispensa && <p className="text-xs text-muted-foreground">Esta arte é a mesma já protocolada; vale o protocolo acima.</p>}
+              {dispensa && <p className="text-xs text-muted-foreground">Motivo: {dispensa.motivo}</p>}
+              {podeDecidir && a.estado === "PENDENTE" && <DispensarArte arteId={a.id} />}
+              {podeDecidir && dispensa && <ReabrirArte arteId={a.id} />}
               {rev && (
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                   {rev.arquivoUrl && <Abrir href={rev.arquivoUrl} texto={rev.arquivoNome ?? "Arquivo protocolado"} />}

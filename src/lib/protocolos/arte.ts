@@ -105,7 +105,7 @@ export async function erroPorArtePendente(orcamentoId: string): Promise<string |
     const m = modelos.find((x) => x.id === p.modeloId);
     return m?.descricao ? `${p.rotulo} (${m.descricao})` : p.rotulo;
   });
-  return `Há ${pendentes.length === 1 ? "1 arte aguardando" : `${pendentes.length} artes aguardando`} o protocolo de Vendas: ${nomes.join("; ")}. O Aceite só segue para a Engenharia depois que forem protocoladas (Protocolos → Artes a protocolar).`;
+  return `Há ${pendentes.length === 1 ? "1 arte aguardando" : `${pendentes.length} artes aguardando`} o protocolo de Vendas: ${nomes.join("; ")}. O Aceite só segue para a Engenharia depois que forem protocoladas (Protocolos → Artes a protocolar). Se o arquivo não for arte (um e-mail, por exemplo), use "Não precisa de protocolo" no bloco "Protocolos da arte" do Aceite.`;
 }
 
 // Quantas artes de um orçamento estão pendentes (pro aviso no card).

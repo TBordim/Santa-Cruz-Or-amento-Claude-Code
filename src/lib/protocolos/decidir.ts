@@ -171,6 +171,39 @@ export async function protocolarJaExistente(e: Entrada & { protocoloId: string }
   return { protocoloId: protocolo.id, revisao };
 }
 
+// Vendas decide que o arquivo recebido NÃO é arte (um e-mail anexado no lugar da arte, por exemplo) ou que não
+// precisa de protocolo: a pendência sai da fila e deixa de travar o Aceite. Fica registrado quem decidiu, quando e
+// por quê, e pode ser reaberto se a decisão foi um engano (pedido do Thiago em 31/10/2026). Usa o estado DESCARTADA
+// SEM protocolo existente (a descartada "por já existir" aponta o protocolo); o motivo vai junto do rótulo, para não
+// precisar de coluna nova.
+export const SEPARADOR_DISPENSA = " · dispensada: ";
+
+export function motivoDaDispensa(rotulo: string): { rotulo: string; motivo: string } | null {
+  const k = rotulo.indexOf(SEPARADOR_DISPENSA);
+  return k < 0 ? null : { rotulo: rotulo.slice(0, k), motivo: rotulo.slice(k + SEPARADOR_DISPENSA.length) };
+}
+
+export async function dispensarArte(e: { arteId: string; por: string; motivo: string }) {
+  const motivo = e.motivo.trim().slice(0, 200);
+  if (!motivo) throw new ErroProtocolo("Diga por que não precisa de protocolo (por exemplo: é um e-mail, não é arte).");
+  const arte = await carregarArte(e.arteId);
+  await prisma.arteEnviada.update({
+    where: { id: arte.id },
+    data: { estado: "DESCARTADA", protocoloExistenteId: null, rotulo: `${arte.rotulo}${SEPARADOR_DISPENSA}${motivo}`, decididaPor: e.por, decididaEm: new Date() },
+  });
+}
+
+// Desfaz uma dispensa (engano): volta para a fila de protocolo. Não mexe nas descartadas por já existir protocolo.
+export async function reabrirArte(arteId: string) {
+  const arte = await prisma.arteEnviada.findUnique({ where: { id: arteId } });
+  const dispensa = arte ? motivoDaDispensa(arte.rotulo) : null;
+  if (!arte || arte.estado !== "DESCARTADA" || arte.protocoloExistenteId || !dispensa) throw new ErroProtocolo("Esta arte não foi dispensada.");
+  await prisma.arteEnviada.update({
+    where: { id: arte.id },
+    data: { estado: "PENDENTE", rotulo: dispensa.rotulo, decididaPor: null, decididaEm: null },
+  });
+}
+
 // Protocolos do cliente da arte, como candidatos à sugestão (mesmo cadastro ou nome parecido).
 export async function candidatosDoCliente(clienteId: string | null, clienteNome: string | null) {
   const nome = chave(clienteNome);

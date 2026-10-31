@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { podeEditar, sessaoAtual } from "@/lib/permissions";
 import { lerDataProtocolo } from "@/lib/protocolos/comum";
-import { ErroProtocolo,protocolarAlterado, protocolarJaExistente, protocolarNovo } from "@/lib/protocolos/decidir";
+import { ErroProtocolo, dispensarArte, protocolarAlterado, protocolarJaExistente, protocolarNovo, reabrirArte } from "@/lib/protocolos/decidir";
 
 export type FormState = { erro?: string; ok?: string } | undefined;
 
@@ -48,4 +48,39 @@ export async function decidirArte(_prev: FormState, fd: FormData): Promise<FormS
   revalidatePath("/protocolos");
   revalidatePath("/painel");
   return { ok: "Arte protocolada." };
+}
+
+// Quem libera o Aceite (Vendas) precisa poder dizer que o arquivo não é arte, ou corrigir uma falha de quem anexou:
+// vale a área Protocolos ou a de Aceite de Vendas.
+async function podeDecidirArte() {
+  return (await podeEditar("PROTOCOLOS_VENDAS")) || (await podeEditar("ACEITE_VENDAS"));
+}
+
+export async function dispensarArteAction(_prev: FormState, fd: FormData): Promise<FormState> {
+  if (!(await podeDecidirArte())) return { erro: "Sem permissão (Vendas)." };
+  const sessao = await sessaoAtual();
+  try {
+    await dispensarArte({ arteId: String(fd.get("arteId") ?? ""), por: sessao?.nome ?? "Vendas", motivo: String(fd.get("motivo") ?? "") });
+  } catch (e) {
+    if (e instanceof ErroProtocolo) return { erro: e.message };
+    throw e;
+  }
+  revalidatePath("/protocolos");
+  revalidatePath("/aceite");
+  revalidatePath("/painel");
+  return { ok: "Pendência dispensada." };
+}
+
+export async function reabrirArteAction(_prev: FormState, fd: FormData): Promise<FormState> {
+  if (!(await podeDecidirArte())) return { erro: "Sem permissão (Vendas)." };
+  try {
+    await reabrirArte(String(fd.get("arteId") ?? ""));
+  } catch (e) {
+    if (e instanceof ErroProtocolo) return { erro: e.message };
+    throw e;
+  }
+  revalidatePath("/protocolos");
+  revalidatePath("/aceite");
+  revalidatePath("/painel");
+  return { ok: "Voltou para a fila de protocolo." };
 }
