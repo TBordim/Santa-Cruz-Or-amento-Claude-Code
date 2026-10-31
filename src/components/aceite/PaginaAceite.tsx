@@ -245,7 +245,16 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
                 .filter((x) => x.doOrcamento)
                 .map((x, n, l) => ({
                   label: l.length > 1 ? `Papel especificado ${n + 1}` : "Papel especificado",
-                  value: `${textoSuporte(x.doOrcamento!)} · código ${x.doOrcamento!.codigo || "—"}`,
+                  value: (
+                    <>
+                      {textoSuporte(x.doOrcamento!)} · código {x.doOrcamento!.codigo || "—"}
+                      {podeVendas && a.etapa === "VENDAS" && (
+                        <a href="#papel-utilizado" className="ml-2 whitespace-nowrap text-xs underline">
+                          usar outro papel ↓
+                        </a>
+                      )}
+                    </>
+                  ),
                 })),
               // Conjugação definida pela Engenharia no orçamento: o que sai junto e o que sai sozinho (só com mais de um modelo).
               ...(modelos.length > 1
