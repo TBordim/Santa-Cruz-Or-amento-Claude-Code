@@ -656,3 +656,34 @@ export async function salvarCodigoCliente(_prev: FormState, formData: FormData):
   revalidatePath("/painel");
   return { ok: "Código do cliente salvo." };
 }
+
+// Papel ESPECIFICADO do Aceite: nasce do orçamento, mas o cliente pode mudar a especificação (ou o fornecedor do papel
+// muda) e a Engenharia precisa ver o papel especificado atualizado, independente do papel que for utilizado. Vendas
+// corrige aqui; guarda quem, quando e o que estava no orçamento. O orçamento original não é alterado (pedido da
+// Karen, 03/11/2026).
+export async function salvarPapelEspecificado(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const suporteId = String(formData.get("suporteId") ?? "");
+  const nome = await nomeSePode("ACEITE_VENDAS");
+  if (!nome) return { erro: "Sem permissão (área Vendas)." };
+  const a = await prisma.aceite.findUniqueOrThrow({ where: { id }, include: { lotes: true } });
+  if (a.etapa === "CONCLUIDO" || a.etapa === "CANCELADO") return { erro: "Este Aceite já está encerrado." };
+  const t = (k: string) => String(formData.get(k) ?? "").trim().slice(0, 120);
+  const novo = { descricao: t("descricao"), gramatura: t("gramatura").replace(/\D/g, ""), codigo: t("codigo"), formato: t("formato") };
+  if (!novo.descricao && !novo.codigo) return { erro: "Informe ao menos o tipo de papel ou o código." };
+  const suportes = lerSuportes(a);
+  const alvo = suportes.find((s) => s.id === suporteId);
+  if (!alvo) return { erro: "Papel não encontrado. Recarregue a página." };
+  const antes = alvo.doOrcamento;
+  const original = antes?.original ?? (antes ? `${textoSuporte(antes)} · código ${antes.codigo || "—"}` : undefined);
+  const atualizado = { ...novo, alteradoPor: nome, alteradoEm: new Date().toISOString(), ...(original ? { original } : {}) };
+  const aplicar = (lista: SuporteAceite[]) => lista.map((s) => (s.id === suporteId ? { ...s, doOrcamento: atualizado } : s));
+  await prisma.$transaction([
+    prisma.aceite.update({ where: { id }, data: { suportes: JSON.parse(JSON.stringify(aplicar(suportes))) } }),
+    ...a.lotes
+      .filter((l) => Array.isArray(l.suportes) && (l.suportes as SuporteAceite[]).some((s) => s.id === suporteId))
+      .map((l) => prisma.loteAceite.update({ where: { id: l.id }, data: { suportes: JSON.parse(JSON.stringify(aplicar(l.suportes as SuporteAceite[]))) } })),
+  ]);
+  revalidarAceite();
+  return { ok: "Papel especificado atualizado." };
+}

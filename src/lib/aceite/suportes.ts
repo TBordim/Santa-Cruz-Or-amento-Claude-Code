@@ -26,7 +26,17 @@ export type SuporteAceite = {
   situacao: SituacaoSuporte;
   obs: string;
   // Como o orçamento especificou, quando o papel veio dele; mostra a troca se Vendas mudar.
-  doOrcamento: { descricao: string; gramatura: string; codigo: string; formato: string } | null;
+  doOrcamento: {
+    descricao: string;
+    gramatura: string;
+    codigo: string;
+    formato: string;
+    // Quando Vendas corrige o papel especificado no Aceite (o cliente mudou a especificação): quem, quando e o que
+    // estava no orçamento. O orçamento em si não é alterado.
+    alteradoPor?: string;
+    alteradoEm?: string;
+    original?: string;
+  } | null;
 };
 
 export const SITUACOES_SUPORTE: { key: Exclude<SituacaoSuporte, "NAO_VERIFICADO">; label: string }[] = [
