@@ -24,7 +24,7 @@ function LinhaArte({ anexo }: { anexo: { id: string; nome: string } }) {
   return (
     <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="anexoId" value={anexo.id} />
-      <span className="min-w-0 truncate text-xs text-foreground">{anexo.nome}</span>
+      <span className="min-w-0 break-words text-xs text-foreground">{anexo.nome}</span>
       <Button type="submit" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pending || !!state?.ok}>
         {pending ? "Enviando…" : state?.ok ? "Enviado" : "É arte: enviar para protocolo"}
       </Button>

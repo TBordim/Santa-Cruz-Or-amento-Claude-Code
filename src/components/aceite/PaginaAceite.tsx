@@ -240,6 +240,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         {/* Já definido no orçamento (lotes, entregas, acerto e montagem): aparece aqui para ninguém depender do papel físico. */}
         <FormSection title="Do orçamento">
           <ResumoBox
+            quebrar
             rows={[
               // O papel especificado no orçamento fica visível em toda etapa, mesmo depois de Vendas definir outro a utilizar.
               ...suportes
@@ -328,6 +329,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
               </p>
             )}
             <ResumoBox
+              quebrar
               rows={[
                 ...suportes.map((x, n) => ({
                   label: suportes.length > 1 ? `Papel ${n + 1}` : "Papel",
@@ -386,6 +388,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         {a.engenhariaEm ? (
           <FormSection title="Engenharia">
             <ResumoBox
+              quebrar
               rows={[
                 { label: "Cadastro", value: a.cadastroSituacao === "CRIADO" ? "Produto novo: cadastro e código criados" : "Produto já cadastrado" },
                 { label: "Faca", value: a.codigoFaca ? `${a.codigoFaca}${a.facaNova ? " (nova)" : ""}` : a.facaNova ? "Faca nova, código a definir" : "Sem faca" },
@@ -416,6 +419,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         {a.dataEntrega && (
           <FormSection title="PCP">
             <ResumoBox
+              quebrar
               rows={[
                 { label: "Data de entrega", value: fmtDia(a.dataEntrega) },
                 { label: "Definida por", value: visto(a.pcpPor, a.pcpEm) },
@@ -438,6 +442,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         {["ATENDIMENTO", "ENTREGA", "CONCLUIDO"].includes(a.etapa) && (
           <FormSection title="Pedido">
             <ResumoBox
+              quebrar
               rows={[
                 { label: "Nº do pedido", value: a.numeroPedido || a.numero || "—" },
                 { label: "Cadastrado por", value: visto(a.pedidoCadastradoPor, a.pedidoCadastradoEm) },
@@ -487,6 +492,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
             )}
             {a.entregueEm && (
               <ResumoBox
+                quebrar
                 rows={[
                   { label: "Concluída em", value: fmtDia(a.entregueEm) },
                   { label: "Confirmada por", value: visto(a.entregaConfirmadaPor, a.entregaConfirmadaEm) },
