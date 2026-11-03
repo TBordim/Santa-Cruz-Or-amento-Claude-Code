@@ -141,7 +141,7 @@ export function EditorLotes({
                 const it = l.itens.find((x) => x.modeloId === m.modeloId);
                 return (
                   <div key={m.modeloId} className="grid grid-cols-[1fr_6.5rem] items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5">
-                    <span className="min-w-0 truncate text-sm text-foreground">{m.descricao || "Modelo sem descrição"}</span>
+                    <span className="min-w-0 break-words text-sm text-foreground">{m.descricao || "Modelo sem descrição"}</span>
                     <Input
                       value={it?.quantidade ?? ""}
                       inputMode="numeric"

@@ -124,7 +124,7 @@ export function FormVendas({
             {aceite.itens.map((i) => (
               <div key={i.modeloId} className="grid grid-cols-[1fr_7.5rem] items-center gap-3 rounded-md border border-border px-3 py-1.5">
                 <span className="min-w-0 text-sm leading-tight">
-                  <span className="block truncate text-foreground">{i.descricao || "Modelo sem descrição"}</span>
+                  <span className="block break-words text-foreground">{i.descricao || "Modelo sem descrição"}</span>
                   <span className="font-mono text-[11px] text-muted-foreground">{i.codInterno ? formatarCodigoInterno(i.codInterno) : "produto novo"}</span>
                   <span className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     Cód. cliente
@@ -166,7 +166,7 @@ export function FormVendas({
               {aceite.itens.map((i) => (
                 <label key={i.modeloId} className="grid grid-cols-[1fr_7.5rem] items-center gap-3 rounded-md border border-border px-3 py-1.5">
                   <span className="min-w-0 text-sm leading-tight">
-                    <span className="block truncate text-foreground">{i.descricao || "Modelo sem descrição"}</span>
+                    <span className="block break-words text-foreground">{i.descricao || "Modelo sem descrição"}</span>
                     <span className="text-[11px] text-muted-foreground">
                       pedido {fmtQuantidade(lerQuantidade(qtds[i.modeloId] ?? ""))} · produzir{" "}
                       <b className="text-foreground">{fmtQuantidade(aProduzir({ quantidade: lerQuantidade(qtds[i.modeloId] ?? ""), emEstoque: lerQuantidade(estoques[i.modeloId] ?? "") }))}</b>
