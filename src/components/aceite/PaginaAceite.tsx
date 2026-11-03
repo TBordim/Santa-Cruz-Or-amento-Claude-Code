@@ -14,6 +14,7 @@ import { lerItensLote, lotesDoAceite, comoAceite, loteGarantido } from "@/lib/ac
 import type { LoteForm } from "./EditorLotes";
 import { acabamentosEspeciais } from "@/lib/aceite/acabamento";
 import type { ReqCliente, ReqTecnicos } from "@/lib/orcamentos/types";
+import { PapelEspecificado } from "./PapelEspecificado";
 import { ProtocolosDoAceite } from "./ProtocolosDoAceite";
 import { MarcarComoArte } from "./MarcarComoArte";
 import { prisma } from "@/lib/db";
@@ -245,16 +246,7 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
                 .filter((x) => x.doOrcamento)
                 .map((x, n, l) => ({
                   label: l.length > 1 ? `Papel especificado ${n + 1}` : "Papel especificado",
-                  value: (
-                    <>
-                      {textoSuporte(x.doOrcamento!)} · código {x.doOrcamento!.codigo || "—"}
-                      {podeVendas && a.etapa === "VENDAS" && (
-                        <a href="#papel-utilizado" className="ml-2 whitespace-nowrap text-xs underline">
-                          usar outro papel ↓
-                        </a>
-                      )}
-                    </>
-                  ),
+                  value: <PapelEspecificado aceiteId={a.id} suporteId={x.id} valor={x.doOrcamento!} editavel={podeVendas && !a.lote && !["CONCLUIDO", "CANCELADO"].includes(base.etapa)} />,
                 })),
               // Conjugação definida pela Engenharia no orçamento: o que sai junto e o que sai sozinho (só com mais de um modelo).
               ...(modelos.length > 1
