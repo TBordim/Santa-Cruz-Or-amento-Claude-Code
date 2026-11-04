@@ -34,7 +34,7 @@ export function ResumoItens({ itens, capacidade, codigosCliente = {}, aceiteIdEd
                   <td className="px-3 py-2">
                     <span className="block text-foreground">{i.descricao || "Modelo sem descrição"}</span>
                     {i.codInterno && <span className="font-mono text-xs text-muted-foreground">{formatarCodigoInterno(i.codInterno)}</span>}
-                    <CodigoClienteInline modeloId={i.modeloId} codigo={codigosCliente[i.modeloId] ?? ""} aceiteId={aceiteIdEdicao} />
+                    <CodigoClienteInline modeloId={i.modeloId} codigo={codigosCliente[i.modeloId] ?? ""} aceiteId={aceiteIdEdicao} descricao={aceiteIdEdicao ? i.descricao : undefined} />
                   </td>
                   <td className="px-3 py-2 text-right font-mono">{fmtQuantidade(i.quantidade)}</td>
                   {comEstoque && <td className="px-3 py-2 text-right font-mono">{fmtQuantidade(i.emEstoque ?? 0)}</td>}

@@ -124,7 +124,13 @@ export function FormVendas({
             {aceite.itens.map((i) => (
               <div key={i.modeloId} className="grid grid-cols-[1fr_7.5rem] items-center gap-3 rounded-md border border-border px-3 py-1.5">
                 <span className="min-w-0 text-sm leading-tight">
-                  <span className="block break-words text-foreground">{i.descricao || "Modelo sem descrição"}</span>
+                  <textarea
+                    name={`nomeModelo_${i.modeloId}`}
+                    defaultValue={i.descricao}
+                    rows={2}
+                    aria-label="Nome do modelo (confira com a arte e a ordem de compra)"
+                    className="block w-full resize-y rounded-md border border-input bg-transparent px-2 py-1 text-sm leading-tight text-foreground"
+                  />
                   <span className="font-mono text-[11px] text-muted-foreground">{i.codInterno ? formatarCodigoInterno(i.codInterno) : "produto novo"}</span>
                   <span className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     Cód. cliente
