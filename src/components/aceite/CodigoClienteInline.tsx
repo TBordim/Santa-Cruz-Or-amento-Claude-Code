@@ -9,7 +9,7 @@ import type { FormState } from "@/lib/aceite/servidor";
 
 // Código do cliente na linha do produto (junto da descrição e do Nº de Cadastro). Com `aceiteId`, Vendas inclui ou
 // troca o código ali mesmo (o cliente pode mandar ou mudar depois do desfecho); sem ele, só mostra.
-export function CodigoClienteInline({ modeloId, codigo, aceiteId }: { modeloId: string; codigo: string; aceiteId?: string }) {
+export function CodigoClienteInline({ modeloId, codigo, aceiteId, descricao }: { modeloId: string; codigo: string; aceiteId?: string; descricao?: string }) {
   const [editando, setEditando] = useState(false);
   const [state, onSubmit, pending] = useFormActionSemReset(async (p: FormState, fd: FormData) => {
     const r = await salvarCodigoCliente(p, fd);
@@ -20,6 +20,15 @@ export function CodigoClienteInline({ modeloId, codigo, aceiteId }: { modeloId: 
     return (
       <form onSubmit={onSubmit} className="mt-1 flex flex-wrap items-center gap-1.5">
         <input type="hidden" name="id" value={aceiteId} />
+        {descricao !== undefined && (
+          <textarea
+            name={`nomeModelo_${modeloId}`}
+            defaultValue={descricao}
+            rows={2}
+            aria-label="Nome do modelo"
+            className="block w-full resize-y rounded-md border border-input bg-transparent px-2 py-1 text-sm leading-tight text-foreground"
+          />
+        )}
         <Input name={`codigoCliente_${modeloId}`} defaultValue={codigo} placeholder="Código do cliente" aria-label="Código do cliente" className="h-7 w-44 text-xs" autoFocus />
         <Button type="submit" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pending}>
           {pending ? "Salvando…" : "Salvar"}
@@ -36,7 +45,7 @@ export function CodigoClienteInline({ modeloId, codigo, aceiteId }: { modeloId: 
       Cód. cliente: <span className="font-mono text-foreground">{codigo || "—"}</span>
       {aceiteId && (
         <button type="button" className="ml-2 underline" onClick={() => setEditando(true)}>
-          {codigo ? "alterar" : "incluir"}
+          {descricao !== undefined ? "alterar nome / código" : codigo ? "alterar" : "incluir"}
         </button>
       )}
     </span>
