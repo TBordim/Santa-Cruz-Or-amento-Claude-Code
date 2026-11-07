@@ -73,9 +73,8 @@ export function LegadoForm() {
               <Input id="precoAtual" name="precoAtual" placeholder="Ex.: 1.234,56" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="dataTexto">Data do fornecimento (obrigatória)</Label>
-              <Input id="dataTexto" name="dataTexto" required placeholder="Ex.: 07/2025 ou 15/07/2025" />
-              <span className="text-xs text-muted-foreground">A data real do orçamento antigo, não a de hoje. Se não souber o dia, informe mês e ano.</span>
+              <Label htmlFor="dataTexto">Data do arquivo legado (obrigatória)</Label>
+              <Input id="dataTexto" name="dataTexto" required />
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

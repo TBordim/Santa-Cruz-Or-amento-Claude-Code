@@ -257,10 +257,10 @@ export async function historicoDoProduto(modelos: Modelo[], card: CardParaRastre
 // usa a data para saber o quanto aquele preço é antigo. Tem de ser uma data que o sistema entenda (para a
 // lista ficar na ordem certa) e que não seja futura. Devolve a mensagem de erro, ou null se está certa.
 export function erroNaDataDoLegado(texto: string | null | undefined, agora: Date = new Date()): string | null {
-  if (!(texto ?? "").trim()) return "Informe a data do fornecimento (a data real do orçamento antigo, não a de hoje).";
+  if (!(texto ?? "").trim()) return "Informe a data do arquivo legado.";
   const d = dataDoTexto(texto);
   if (!d) return "Não entendi a data. Use mês/ano (ex.: 07/2025) ou dia/mês/ano (ex.: 15/07/2025).";
-  if (d.getTime() > agora.getTime()) return "A data do fornecimento não pode ser no futuro.";
+  if (d.getTime() > agora.getTime()) return "A data do arquivo legado não pode ser no futuro.";
   return null;
 }
 
