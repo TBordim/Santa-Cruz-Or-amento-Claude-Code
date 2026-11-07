@@ -42,6 +42,7 @@ export type OrcamentoAnteriorRef = {
     origem: "NOVO" | "LEGADO";
     cliente: string | null;
     data: string; // ISO
+    dataTexto?: string | null; // legado: data real do fornecimento, como digitada no cadastro
     desfecho: string | null; // chave do desfecho (POSITIVO...), só nos orçamentos do fluxo
     medidas: string;
   };

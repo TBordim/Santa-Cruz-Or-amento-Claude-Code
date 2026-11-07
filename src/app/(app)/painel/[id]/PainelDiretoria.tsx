@@ -47,7 +47,7 @@ function ComparacaoAnteriorAtual({
   tier: PrecificacaoTier;
   anterior: { precoFinal: number | null; custoPrimarioPct: number | null; margemP2Pct: number | null; margemP1Pct: number | null; quantidade: string | null };
   // Só quando o anterior veio por MEDIDAS (card sem código): o que foi achado, pra conferir.
-  rastreio?: { id: string; origem: "NOVO" | "LEGADO"; cliente: string | null; data: string; desfecho: string | null; medidas: string };
+  rastreio?: { id: string; origem: "NOVO" | "LEGADO"; cliente: string | null; data: string; dataTexto?: string | null; desfecho: string | null; medidas: string };
 }) {
   const discrepancia = avaliarDiscrepanciaLegado([
     { label: "Custo primário (%)", anterior: anterior.custoPrimarioPct, atual: tier.custoPrimarioPct, pontos: true },
@@ -69,7 +69,7 @@ function ComparacaoAnteriorAtual({
       {rastreio && (
         <div className="border-b border-border bg-warn-soft px-3 py-2 text-xs text-warn">
           <strong>Comparado por medidas (este produto não tem código interno).</strong>{" "}
-          {rastreio.origem === "LEGADO" ? "Registro do Arquivo legado" : "Orçamento"} de {rastreio.cliente || "cliente sem nome"}, {fmtDate(rastreio.data)}
+          {rastreio.origem === "LEGADO" ? "Registro do Arquivo legado" : "Orçamento"} de {rastreio.cliente || "cliente sem nome"}, {rastreio.origem === "LEGADO" ? rastreio.dataTexto || "sem data informada" : fmtDate(rastreio.data)}
           {rastreio.desfecho ? ` — desfecho: ${desfechoInfo(rastreio.desfecho).label}` : ""}; medidas iguais: {rastreio.medidas}. Confira se é mesmo o mesmo produto.
           {rastreio.origem === "NOVO" && (
             <>
@@ -190,7 +190,10 @@ function HistoricoDoProduto({ historico, comparadoId }: { historico: HistoricoPr
           const sit = situacaoHistorico(h);
           return (
             <div key={h.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
-              <span className="font-mono text-xs text-muted-foreground">{fmtDate(h.data)}</span>
+              {/* Legado: a data real do fornecimento (digitada no cadastro), nunca a do dia em que foi lançado no app. */}
+              <span className="font-mono text-xs text-muted-foreground" title={h.origem === "LEGADO" && !h.dataTexto ? "O cadastro do legado não informa a data do fornecimento" : undefined}>
+                {h.origem === "LEGADO" ? h.dataTexto || "sem data" : fmtDate(h.data)}
+              </span>
               <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${sit.classe}`}>{sit.texto}</span>
               <span className="text-muted-foreground">
                 {h.quantidade ? `${h.quantidade} un.` : "—"} · {h.preco !== null ? fmtMoney(h.preco) : "sem preço"}
