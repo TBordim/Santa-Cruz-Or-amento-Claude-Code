@@ -5,7 +5,7 @@ import { erroNaMargem, numeroDoCampo, p1Gravado } from "@/lib/orcamentos/margem"
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { podeEditar } from "@/lib/permissions";
-import { chave } from "@/lib/orcamentos/legado";
+import { chave, erroNaDataDoLegado } from "@/lib/orcamentos/legado";
 import { desfechoLegadoValido } from "@/lib/orcamentos/constantes";
 import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
 import { salvarAnexoNoBlob, excluirAnexoDoBlob } from "@/lib/anexos/storage";
@@ -34,6 +34,9 @@ export async function criarLegado(_prev: FormState, formData: FormData): Promise
   // Obrigatório: a Diretoria precisa saber se aquele orçamento antigo virou pedido ou foi perdido.
   const desfecho = formData.get("desfecho");
   if (!desfechoLegadoValido(desfecho)) return { erro: "Informe o desfecho: o orçamento virou pedido, foi perdido ou o cliente não deu retorno?" };
+
+  const erroData = erroNaDataDoLegado(String(formData.get("dataTexto") ?? ""));
+  if (erroData) return { erro: erroData };
 
   // A Diretoria compara pelo Código interno OU, sem código, pelas medidas do mesmo cliente — então
   // basta um dos dois. Folha de orçamento que o cliente não aprovou não tem código.
@@ -97,6 +100,9 @@ export async function salvarDadosLegado(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const desfecho = formData.get("desfecho");
   if (!desfechoLegadoValido(desfecho)) throw new Error("Informe o desfecho deste registro (positivo, negativo ou sem retorno).");
+  const dataTexto = String(formData.get("dataTexto") ?? "").trim();
+  const erroData = erroNaDataDoLegado(dataTexto);
+  if (erroData) throw new Error(erroData);
   const precoAtual = parseValorBR(String(formData.get("precoAtual") ?? ""));
   const custoPrimarioPct = parseValorBR(String(formData.get("custoPrimarioPct") ?? ""));
   const margemP2Pct = parseValorBR(String(formData.get("margemP2Pct") ?? ""));
@@ -123,6 +129,7 @@ export async function salvarDadosLegado(formData: FormData) {
       margemP2Pct: Number.isNaN(margemP2Pct) ? null : margemP2Pct,
       quantidade: Number.isNaN(quantidade) ? null : quantidade,
       desfecho,
+      dataLegadoTexto: dataTexto,
       ...(codInternoForm ? { codInterno: codInternoForm } : {}),
       reqCliente: {
         ...((atual?.reqCliente as Record<string, unknown> | null) ?? {}),
