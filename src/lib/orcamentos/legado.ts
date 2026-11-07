@@ -115,6 +115,7 @@ export type CandidatoMedidas = {
   quantidade: unknown;
   custoPrimarioPct: unknown;
   margemP2Pct: unknown;
+  dataLegadoTexto?: string | null;
   criadoEm: Date;
 };
 
@@ -164,7 +165,7 @@ export function escolherPorMedidas(
     margemP2Pct: l.margemP2Pct ? Number(l.margemP2Pct) : null,
     margemP1Pct: p1DoReqCliente(l.reqCliente),
     via: "medidas",
-    rastreio: { origem: "LEGADO", cliente: l.cliente, data: l.criadoEm.toISOString(), desfecho: l.desfecho, medidas: textoMedidas(medidasDoReq(l.reqCliente)) },
+    rastreio: { origem: "LEGADO", cliente: l.cliente, data: l.criadoEm.toISOString(), dataTexto: l.dataLegadoTexto?.trim() || null, desfecho: l.desfecho, medidas: textoMedidas(medidasDoReq(l.reqCliente)) },
   };
 }
 
@@ -199,7 +200,10 @@ export async function legadosDoCliente(clienteNome: string) {
 export type HistoricoProduto = {
   id: string;
   origem: "NOVO" | "LEGADO";
-  data: string; // ISO
+  data: string; // ISO (no legado, a data de cadastro no app; serve só de desempate)
+  // Arquivo legado: a data REAL do fornecimento, como foi digitada no cadastro ("07/2025", "meados de 2025").
+  // A data de cadastro no app não conta: é a do dia em que o registro foi lançado (28/10/2026).
+  dataTexto?: string | null;
   quantidade: string | null;
   preco: number | null;
   // Chave do desfecho (POSITIVO, NEGATIVO, SEM_RETORNO, AGUARDANDO) ou null quando ainda não chegou à oferta.
@@ -241,7 +245,28 @@ export async function historicoDoProduto(modelos: Modelo[], card: CardParaRastre
     });
   }
   for (const l of legado) {
-    itens.push({ id: l.id, origem: "LEGADO", data: l.criadoEm.toISOString(), quantidade: l.quantidade ? String(l.quantidade) : null, preco: l.precoAtual ? Number(l.precoAtual) : null, desfecho: l.desfecho ?? null, etapa: null });
+    const dataTexto = l.dataLegadoTexto?.trim() || null;
+    // Para ordenar, vale a data real quando dá para entendê-la; senão, a de cadastro.
+    const real = dataDoTexto(dataTexto);
+    itens.push({ id: l.id, origem: "LEGADO", data: (real ?? l.criadoEm).toISOString(), dataTexto, quantidade: l.quantidade ? String(l.quantidade) : null, preco: l.precoAtual ? Number(l.precoAtual) : null, desfecho: l.desfecho ?? null, etapa: null });
   }
   return itens.sort((a, b) => (a.data < b.data ? 1 : -1)).slice(0, limite);
+}
+
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+// Entende a data digitada no cadastro do legado só para ordenar: "dd/mm/aaaa", "mm/aaaa", "mm/aa", "jul/25",
+// "julho de 2025" ou só o ano ("meados de 2025" → julho). Não entendeu: null.
+export function dataDoTexto(texto: string | null | undefined): Date | null {
+  const t = (texto ?? "").trim().toLowerCase();
+  if (!t) return null;
+  const ano = (s: string) => (s.length === 2 ? 2000 + Number(s) : Number(s));
+  let m = t.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})\b/);
+  if (m) return new Date(Date.UTC(ano(m[3]), Number(m[2]) - 1, Number(m[1])));
+  m = t.match(/\b(\d{1,2})\/(\d{4}|\d{2})\b/);
+  if (m && Number(m[1]) >= 1 && Number(m[1]) <= 12) return new Date(Date.UTC(ano(m[2]), Number(m[1]) - 1, 1));
+  m = t.match(/\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*[\s./-]*(?:de\s+)?(\d{4}|\d{2})\b/);
+  if (m) return new Date(Date.UTC(ano(m[2]), MESES.indexOf(m[1]), 1));
+  m = t.match(/\b(20\d{2})\b/);
+  return m ? new Date(Date.UTC(Number(m[1]), t.includes("meados") ? 6 : 0, 1)) : null;
 }
