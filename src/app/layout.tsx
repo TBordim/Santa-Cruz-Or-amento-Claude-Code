@@ -39,6 +39,7 @@ export const metadata: Metadata = {
     icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+  other: { google: "notranslate" },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -56,7 +57,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    // translate="no": o Chrome tomava "Aceite" por espanhol e traduzia a página sozinho ("Confirmar o Aceite"
+    // virava "Confirme ou Óleo"). O sistema é todo em português, não há o que traduzir.
+    <html lang="pt-BR" translate="no" className="notranslate" suppressHydrationWarning>
       <body
         className={`${ibmPlexSans.variable} ${ibmPlexSansCondensed.variable} ${ibmPlexMono.variable} ${fraunces.variable} antialiased`}
       >
