@@ -253,6 +253,17 @@ export async function historicoDoProduto(modelos: Modelo[], card: CardParaRastre
   return itens.sort((a, b) => (a.data < b.data ? 1 : -1)).slice(0, limite);
 }
 
+// A data do fornecimento é obrigatória no cadastro do legado (pedido do Thiago em 07/11/2026): a Diretoria
+// usa a data para saber o quanto aquele preço é antigo. Tem de ser uma data que o sistema entenda (para a
+// lista ficar na ordem certa) e que não seja futura. Devolve a mensagem de erro, ou null se está certa.
+export function erroNaDataDoLegado(texto: string | null | undefined, agora: Date = new Date()): string | null {
+  if (!(texto ?? "").trim()) return "Informe a data do fornecimento (a data real do orçamento antigo, não a de hoje).";
+  const d = dataDoTexto(texto);
+  if (!d) return "Não entendi a data. Use mês/ano (ex.: 07/2025) ou dia/mês/ano (ex.: 15/07/2025).";
+  if (d.getTime() > agora.getTime()) return "A data do fornecimento não pode ser no futuro.";
+  return null;
+}
+
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 // Entende a data digitada no cadastro do legado só para ordenar: "dd/mm/aaaa", "mm/aaaa", "mm/aa", "jul/25",

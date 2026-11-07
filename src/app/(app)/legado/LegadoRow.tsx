@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { CamposMargem } from "@/components/orcamento/CamposMargem";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { salvarDadosLegado, excluirLegado } from "./actions";
-import { fmtMoney, fmtDate, DESFECHOS_LEGADO } from "@/lib/orcamentos/constantes";
+import { fmtMoney, DESFECHOS_LEGADO } from "@/lib/orcamentos/constantes";
 import { paraCampoBR } from "@/lib/orcamentos/motor";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import { TableRow, TableCell } from "@/components/ui/table";
@@ -90,7 +90,9 @@ export function LegadoRow({ legado }: { legado: Legado }) {
             <Badge variant="secondary" className="border-0 bg-warn-soft text-warn">Informar</Badge>
           )}
         </TableCell>
-        <TableCell className="text-muted-foreground">{legado.dataLegadoTexto || fmtDate(legado.criadoEm)}</TableCell>
+        <TableCell className="text-muted-foreground">
+          {legado.dataLegadoTexto || <Badge variant="secondary" className="border-0 bg-warn-soft text-warn">Informar</Badge>}
+        </TableCell>
         <TableCell>
           <div className="flex justify-end gap-1">
             <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={() => setAberto(!aberto)}>
@@ -153,6 +155,11 @@ export function LegadoRow({ legado }: { legado: Legado }) {
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor={`quantidade-${legado.id}`}>Quantidade</Label>
                     <Input id={`quantidade-${legado.id}`} name="quantidade" defaultValue={paraCampoBR(legado.quantidade)} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor={`dataTexto-${legado.id}`}>Data do fornecimento (obrigatória)</Label>
+                    <Input id={`dataTexto-${legado.id}`} name="dataTexto" required defaultValue={legado.dataLegadoTexto ?? ""} placeholder="Ex.: 07/2025 ou 15/07/2025" />
+                    {!legado.dataLegadoTexto && <span className="text-xs text-warn">Este registro está sem data: informe quando foi o fornecimento (a data real, não a de hoje).</span>}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
