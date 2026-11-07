@@ -191,7 +191,7 @@ function HistoricoDoProduto({ historico, comparadoId }: { historico: HistoricoPr
           return (
             <div key={h.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
               {/* Legado: a data real do fornecimento (digitada no cadastro), nunca a do dia em que foi lançado no app. */}
-              <span className="font-mono text-xs text-muted-foreground" title={h.origem === "LEGADO" && !h.dataTexto ? "O cadastro do legado não informa a data do fornecimento" : undefined}>
+              <span className="font-mono text-xs text-muted-foreground" title={h.origem === "LEGADO" && !h.dataTexto ? "O cadastro do legado não informa a data" : undefined}>
                 {h.origem === "LEGADO" ? h.dataTexto || "sem data" : fmtDate(h.data)}
               </span>
               <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${sit.classe}`}>{sit.texto}</span>

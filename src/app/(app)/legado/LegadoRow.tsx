@@ -157,9 +157,8 @@ export function LegadoRow({ legado }: { legado: Legado }) {
                     <Input id={`quantidade-${legado.id}`} name="quantidade" defaultValue={paraCampoBR(legado.quantidade)} />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor={`dataTexto-${legado.id}`}>Data do fornecimento (obrigatória)</Label>
-                    <Input id={`dataTexto-${legado.id}`} name="dataTexto" required defaultValue={legado.dataLegadoTexto ?? ""} placeholder="Ex.: 07/2025 ou 15/07/2025" />
-                    {!legado.dataLegadoTexto && <span className="text-xs text-warn">Este registro está sem data: informe quando foi o fornecimento (a data real, não a de hoje).</span>}
+                    <Label htmlFor={`dataTexto-${legado.id}`}>Data do arquivo legado (obrigatória)</Label>
+                    <Input id={`dataTexto-${legado.id}`} name="dataTexto" required defaultValue={legado.dataLegadoTexto ?? ""} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
