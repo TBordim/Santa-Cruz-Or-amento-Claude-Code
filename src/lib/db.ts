@@ -36,13 +36,21 @@ function createPrismaClient() {
         },
         async update({ args, query }) {
           const nova = typeof args.data.etapa === "string" ? args.data.etapa : (args.data.etapa as { set?: string } | undefined)?.set;
-          if (!nova) return query(args);
-          const atual = await base.orcamento.findUnique({ where: args.where, select: { etapa: true, reqTecnicos: true } });
-          if (!atual || atual.etapa === nova) return query(args);
-          // Se a própria ação já está gravando reqTecnicos, parte dele; senão, do que está no banco.
           const doForm = args.data.reqTecnicos;
-          const parte = doForm && typeof doForm === "object" && !("set" in (doForm as object)) ? doForm : atual.reqTecnicos;
-          args.data.reqTecnicos = (await registrarEntradaNaEtapa((parte ?? {}) as Record<string, unknown>, atual.etapa, nova)) as never;
+          const gravaReq = !!doForm && typeof doForm === "object" && Object.getPrototypeOf(doForm) === Object.prototype && !("set" in (doForm as object));
+          if (!nova && !gravaReq) return query(args);
+          const atual = await base.orcamento.findUnique({ where: args.where, select: { etapa: true, reqTecnicos: true } });
+          if (!atual) return query(args);
+          const mudouEtapa = !!nova && atual.etapa !== nova;
+          if (!mudouEtapa && !gravaReq) return query(args);
+          // Se a própria ação já está gravando reqTecnicos, parte dele; senão, do que está no banco.
+          let rt = { ...(((gravaReq ? doForm : atual.reqTecnicos) ?? {}) as Record<string, unknown>) };
+          // O histórico só cresce: uma ação que monta o reqTecnicos de outra cópia do card (mais antiga) não pode
+          // apagar passagens já registradas. Vale o do banco quando o que veio é mais curto.
+          const noBanco = ((atual.reqTecnicos ?? {}) as Record<string, unknown>).historicoEtapas;
+          if (Array.isArray(noBanco) && (!Array.isArray(rt.historicoEtapas) || rt.historicoEtapas.length < noBanco.length)) rt.historicoEtapas = noBanco;
+          if (mudouEtapa) rt = await registrarEntradaNaEtapa(rt, atual.etapa, nova!);
+          args.data.reqTecnicos = rt as never;
           return query(args);
         },
       },
