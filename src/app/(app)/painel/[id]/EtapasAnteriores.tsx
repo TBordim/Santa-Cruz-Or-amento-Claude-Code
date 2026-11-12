@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { margemBruta } from "@/lib/orcamentos/margem";
-import { montagensDoPedido } from "@/lib/orcamentos/conjugacao";
+import { montagensDoPedido, resumoDosLotes } from "@/lib/orcamentos/conjugacao";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
 import type { ReqCliente, ReqTecnicos, PrecificacaoTier, SuporteTecnico } from "@/lib/orcamentos/types";
 import { ETAPAS, classificacaoLabel, fmtMoney, fmtDateTime, desfechoInfo } from "@/lib/orcamentos/constantes";
@@ -236,6 +236,8 @@ export function EtapasAnteriores({ doc }: { doc: OrcamentoComAnexos }) {
                       label: "Montagens (ordem de produção)",
                       value: (montagensDoPedido(modelos) ?? []).map((g) => `${g.numero} (${g.modelos.join(" + ")})`).join(" · ") || undefined,
                     },
+                    // Entrega em mais de um lote (mesma SO): a quantidade e a conjugação de cada lote.
+                    ...resumoDosLotes(modelos, doc.reqCliente as ReqCliente | null).map((l) => ({ label: `Lote ${l.lote}`, value: l.texto })),
                   ],
                 },
               ]

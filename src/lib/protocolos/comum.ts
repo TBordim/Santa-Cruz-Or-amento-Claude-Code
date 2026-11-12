@@ -81,13 +81,15 @@ export function sugerirProtocolos(
 // Salvar o card refaz a lista de modelos a partir do formulário, que não leva o protocolo. Esta
 // função devolve o vínculo (protocolo e revisão) aos modelos que já tinham, pelo id. Sem isso, salvar
 // o orçamento apagaria o protocolo que Vendas acabou de ligar.
-type ComProtocolo = { id: string; protocoloId?: string; protocoloNumero?: string; protocoloRevisao?: number; protocoloData?: string; conjugacao?: number };
+type ComProtocolo = { id: string; protocoloId?: string; protocoloNumero?: string; protocoloRevisao?: number; protocoloData?: string; conjugacao?: number; partes?: unknown };
 export function mesclarProtocolos<T extends ComProtocolo>(novos: T[], antigos: ComProtocolo[]): T[] {
   return novos.map((m) => {
     const antigo = antigos.find((a) => a.id && a.id === m.id);
     if (!antigo) return m;
     // A conjugação é da Engenharia (a Solicitação não a leva no formulário): também precisa sobreviver ao salvar.
-    const comConjugacao = antigo.conjugacao !== undefined ? { ...m, conjugacao: antigo.conjugacao } : m;
+    // A divisão em lotes (partes) também é da Engenharia.
+    const comPartes = antigo.partes !== undefined ? { ...m, partes: antigo.partes } : m;
+    const comConjugacao = antigo.conjugacao !== undefined ? { ...comPartes, conjugacao: antigo.conjugacao } : comPartes;
     if (!antigo.protocoloId) return comConjugacao;
     return { ...comConjugacao, protocoloId: antigo.protocoloId, protocoloNumero: antigo.protocoloNumero, protocoloRevisao: antigo.protocoloRevisao, protocoloData: antigo.protocoloData };
   });

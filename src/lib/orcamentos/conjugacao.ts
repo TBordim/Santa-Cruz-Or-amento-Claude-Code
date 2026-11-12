@@ -1,4 +1,4 @@
-import type { Modelo, ReqCliente } from "./types";
+import type { Modelo, ParteDoItem, ReqCliente } from "./types";
 
 // Quantidades por item e conjugação da montagem. Sem acesso ao banco.
 //
@@ -66,6 +66,100 @@ export function erroNaConjugacao(modelos: Modelo[]): string | null {
   const falta = usados.findIndex((n, k) => n !== k + 1);
   if (falta >= 0) return `Os números de montagem precisam ser sequenciais, sem pular (1, 2, 3...). Hoje: ${usados.join(", ")}.`;
   return null;
+}
+
+// ---------- divisão em lotes (12/11/2026) ----------
+//
+// O pedido pode sair em mais de uma entrega (lote), na mesma SO. Cada lote tem a própria conjugação. Ex.: itens
+// de 200 mil, 122 mil e 60 mil → lote 1: 60 mil do item 1 + 60 mil do item 3 (montagem 1) e 22 mil do item 2
+// (montagem 2); lote 2: o resto (140 mil e 100 mil), sem conjugação. Item sem divisão vai inteiro no lote 1.
+
+// Quantidade total de cada modelo, quando a Solicitação tem uma só quantidade e a separou por modelo.
+export function totaisPorModelo(c: ReqCliente | null | undefined, modelos: Modelo[]): (number | null)[] | null {
+  const opcoes = quantidadesPorItem(c, modelos);
+  if (opcoes.length !== 1 || !opcoes[0].separada) return null;
+  return opcoes[0].porModelo.map((q) => (q === null ? null : Number(digitos(q)) || null));
+}
+
+// Lê as partes de um item do formulário (JSON); vazio ou inválido → undefined (sem divisão).
+export function lerPartes(bruto: unknown): ParteDoItem[] | undefined {
+  try {
+    const j = JSON.parse(String(bruto ?? ""));
+    if (!Array.isArray(j)) return undefined;
+    const partes = j
+      .map((p) => ({ lote: Math.trunc(Number(p?.lote)), quantidade: Math.trunc(Number(p?.quantidade)), conjugacao: Math.trunc(Number(p?.conjugacao ?? 0)) }))
+      .filter((p) => p.lote >= 1 && p.quantidade > 0 && p.conjugacao >= 0);
+    return partes.length ? partes : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// Com divisão, a conjugação do modelo (a que o Aceite lê) é a do lote 1; sem parte no lote 1, a da primeira parte.
+export function conjugacaoDasPartes(partes: ParteDoItem[]): number {
+  return (partes.find((p) => p.lote === 1) ?? [...partes].sort((a, b) => a.lote - b.lote)[0]).conjugacao;
+}
+
+export function temDivisao(modelos: Modelo[]): boolean {
+  return modelos.some((m) => m.partes?.length);
+}
+
+// Partes de cada modelo por lote: modelo sem divisão entra inteiro no lote 1 (quantidade null = o total).
+function porLote(modelos: Modelo[]): Map<number, { i: number; quantidade: number | null; conjugacao: number | null }[]> {
+  const mapa = new Map<number, { i: number; quantidade: number | null; conjugacao: number | null }[]>();
+  modelos.forEach((m, i) => {
+    const partes = m.partes?.length ? m.partes : [{ lote: 1, quantidade: null as number | null, conjugacao: m.conjugacao ?? null }];
+    for (const p of partes) mapa.set(p.lote, [...(mapa.get(p.lote) ?? []), { i, quantidade: p.quantidade, conjugacao: p.conjugacao }]);
+  });
+  return mapa;
+}
+
+// Mensagem de erro, ou null. Cada lote segue a regra da conjugação: todos 0 = sem conjugação; havendo conjugação,
+// ninguém fica com 0 e os números vão em sequência (1, 2, 3…), sem pular. Os lotes numeram em sequência (1, 2…) e a
+// soma de cada item bate com a quantidade dele.
+export function erroNasPartes(modelos: Modelo[], totais: (number | null)[] | null): string | null {
+  if (!temDivisao(modelos)) return null;
+  if (!totais) return "Para dividir em lotes, a Solicitação precisa ter uma só quantidade, separada por item.";
+  const nome = (i: number) => modelos[i].descricao || `Modelo ${i + 1}`;
+  const fmt = (n: number) => n.toLocaleString("pt-BR");
+  for (const [i, m] of modelos.entries()) {
+    if (!m.partes?.length) continue;
+    const soma = m.partes.reduce((s, p) => s + p.quantidade, 0);
+    const total = totais[i] ?? 0;
+    if (soma < total) return `${nome(i)}: faltam ${fmt(total - soma)} para fechar ${fmt(total)} (os lotes somam ${fmt(soma)}).`;
+    if (soma > total) return `${nome(i)}: os lotes passam ${fmt(soma - total)} de ${fmt(total)} (somam ${fmt(soma)}).`;
+    const lotes = m.partes.map((p) => p.lote);
+    if (new Set(lotes).size !== lotes.length) return `${nome(i)}: o mesmo lote aparece duas vezes.`;
+  }
+  const mapa = porLote(modelos);
+  const numeros = [...mapa.keys()].sort((a, b) => a - b);
+  const falta = numeros.findIndex((n, k) => n !== k + 1);
+  if (falta >= 0) return `Os lotes precisam ser numerados em sequência, sem pular (1, 2, 3…). Hoje: ${numeros.join(", ")}.`;
+  for (const n of numeros) {
+    const itens = mapa.get(n)!;
+    if (itens.some((x) => x.conjugacao === null)) return `Lote ${n}: informe a conjugação de cada item.`;
+    const conj = itens.map((x) => x.conjugacao!);
+    if (conj.every((c) => c === 0)) continue;
+    if (conj.some((c) => c === 0)) return `Lote ${n}: como há conjugação, todos os itens do lote precisam de número de montagem em sequência (0 só se nenhum conjuga).`;
+    const usados = [...new Set(conj)].sort((a, b) => a - b);
+    if (usados.findIndex((u, k) => u !== k + 1) >= 0) return `Lote ${n}: os números de montagem precisam ser sequenciais, sem pular (1, 2, 3…). Hoje: ${usados.join(", ")}.`;
+  }
+  return null;
+}
+
+// Resumo por lote, para as telas: "Lote 1: Farol 60.000 (montagem 1) · Isababy 22.000 (montagem 2)".
+export function resumoDosLotes(modelos: Modelo[], c?: ReqCliente | null): { lote: number; texto: string }[] {
+  const totais = c ? totaisPorModelo(c, modelos) : null;
+  if (!temDivisao(modelos)) return [];
+  const fmt = (n: number) => n.toLocaleString("pt-BR");
+  return [...porLote(modelos)]
+    .sort((a, b) => a[0] - b[0])
+    .map(([lote, itens]) => ({
+      lote,
+      texto: itens
+        .map((x) => `${modelos[x.i].descricao || `Modelo ${x.i + 1}`}${(x.quantidade ?? totais?.[x.i]) ? ` ${fmt((x.quantidade ?? totais?.[x.i])!)}` : ""} (${x.conjugacao ? `montagem ${x.conjugacao}` : "sem conjugação"})`)
+        .join(" · "),
+    }));
 }
 
 // Grupos formados, para mostrar: [{ numero: 1, modelos: ["Uva", "Abacaxi"] }]. Os com 0 ficam à parte.

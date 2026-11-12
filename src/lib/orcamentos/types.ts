@@ -54,7 +54,13 @@ export type Modelo = {
   // Conjugação da montagem, definida na Engenharia (27/10/2026): 0 = produzido sozinho; o mesmo número
   // em dois ou mais modelos = produzidos juntos. Ausente com um modelo só e nos orçamentos de antes.
   conjugacao?: number;
+  // Divisão do item em lotes (entregas) com conjugação própria em cada um (12/11/2026). Ausente = o item
+  // inteiro vai no lote 1. Com divisão, `conjugacao` passa a ser a do lote 1 (ver conjugacao.ts).
+  partes?: ParteDoItem[];
 };
+
+// Parte de um item num lote: quantidade e número de montagem (conjugação) daquele lote. Mesma SO.
+export type ParteDoItem = { lote: number; quantidade: number; conjugacao: number };
 
 // Etapa 1 — Solicitação de Orçamento (Em Aberto). Medidas/suportes/acabamento/verniz/
 // plástico/embalagem/impressão/fechamento são decisão de quem pede o orçamento, não da

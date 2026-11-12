@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { prazoDoOrcamento, COM_QUEM_CONTATO, PRAZO_VALIDADE_DIAS } from "@/lib/orcamentos/prazo";
 import { erroNaMargem, numeroDoCampo, p1Gravado, LIMITE_P1 } from "@/lib/orcamentos/margem";
 import { guardarOferta, renegociacaoAberta, renegociacoesDe } from "@/lib/orcamentos/renegociacao";
-import { erroNaConjugacao, lerConjugacao } from "@/lib/orcamentos/conjugacao";
+import { conjugacaoDasPartes, erroNaConjugacao, erroNasPartes, lerConjugacao, lerPartes, temDivisao, totaisPorModelo } from "@/lib/orcamentos/conjugacao";
 import { comObservacaoDiretoria } from "@/lib/orcamentos/observacao";
 import { comAlteracaoDeComissao, comissaoDoForm } from "@/lib/orcamentos/comissao";
 import { precisaDeMotivo } from "@/lib/orcamentos/discrepancia";
@@ -113,10 +113,15 @@ function modelosComCodigosDoForm(doc: Parameters<typeof modelosDoDoc>[0], formDa
   return lista.map((m) => {
     // Conjugação (só com mais de um modelo): campo em branco ou inválido mantém o que já estava.
     const conj = lista.length > 1 ? lerConjugacao(formData.get(`conjugacao_${m.id}`), lista.length) : undefined;
+    // Divisão em lotes: o campo existe (mesmo vazio) quando a tela permite dividir; vazio desfaz a divisão. Com
+    // divisão, a conjugação do modelo é a do lote 1 (é a que o Aceite lê).
+    const temCampoPartes = formData.has(`partes_${m.id}`);
+    const partes = temCampoPartes ? lerPartes(formData.get(`partes_${m.id}`)) : m.partes;
+    const { partes: _antigas, ...semPartes } = m;
     return {
-      ...m,
+      ...semPartes,
       codInterno: normalizarCodigoInterno(String(formData.get(`codInterno_${m.id}`) ?? "")) || m.codInterno,
-      ...(conj !== undefined ? { conjugacao: conj } : {}),
+      ...(partes?.length ? { partes, conjugacao: conjugacaoDasPartes(partes) } : conj !== undefined ? { conjugacao: conj } : {}),
     };
   });
 }
@@ -156,7 +161,10 @@ export async function avancarOrcamento(_prev: FormState, formData: FormData): Pr
   // já deveria ter vindo da Solicitação (é por ele que a Diretoria casa com o histórico). Com
   // vários modelos, a regra vale pra cada um.
   const modelos = modelosComCodigosDoForm(doc, formData);
-  const erroModelos = erroNosModelos(modelos) ?? erroNaConjugacao(modelos);
+  // Com divisão em lotes, vale a regra por lote (cada lote tem a sua conjugação); sem divisão, a de sempre.
+  const erroModelos =
+    erroNosModelos(modelos) ??
+    (temDivisao(modelos) ? erroNasPartes(modelos, totaisPorModelo(doc.reqCliente as ReqCliente | null, modelos)) : erroNaConjugacao(modelos));
   if (erroModelos) return { erro: erroModelos };
 
   const reqTecnicos = lerReqTecnicos(formData, doc.reqTecnicos as ReqTecnicos | null);
