@@ -12,6 +12,7 @@ export type PassoDoCard = {
   em: number; // quando recebeu o card (epoch ms)
   por: string | null;
   saiuEm: number | null; // quando passou para a etapa seguinte; null = é a etapa atual
+  saiuPor: string | null; // quem passou o card para a etapa seguinte
   duracaoMs: number; // tempo nela (até agora, se for a atual)
   aproximado: boolean; // hora vinda de outro registro do card, não do histórico de etapas
 };
@@ -29,29 +30,44 @@ export function entradasDoCard(doc: Pick<DocParaHistorico, "reqTecnicos">): Entr
   return Array.isArray(lista) ? lista.filter((e) => e && typeof e.etapa === "string" && typeof e.em === "number") : [];
 }
 
+// Todas as passagens do card, na ordem em que aconteceram. Cada entrada do histórico é uma passagem: se o
+// card volta (ex.: a Diretoria devolve ao Orçamento), a passagem anterior continua registrada e a volta
+// entra como passagem nova, com a própria hora. Nada é sobrescrito (pedido do Thiago em 12/11/2026: o
+// tempo antes da volta não pode sumir, senão o card parece ter andado mais rápido do que andou).
 export function linhaDoTempo(doc: DocParaHistorico, agora: number = Date.now()): PassoDoCard[] {
-  const reais = entradasDoCard(doc);
-  const mapa = new Map<string, { em: number; por: string | null; aproximado: boolean }>();
+  const entradas: { etapa: string; em: number; por: string | null; aproximado: boolean }[] = entradasDoCard(doc).map((e) => ({
+    etapa: e.etapa,
+    em: e.em,
+    por: e.por ?? null,
+    aproximado: false,
+  }));
   // Toda solicitação nasce na primeira etapa: a hora de criação é conhecida.
-  mapa.set("ABERTO", { em: doc.criadoEm.getTime(), por: null, aproximado: false });
-  // Horas soltas de cards anteriores ao histórico: só preenchem etapa que o histórico não tem.
-  if (doc.vistoEngenhariaEm) mapa.set("ORCAMENTO", { em: doc.vistoEngenhariaEm.getTime(), por: null, aproximado: true });
-  if (doc.finalizadoEm) mapa.set("FINALIZADO", { em: doc.finalizadoEm.getTime(), por: null, aproximado: true });
-  const jaTemReal = new Set<string>();
-  for (const e of reais) {
-    // A passagem mais recente por cada etapa vale (o card pode voltar e passar de novo).
-    mapa.set(e.etapa, { em: e.em, por: e.por ?? null, aproximado: false });
-    jaTemReal.add(e.etapa);
-  }
-  const passos = [...mapa].map(([etapa, v]) => ({ etapa, ...v })).sort((a, b) => a.em - b.em);
-  // Só segue pela etapa atual: o que veio depois dela (card que voltou) não é mais verdade.
+  if (!entradas.some((e) => e.etapa === "ABERTO")) entradas.push({ etapa: "ABERTO", em: doc.criadoEm.getTime(), por: null, aproximado: false });
+  // Horas soltas de cards anteriores ao histórico: só preenchem a etapa que o histórico não tem.
+  if (doc.vistoEngenhariaEm && !entradas.some((e) => e.etapa === "ORCAMENTO")) entradas.push({ etapa: "ORCAMENTO", em: doc.vistoEngenhariaEm.getTime(), por: null, aproximado: true });
+  if (doc.finalizadoEm && !entradas.some((e) => e.etapa === "FINALIZADO")) entradas.push({ etapa: "FINALIZADO", em: doc.finalizadoEm.getTime(), por: null, aproximado: true });
+  // sort estável: duas entradas na mesma hora ficam na ordem em que foram gravadas.
+  const passos = entradas.sort((a, b) => a.em - b.em);
+  // Só segue até a etapa atual: horas soltas de depois dela (card de antes do histórico que voltou) não valem.
   const idxAtual = doc.etapa ? passos.map((p) => p.etapa).lastIndexOf(doc.etapa) : -1;
   const validos = idxAtual >= 0 ? passos.slice(0, idxAtual + 1) : passos;
   return validos.map((p, i) => {
     const prox = validos[i + 1];
     const saiuEm = prox ? prox.em : null;
-    return { etapa: p.etapa, em: p.em, por: p.por, saiuEm, duracaoMs: Math.max(0, (saiuEm ?? agora) - p.em), aproximado: p.aproximado };
+    return { etapa: p.etapa, em: p.em, por: p.por, saiuEm, saiuPor: prox?.por ?? null, duracaoMs: Math.max(0, (saiuEm ?? agora) - p.em), aproximado: p.aproximado };
   });
+}
+
+// Tempo somado por etapa, com o número de passagens (etapa em que o card esteve mais de uma vez).
+export function totaisPorEtapa(passos: PassoDoCard[]): { etapa: string; passagens: number; totalMs: number }[] {
+  const mapa = new Map<string, { passagens: number; totalMs: number }>();
+  for (const p of passos) {
+    const a = mapa.get(p.etapa) ?? { passagens: 0, totalMs: 0 };
+    a.passagens += 1;
+    a.totalMs += p.duracaoMs;
+    mapa.set(p.etapa, a);
+  }
+  return [...mapa].map(([etapa, v]) => ({ etapa, ...v }));
 }
 
 // "35 min", "3 h 20 min", "2 d 4 h".
