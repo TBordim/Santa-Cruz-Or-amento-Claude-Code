@@ -1,11 +1,12 @@
 "use client";
 
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
-import { montagensDoPedido, quantidadesPorItem } from "@/lib/orcamentos/conjugacao";
+import { useState } from "react";
+import { montagensDoPedido, quantidadesPorItem, totaisPorModelo } from "@/lib/orcamentos/conjugacao";
 import { AnexoUpload } from "@/components/anexos/AnexoUpload";
 import { salvarRequisitos, avancarOrcamento } from "../actions";
 import type { OrcamentoComAnexos } from "@/lib/orcamentos/doc-type";
-import type { ReqCliente, ReqTecnicos, SuporteTecnico } from "@/lib/orcamentos/types";
+import type { ParteDoItem, ReqCliente, ReqTecnicos, SuporteTecnico } from "@/lib/orcamentos/types";
 import { OPCOES_ANEXOS_ENGENHARIA, classificacaoLabel } from "@/lib/orcamentos/constantes";
 import { modelosDoDoc, ehRepeticao, usoDoMaterial, textoMaterial } from "@/lib/orcamentos/modelos";
 import { FormSection, Field, Row2, ResumoBox, DiretrizBlock, AcoesBar } from "@/components/form-section";
@@ -25,12 +26,64 @@ import { PreMontagem } from "@/components/orcamento/PreMontagem";
 // Quantidade de cada item (modelo) e, com mais de um, a conjugação da montagem. Pedido do Thiago em
 // 27/10/2026: a Engenharia precisa ver a quantidade por item (como foi separada na Solicitação) e dizer
 // quais modelos são produzidos juntos: 0 = sozinho; o mesmo número em dois modelos = produzidos juntos.
+// Divisão de um item em lotes (entregas), cada um com a própria conjugação, na mesma SO. Pedido do Thiago em
+// 12/11/2026. Os campos vão no form da Engenharia em `partes_<id do modelo>` (JSON; vazio = sem divisão).
+type LinhaParte = { lote: string; quantidade: string; conjugacao: string };
+
+const linhasDasPartes = (partes: ParteDoItem[] | undefined): LinhaParte[] | null =>
+  partes?.length ? partes.map((p) => ({ lote: String(p.lote), quantidade: p.quantidade.toLocaleString("pt-BR"), conjugacao: String(p.conjugacao) })) : null;
+
+function DivisaoEmLotes({ modeloId, total, linhas, setLinhas }: { modeloId: string; total: number; linhas: LinhaParte[] | null; setLinhas: (f: LinhaParte[] | null | ((ls: LinhaParte[] | null) => LinhaParte[] | null)) => void }) {
+  const num = (v: string) => Number(v.replace(/\D/g, "")) || 0;
+  const soma = (linhas ?? []).reduce((s, l) => s + num(l.quantidade), 0);
+  const resta = total - soma;
+  const muda = (i: number, campo: keyof LinhaParte, v: string) => setLinhas((ls) => (ls ?? []).map((l, k) => (k === i ? { ...l, [campo]: v } : l)));
+  const json = linhas ? JSON.stringify(linhas.map((l) => ({ lote: num(l.lote), quantidade: num(l.quantidade), conjugacao: num(l.conjugacao) }))) : "";
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <input type="hidden" name={`partes_${modeloId}`} value={json} form="form-engenharia" />
+      {!linhas ? (
+        <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => setLinhas([{ lote: "1", quantidade: "", conjugacao: "0" }, { lote: "2", quantidade: "", conjugacao: "0" }])}>
+          Dividir em lotes
+        </Button>
+      ) : (
+        <>
+          <div className="grid grid-cols-[4rem_1fr_5rem_auto] items-center gap-2 text-xs text-muted-foreground">
+            <span>Lote</span><span>Quantidade</span><span>Conjugação</span><span />
+            {linhas.map((l, i) => (
+              <div key={i} className="contents">
+                <Input value={l.lote} onChange={(e) => muda(i, "lote", e.target.value)} inputMode="numeric" className="h-8" aria-label={`Lote da parte ${i + 1}`} />
+                <Input value={l.quantidade} onChange={(e) => muda(i, "quantidade", e.target.value)} inputMode="numeric" className="h-8 text-right font-mono" aria-label={`Quantidade da parte ${i + 1}`} />
+                <Input value={l.conjugacao} onChange={(e) => muda(i, "conjugacao", e.target.value)} inputMode="numeric" className="h-8 text-right" aria-label={`Conjugação da parte ${i + 1}`} />
+                <Button type="button" variant="ghost" size="sm" disabled={linhas.length <= 2} onClick={() => setLinhas((ls) => (ls ?? []).filter((_, k) => k !== i))}>Remover</Button>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className={resta === 0 ? "font-semibold text-good" : "font-semibold text-bad"}>
+              {resta === 0 ? "Fecha com a quantidade do item" : resta > 0 ? `Faltam ${resta.toLocaleString("pt-BR")}` : `Passa ${(-resta).toLocaleString("pt-BR")}`}
+            </span>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setLinhas((ls) => [...(ls ?? []), { lote: String((ls?.length ?? 0) + 1), quantidade: resta > 0 ? resta.toLocaleString("pt-BR") : "", conjugacao: "0" }])}>
+              + Parte
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setLinhas(null)}>Desfazer divisão</Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function BlocoItens({ doc }: { doc: OrcamentoComAnexos }) {
   const c = doc.reqCliente as ReqCliente | null;
   const modelos = modelosDoDoc(doc);
   const opcoes = quantidadesPorItem(c, modelos);
   const varios = modelos.length > 1;
   const grupos = montagensDoPedido(modelos) ?? [];
+  // Só dá para dividir quando a Solicitação tem uma quantidade só, separada por item.
+  const totais = varios ? totaisPorModelo(c, modelos) : null;
+  const [divisoes, setDivisoes] = useState<Record<string, LinhaParte[] | null>>(() => Object.fromEntries(modelos.map((m) => [m.id, linhasDasPartes(m.partes)])));
   const fmt = (v: string | null) => (v === null ? "—" : Number(v.replace(/\D/g, "") || 0).toLocaleString("pt-BR"));
   return (
     <FormSection title={varios ? "Itens, quantidades e conjugação" : "Quantidade"}>
@@ -53,6 +106,9 @@ function BlocoItens({ doc }: { doc: OrcamentoComAnexos }) {
                   {opcoes.map((o, k) => <td key={k} className="px-3 py-2 text-right font-mono">{varios && !o.separada && o.porModelo[i] === null ? "—" : fmt(o.porModelo[i])}</td>)}
                   {varios && (
                     <td className="px-3 py-1.5 text-right">
+                      {divisoes[m.id] ? (
+                        <span className="text-xs text-muted-foreground">por lote ↓</span>
+                      ) : (
                       <Input
                         name={`conjugacao_${m.id}`}
                         type="number"
@@ -66,6 +122,7 @@ function BlocoItens({ doc }: { doc: OrcamentoComAnexos }) {
                         className="ml-auto h-8 w-20 text-right"
                         aria-label={`Conjugação do modelo ${i + 1}`}
                       />
+                      )}
                     </td>
                   )}
                 </tr>
@@ -79,6 +136,25 @@ function BlocoItens({ doc }: { doc: OrcamentoComAnexos }) {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+      {totais && (
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3">
+          <div className="text-sm font-semibold text-foreground">Entrega em mais de um lote (mesma SO)</div>
+          <p className="text-xs text-muted-foreground">
+            Para entregar em lotes, divida o item: informe a quantidade e a conjugação de cada lote. Cada lote segue a regra da conjugação (0 em todos = sem conjugação;
+            havendo, numere 1, 2, 3… no lote). Item sem divisão vai inteiro no lote 1. A soma das partes tem de fechar a quantidade do item.
+          </p>
+          {modelos.map((m, i) => (
+            <div key={m.id} className="flex flex-col gap-1 border-t border-border pt-2 first:border-0 first:pt-0">
+              <div className="text-sm text-foreground">
+                {i + 1}. {m.descricao || `Modelo ${i + 1}`} <span className="font-mono text-muted-foreground">· {(totais[i] ?? 0).toLocaleString("pt-BR")}</span>
+              </div>
+              {totais[i] ? (
+                <DivisaoEmLotes modeloId={m.id} total={totais[i]!} linhas={divisoes[m.id] ?? null} setLinhas={(f) => setDivisoes((d) => ({ ...d, [m.id]: typeof f === "function" ? f(d[m.id] ?? null) : f }))} />
+              ) : null}
+            </div>
+          ))}
         </div>
       )}
       {varios && (

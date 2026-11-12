@@ -19,7 +19,7 @@ import { ProtocolosDoAceite } from "./ProtocolosDoAceite";
 import { MarcarComoArte } from "./MarcarComoArte";
 import { prisma } from "@/lib/db";
 import { doOrcamento } from "@/lib/aceite/do-orcamento";
-import { montagensDoPedido } from "@/lib/orcamentos/conjugacao";
+import { montagensDoPedido, resumoDosLotes } from "@/lib/orcamentos/conjugacao";
 import { modelosDoDoc, rotuloSO, valorSO } from "@/lib/orcamentos/modelos";
 import { formatarCodigoInterno } from "@/lib/orcamentos/codigo-interno";
 import type { PrecificacaoTier } from "@/lib/orcamentos/types";
@@ -150,8 +150,6 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
     suportes: Array.isArray(l.suportes) ? (l.suportes as SuporteAceite[]) : [],
     comPM: pms.some((p) => p.loteId === l.id && p.status !== "CANCELADO"),
   }));
-  const anexosOC = doc.anexos.filter((x) => x.tipo === "ORDEM_COMPRA");
-  const anexosEngenharia = doc.anexos.filter((x) => x.tipo === "ENGENHARIA");
   const codigosCliente = Object.fromEntries(modelos.map((m) => [m.id, m.codigoCliente ?? ""]));
   const doOrc = doOrcamento(doc, doc.reqCliente as ReqCliente | null, doc.reqTecnicos as unknown as ReqTecnicos | null, so);
   const alerta = temAlertaPendente(pms);
@@ -262,6 +260,8 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
                           ? "Sem conjugação (cada modelo é uma montagem)"
                           : (montagensDoPedido(modelos) ?? []).map((g) => `Montagem ${g.numero}: ${g.modelos.join(" + ")}`).join(" · "),
                     },
+                    // Entrega em mais de um lote definida pela Engenharia no orçamento (mesma SO).
+                    ...resumoDosLotes(modelos, doc.reqCliente as ReqCliente | null).map((l) => ({ label: `Conjugação · Lote ${l.lote}`, value: l.texto })),
                   ]
                 : []),
               { label: "Lotes orçados", value: doOrc.lotes ?? "—" },
@@ -294,29 +294,17 @@ export async function PaginaAceite({ id, ambiente, loteId }: { id: string; ambie
         )}
 
         <ProtocolosDoAceite orcamentoId={doc.id} podeDecidir={podeVendas} />
-        {(podeVendas || podeAtendimento) && anexosOC.length > 0 && <ArtesDaOrdemDeCompra anexos={anexosOC} />}
-
-        {/* Anexos que a Engenharia incluiu no orçamento (ex.: a montagem da faca, que segue para a pré-impressão junto da OF). */}
-        {anexosEngenharia.length > 0 && (
-          <AnexoUpload
-            orcamentoId={doc.id}
-            tipo="ENGENHARIA"
-            titulo="Anexos da Engenharia (do orçamento): montagem da faca e outros"
-            somenteLeitura
-            compacto
-            anexos={anexosEngenharia.map((x) => ({ id: x.id, nome: x.nome, url: x.url, mime: x.mime, tamanho: x.tamanho }))}
-          />
-        )}
+        {(podeVendas || podeAtendimento) && doc.anexos.length > 0 && <ArtesDaOrdemDeCompra anexos={doc.anexos} />}
 
         {/* E-mails e documentos do cliente que comprovam a ordem de compra: anexados no desfecho (Retorno do Cliente), aqui só leitura. */}
-        {anexosOC.length > 0 && (
+        {doc.anexos.length > 0 && (
           <AnexoUpload
             orcamentoId={doc.id}
             tipo="ORDEM_COMPRA"
             titulo="Ordem de compra do cliente: e-mails e documentos"
             somenteLeitura
             compacto
-            anexos={anexosOC.map((x) => ({ id: x.id, nome: x.nome, url: x.url, mime: x.mime, tamanho: x.tamanho }))}
+            anexos={doc.anexos.map((x) => ({ id: x.id, nome: x.nome, url: x.url, mime: x.mime, tamanho: x.tamanho }))}
           />
         )}
 
