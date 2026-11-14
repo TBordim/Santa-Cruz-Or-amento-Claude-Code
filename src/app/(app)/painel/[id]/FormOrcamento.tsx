@@ -136,6 +136,15 @@ export function FormOrcamento({ doc }: { doc: OrcamentoComAnexos }) {
           { label: "Cliente", value: doc.cliente },
           { label: modelos.length > 1 ? `Modelos (${modelos.length})` : "Produto", value: doc.produtoDescricao },
           { label: "Nº de Pré Cadastro", value: doc.preCadastro || "—" },
+          // Quantidade(s) a orçar, como a Solicitação lançou (uma por SO quando há mais de uma).
+          {
+            label: (c?.quantidadesLista ?? []).filter(Boolean).length > 1 ? "Quantidades orçadas" : "Quantidade orçada",
+            value:
+              (c?.quantidadesLista ?? [])
+                .filter(Boolean)
+                .map((q) => (/^[\d.\s]+$/.test(q) ? Number(q.replace(/\D/g, "")).toLocaleString("pt-BR") : q))
+                .join(" · ") || "—",
+          },
           ...(nPapeis > 1 ? [{ label: "Opções de papel", value: `${nPapeis} — uma SO por quantidade; cada papel tem o próprio preço` }] : []),
         ]}
       />
