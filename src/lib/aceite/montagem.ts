@@ -97,7 +97,8 @@ export function calcularMontagens(itens: ItemAceite[]): Montagem[] {
 // Montagem e posições na folha são definidas pela Engenharia NO ORÇAMENTO (conjugação e pré-montagem); o Aceite só as
 // recebe (pedido do Thiago em 28/10/2026). Quando o orçamento não trouxe as posições de um modelo (conjugação de vários
 // modelos na mesma folha), elas saem da capacidade da folha repartida na proporção do que cada modelo produz, com ao
-// menos 1; modelo sem número de montagem forma uma montagem própria. Nunca sobrescreve o que já veio preenchido.
+// menos 1; modelo sem número de montagem forma uma montagem própria. Mantém o que veio preenchido, exceto o que não cabe
+// mais na folha do papel utilizado e o de modelo sozinho na montagem, que acompanham a folha.
 export function completarPosicoes(itens: ItemAceite[], capacidade: number | null): ItemAceite[] {
   let proximo = Math.max(0, ...itens.map((i) => i.montagem ?? 0)) + 1;
   const comGrupo = itens.map((i) => ({ ...i, montagem: i.montagem ?? proximo++ }));
@@ -105,10 +106,16 @@ export function completarPosicoes(itens: ItemAceite[], capacidade: number | null
   const grupos = new Map<number, ItemAceite[]>();
   for (const i of comGrupo) grupos.set(i.montagem as number, [...(grupos.get(i.montagem as number) ?? []), i]);
   const posicoes = new Map<string, number>();
+  const refeitos = new Set<string>();
   for (const lista of grupos.values()) {
-    const faltam = lista.filter((i) => !i.posicoes);
+    // Posições que já não cabem na folha de agora (Vendas trocou o papel para um de outro corte) ou de um modelo sozinho
+    // na montagem (ele ocupa a folha toda) acompanham o papel utilizado: são refeitas, não travam a confirmação.
+    const existentes = lista.reduce((s, i) => s + (i.posicoes ?? 0), 0);
+    const refazer = lista.length === 1 || existentes > capacidade;
+    if (refazer) lista.forEach((i) => refeitos.add(i.modeloId));
+    const faltam = refazer ? lista : lista.filter((i) => !i.posicoes);
     if (!faltam.length) continue;
-    const usadas = lista.reduce((s, i) => s + (i.posicoes ?? 0), 0);
+    const usadas = refazer ? 0 : existentes;
     const livres = Math.max(faltam.length, capacidade - usadas);
     const pesos = faltam.map((i) => Math.max(1, aProduzir(i)));
     const soma = pesos.reduce((a, b) => a + b, 0);
@@ -119,7 +126,7 @@ export function completarPosicoes(itens: ItemAceite[], capacidade: number | null
     if (resto > 0) parte[maior] += resto;
     faltam.forEach((i, k) => posicoes.set(i.modeloId, parte[k]));
   }
-  return comGrupo.map((i) => ({ ...i, posicoes: i.posicoes ?? posicoes.get(i.modeloId) ?? null }));
+  return comGrupo.map((i) => ({ ...i, posicoes: refeitos.has(i.modeloId) ? (posicoes.get(i.modeloId) ?? null) : (i.posicoes ?? posicoes.get(i.modeloId) ?? null) }));
 }
 
 // Regras pra Engenharia confirmar o Aceite. `capacidade` = quantas cabem na folha (orçamento). Montagem e posições
