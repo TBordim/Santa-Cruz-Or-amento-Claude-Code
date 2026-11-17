@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoPedidoInterno } from "./CampoPedidoInterno";
 import { useFormActionSemReset } from "@/hooks/use-form-action";
 import { salvarPedido, salvarNumeroOF, salvarPedidoInterno } from "@/app/(app)/aceite/actions";
 import { FormSection, Field, DiretrizBlock, AcoesBar } from "@/components/form-section";
@@ -19,7 +20,7 @@ export function FormPedido({ aceiteId, loteId, numero, dataEntrega, pedidoIntern
           Cadastre o pedido{numero ? ` ${numero}` : ""} no sistema informatizado com a data de entrega ({dataEntrega}). Em seguida o Aceite vai para o Atendimento ao Cliente, que envia a data ao cliente e/ou representante.
         </DiretrizBlock>
         <Field label="Pedido interno" hint={pedidoInterno ? undefined : "Obrigatório para cadastrar o pedido (ainda não foi informado)."}>
-          <Input name="pedidoInterno" defaultValue={pedidoInterno ?? ""} required />
+          <CampoPedidoInterno valorInicial={pedidoInterno} obrigatorio />
         </Field>
         <Field label="Nº da OF" hint="Se a Ordem de Fabricação ainda não foi aberta, deixe em branco: fica como pendência de Vendas até ser registrada.">
           <Input name="numeroOF" />
@@ -59,7 +60,7 @@ export function FormPedidoInterno({ aceiteId }: { aceiteId: string }) {
     <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-2 rounded-lg border border-warn/40 bg-warn-soft/40 p-3">
       <input type="hidden" name="id" value={aceiteId} />
       <Field label="Pedido interno (a Engenharia já confirmou: falta informar)">
-        <Input name="pedidoInterno" className="w-56" required />
+        <CampoPedidoInterno className="w-56" obrigatorio />
       </Field>
       <Button type="submit" size="sm" disabled={pending}>{pending ? "Salvando…" : "Registrar pedido interno"}</Button>
       {state?.erro && <span className="text-sm text-bad">{state.erro}</span>}

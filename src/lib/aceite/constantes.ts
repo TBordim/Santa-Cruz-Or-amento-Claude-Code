@@ -126,3 +126,12 @@ export function fmtQuantidade(n: number | string | { toString(): string } | null
   if (!Number.isFinite(v)) return "—";
   return v.toLocaleString("pt-BR", { maximumFractionDigits: 3 }) + (unidade ? ` ${unidade}` : "");
 }
+
+// Pedido interno da gráfica (calendários, envelopes...): não é lançado na carteira, não gera número de pedido, só OF.
+// Vendas marca "sem pedido" e o Aceite deixa de cobrar o número (pedido da Karen, 17/11/2026). Fica gravado no
+// próprio campo do pedido interno, para as filas e travas que testam "pedido interno preenchido" funcionarem.
+export const SEM_PEDIDO_INTERNO = "Sem pedido (interno da gráfica: só gera OF)";
+
+export function lerPedidoInterno(fd: FormData): string {
+  return fd.get("semPedidoInterno") === "on" ? SEM_PEDIDO_INTERNO : String(fd.get("pedidoInterno") ?? "").trim();
+}
