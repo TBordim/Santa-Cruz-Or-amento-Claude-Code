@@ -11,7 +11,7 @@ import type { AreaKey } from "@/lib/areas";
 import { modelosDoDoc, resumoDosModelos } from "@/lib/orcamentos/modelos";
 import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
 import { erroNosModelos } from "@/lib/orcamentos/validacao-modelos";
-import { ETAPAS_ACEITE, lerQuantidade, type EtapaAceiteKey } from "@/lib/aceite/constantes";
+import { ETAPAS_ACEITE, lerPedidoInterno, lerQuantidade, type EtapaAceiteKey } from "@/lib/aceite/constantes";
 import { lerSuportes, situacaoGeral, suportesSemPM, textoSuporte, type SuporteAceite, type SituacaoSuporte } from "@/lib/aceite/suportes";
 import { lerItens, erroNaMontagem, completarPosicoes, type ItemAceite } from "@/lib/aceite/montagem";
 import { erroNaDivisao, lerItensLote, pmsDoLote } from "@/lib/aceite/lotes";
@@ -153,7 +153,7 @@ export async function salvarVendas(_prev: FormState, formData: FormData): Promis
       situacaoPapel: situacao,
       itens: JSON.parse(JSON.stringify(itens)),
       numero,
-      pedidoInterno: String(formData.get("pedidoInterno") ?? "").trim() || null,
+      pedidoInterno: lerPedidoInterno(formData) || null,
       suportes: JSON.parse(JSON.stringify(suportes)),
       ...datasDoForm(formData.get("datasCliente")),
       ...(liberar ? { etapa: "ENGENHARIA_MATERIAL" as const, vendasLiberadoEm: agora, vendasLiberadoPor: nome } : {}),
@@ -313,7 +313,7 @@ export async function salvarPedido(_prev: FormState, formData: FormData): Promis
   // O nº do pedido no ERP é o próprio Nº do Aceite, informado por Vendas no preenchimento.
   const numeroPedido = a.numero;
   // O pedido interno precisa estar preenchido para cadastrar o pedido (pode ser informado aqui).
-  const pedidoInterno = String(formData.get("pedidoInterno") ?? "").trim() || a.pedidoInterno;
+  const pedidoInterno = lerPedidoInterno(formData) || a.pedidoInterno;
   if (!pedidoInterno) return { erro: "Informe o pedido interno antes de cadastrar o pedido." };
   const agora = new Date();
   // Cadastro e OF são do lote (ou do Aceite, sem divisão); nº do pedido e pedido interno são do Aceite.
@@ -546,8 +546,8 @@ export async function salvarPedidoInterno(_prev: FormState, formData: FormData):
   const id = String(formData.get("id") ?? "");
   const nome = await nomeSePode("ACEITE_VENDAS");
   if (!nome) return { erro: "Sem permissão (área Vendas)." };
-  const pedidoInterno = String(formData.get("pedidoInterno") ?? "").trim();
-  if (!pedidoInterno) return { erro: "Informe o pedido interno." };
+  const pedidoInterno = lerPedidoInterno(formData);
+  if (!pedidoInterno) return { erro: "Informe o pedido interno ou marque que é interno da gráfica (sem pedido)." };
   await prisma.aceite.update({ where: { id }, data: { pedidoInterno } });
   revalidarAceite();
   return { ok: "Pedido interno registrado." };

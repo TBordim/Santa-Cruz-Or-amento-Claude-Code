@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoPedidoInterno } from "./CampoPedidoInterno";
 import { useState } from "react";
 import { useFormActionSemReset, porBotao } from "@/hooks/use-form-action";
 import { salvarVendas } from "@/app/(app)/aceite/actions";
@@ -107,7 +108,7 @@ export function FormVendas({
             <Input name="numero" defaultValue={aceite.numero ?? ""} />
           </Field>
           <Field label="Pedido interno" hint="Pode ficar em branco agora; fica como pendência de Vendas depois da Engenharia.">
-            <Input name="pedidoInterno" defaultValue={aceite.pedidoInterno ?? ""} />
+            <CampoPedidoInterno valorInicial={aceite.pedidoInterno} />
           </Field>
         </div>
         {!dividido && <EditorDatasCliente datas={datas} onChange={setDatas} />}
