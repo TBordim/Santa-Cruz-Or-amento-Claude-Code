@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { chave } from "./chave";
-import { normalizarCodigoInterno } from "./codigo-interno";
+import { normalizarCodigoDeEntrada } from "./codigo-interno";
 import { CLASSIFICACOES_MODELO, resumoDosModelos } from "./modelos";
 import { normalizarCores } from "./cores";
 import { normalizarLink } from "./link";
@@ -50,7 +50,7 @@ export function lerModelos(fd: FormData): Modelo[] {
       id: ids[i]?.trim() || randomUUID(),
       descricao: descricao.trim(),
       codigoCliente: (codigosCliente[i] ?? "").trim(),
-      codInterno: normalizarCodigoInterno(codigosInternos[i]),
+      codInterno: normalizarCodigoDeEntrada(codigosInternos[i]),
       classificacao: (CLASSIFICACOES_MODELO.includes(classificacoes[i] as ClassificacaoModelo)
         ? classificacoes[i]
         : "NOVO") as ClassificacaoModelo,

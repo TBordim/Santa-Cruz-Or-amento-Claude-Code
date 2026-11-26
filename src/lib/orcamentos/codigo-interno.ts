@@ -12,8 +12,19 @@ export function normalizarCodigoInterno(v: string | null | undefined): string {
   return (v || "").replace(/\D/g, "").slice(0, 7);
 }
 
+// Só zeros ("0.000.000") não é código: é o que se digita para "contornar" o campo. Gravado, viraria um código
+// falso igual em todo produto novo (erro de "código repetido" e comparação com o produto errado na Diretoria).
+export function codigoZerado(v: string | null | undefined): boolean {
+  return /^0+$/.test(normalizarCodigoInterno(v));
+}
+
+// Código vindo de um formulário: só zeros vale como "sem código" (produto novo ainda não tem).
+export function normalizarCodigoDeEntrada(v: string | null | undefined): string {
+  return codigoZerado(v) ? "" : normalizarCodigoInterno(v);
+}
+
 export function codigoInternoValido(v: string | null | undefined): boolean {
-  return /^\d{7}$/.test(normalizarCodigoInterno(v));
+  return /^\d{7}$/.test(normalizarCodigoInterno(v)) && !codigoZerado(v);
 }
 
 export function formatarCodigoInterno(v: string | null | undefined): string {
