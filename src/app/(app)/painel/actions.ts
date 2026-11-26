@@ -19,7 +19,7 @@ import { mesclarProtocolos } from "@/lib/protocolos/comum";
 import { faltaNosDetalhesTecnicos } from "@/lib/orcamentos/tecnicos";
 import { montarPrecificacao, decidirFaixa, type FaixaInput } from "@/lib/orcamentos/tiers";
 import { buscarOrcamentoAnterior } from "@/lib/orcamentos/legado";
-import { normalizarCodigoInterno, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
+import { normalizarCodigoInterno, normalizarCodigoDeEntrada, codigoInternoValido } from "@/lib/orcamentos/codigo-interno";
 import { modelosDoDoc, resumoDosModelos, combinacoesSO, chaveSO, textoMaterial, opcoesDePapel, type CombinacaoSO } from "@/lib/orcamentos/modelos";
 import { chave } from "@/lib/orcamentos/chave";
 import { parseQuantidade } from "@/lib/orcamentos/motor";
@@ -120,7 +120,7 @@ function modelosComCodigosDoForm(doc: Parameters<typeof modelosDoDoc>[0], formDa
     const { partes: _antigas, ...semPartes } = m;
     return {
       ...semPartes,
-      codInterno: normalizarCodigoInterno(String(formData.get(`codInterno_${m.id}`) ?? "")) || m.codInterno,
+      codInterno: normalizarCodigoDeEntrada(String(formData.get(`codInterno_${m.id}`) ?? "")) || m.codInterno,
       ...(partes?.length ? { partes, conjugacao: conjugacaoDasPartes(partes) } : conj !== undefined ? { conjugacao: conj } : {}),
     };
   });
